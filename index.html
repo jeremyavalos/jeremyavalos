@@ -5,610 +5,209 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Jeremy Avalos is a software developer, entrepreneur, technology specialist and problem solver building software, digital products and technology solutions."
+      content="Jeremy Avalos builds software, products and technology solutions across mobile apps, websites, SaaS platforms, UI/UX, business analysis and technical consulting."
     />
     <title>Jeremy Avalos | Software Developer</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="ambient" aria-hidden="true"></div>
+    <div class="ambient-field" aria-hidden="true"></div>
 
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="Jeremy Avalos home">
-        <span>JA</span>
-      </a>
+      <a class="brand" href="#top" aria-label="Jeremy Avalos home">JA</a>
       <nav class="nav-links" aria-label="Primary navigation">
+        <a href="#services">Services</a>
         <a href="#about">About</a>
         <a href="#projects">Projects</a>
-        <a href="#covenant">Covenant</a>
-        <a href="#reparatech">ReparaTech</a>
-        <a href="#yatck">YATCK</a>
-        <a href="#skills">Skills</a>
+        <a href="#proof">Proof</a>
         <a href="#contact">Contact</a>
       </nav>
     </header>
 
     <main id="top">
-      <section class="hero section-grid">
+      <section class="hero">
         <div class="hero-copy reveal">
-          <p class="eyebrow">Technology founder portfolio</p>
+          <p class="eyebrow">Personal brand · Professional services</p>
           <h1>Jeremy Avalos</h1>
-          <p class="title-line">Software Developer · Entrepreneur · Tech Specialist</p>
-          <p class="hero-text">
-            Currently studying Software Engineering. More than 10 years of
-            experience in customer service and business administration.
-            Experienced in software development, mobile applications, web
-            platforms, hardware repair, electronics and entrepreneurship.
-          </p>
-          <div class="button-row" aria-label="Jeremy Avalos social links">
-            <a class="btn primary" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
-            <a class="btn" href="https://www.linkedin.com/" target="_blank" rel="noreferrer">LinkedIn</a>
-            <a class="btn" href="https://www.instagram.com/jeremyavalos/" target="_blank" rel="noreferrer">Instagram</a>
-            <a class="btn" href="mailto:contact@jeremyavalos.com">Contact</a>
+          <p class="hero-subheadline">Building software, products and technology.</p>
+          <p class="hero-role">Software Developer · Entrepreneur · Tech Specialist</p>
+          <div class="primary-actions" aria-label="Primary contact links">
+            <a class="btn primary" href="#contact">Contact Me</a>
+            <a class="btn" href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer">LinkedIn</a>
+            <a class="btn" href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer">GitHub</a>
+          </div>
+          <div class="secondary-actions" aria-label="Secondary contact links">
+            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer">Instagram</a>
+            <a href="mailto:jeremy.avalos@protonmail.com">Email</a>
           </div>
         </div>
 
         <div class="hero-visual reveal" style="--delay: 120ms">
-          <div class="portrait-shell hero-portrait">
+          <div class="portrait-card">
             <img
               src="assets/jeremy-hero-blazer.jpeg"
               alt="Black and white portrait of Jeremy Avalos wearing a blazer"
               onerror="this.parentElement.classList.add('image-missing'); this.remove();"
             />
-            <div class="portrait-fallback" aria-hidden="true">
-              <span>JA</span>
-            </div>
+            <div class="portrait-fallback" aria-hidden="true">JA</div>
           </div>
-          <div class="signal-card floating-card">
+          <div class="floating-note glass-card">
             <span class="status-dot"></span>
-            <p>Available for software, product and technology solutions.</p>
+            <p>Available for freelance projects, collaborations and technology opportunities.</p>
           </div>
         </div>
       </section>
 
-      <section id="about" class="about section-grid">
-        <div class="about-visual reveal">
-          <div class="portrait-shell about-portrait">
-            <img
-              src="assets/jeremy-about-smiling.jpeg"
-              alt="Smiling portrait of Jeremy Avalos"
-              onerror="this.parentElement.classList.add('image-missing'); this.remove();"
-            />
-            <div class="portrait-fallback" aria-hidden="true">
-              <span>JA</span>
-            </div>
-          </div>
+      <section id="services" class="services">
+        <div class="section-heading reveal">
+          <p class="eyebrow">What I Do</p>
+          <h2>Software, product and technical execution for modern businesses.</h2>
+        </div>
+        <div class="service-grid">
+          <article class="service-card reveal"><span>01</span><h3>Mobile App Development</h3></article>
+          <article class="service-card reveal" style="--delay: 35ms"><span>02</span><h3>Website Development</h3></article>
+          <article class="service-card reveal" style="--delay: 70ms"><span>03</span><h3>Frontend Development</h3></article>
+          <article class="service-card reveal" style="--delay: 105ms"><span>04</span><h3>Backend Development</h3></article>
+          <article class="service-card reveal"><span>05</span><h3>SaaS Platforms</h3></article>
+          <article class="service-card reveal" style="--delay: 35ms"><span>06</span><h3>UI/UX Design</h3></article>
+          <article class="service-card reveal" style="--delay: 70ms"><span>07</span><h3>Product Design</h3></article>
+          <article class="service-card reveal" style="--delay: 105ms"><span>08</span><h3>Business Analysis</h3></article>
+          <article class="service-card reveal"><span>09</span><h3>Technical Consulting</h3></article>
+          <article class="service-card reveal" style="--delay: 35ms"><span>10</span><h3>Hardware Solutions</h3></article>
+        </div>
+      </section>
+
+      <section id="about" class="about split-section">
+        <div class="about-media reveal">
+          <img
+            src="assets/jeremy-about-smiling.jpeg"
+            alt="Smiling portrait of Jeremy Avalos"
+            onerror="this.parentElement.classList.add('image-missing'); this.remove();"
+          />
+          <div class="portrait-fallback" aria-hidden="true">JA</div>
         </div>
         <div class="section-copy reveal" style="--delay: 80ms">
           <p class="eyebrow">About</p>
-          <h2>Builder mindset, business discipline and hands-on technical range.</h2>
+          <h2>Business discipline with a builder’s eye for technology.</h2>
           <p>
-            Currently studying Software Engineering. More than 10 years of
-            experience in customer service and business administration.
-            Experienced in software development, mobile applications, web
-            platforms, hardware repair, electronics and entrepreneurship.
+            I’m currently studying Software Engineering while building digital
+            products, mobile applications and web platforms.
           </p>
-          <div class="founder-points" aria-label="Professional focus areas">
-            <span>Digital Products</span>
-            <span>Operations</span>
-            <span>Technical Support</span>
-          </div>
+          <p>
+            My background combines more than 10 years of experience in customer
+            service and business administration with software development,
+            entrepreneurship, hardware repair and technology solutions.
+          </p>
         </div>
       </section>
 
       <section id="projects" class="projects">
         <div class="section-heading reveal">
-          <p class="eyebrow">Projects</p>
-          <h2>Flagship products and client work shaped with practical ownership.</h2>
+          <p class="eyebrow">Featured Projects</p>
+          <h2>Selected work that proves range, ownership and product thinking.</h2>
         </div>
 
-        <div class="featured-project-card reveal">
-          <div class="featured-project-copy">
-            <p class="eyebrow">Mobile Application</p>
-            <h3>Covenant</h3>
-            <p>
-              Habit-building and personal discipline platform designed to help
-              users create consistency, accountability and long-term personal
-              growth.
-            </p>
-            <div class="project-meta" aria-label="Covenant project role">
-              <span>Founder</span>
-              <span>Product Designer</span>
-              <span>Developer</span>
+        <div class="project-grid">
+          <article class="project-card covenant-card reveal">
+            <div class="project-visual phone-visual">
+              <img src="assets/covenant-07-habits.png" alt="Covenant mobile app habit tracking screen" />
             </div>
-            <a class="btn primary" href="#covenant">View Case Study</a>
-          </div>
-          <div class="project-phone-pair" aria-hidden="true">
-            <img src="assets/covenant-01-onboarding.png" alt="" />
-            <img src="assets/covenant-07-habits.png" alt="" />
-          </div>
-        </div>
+            <div class="project-body">
+              <p class="project-type">Mobile application</p>
+              <h3>Covenant</h3>
+              <p>Habit-building and personal discipline app for consistency, accountability and growth.</p>
+              <p class="role">Role: Founder, Product Designer, Developer</p>
+              <div class="chips">
+                <span>React Native</span><span>Expo</span><span>TypeScript</span><span>RevenueCat</span>
+              </div>
+              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </article>
 
-        <div class="featured-project-card reparatech-card reveal">
-          <div class="featured-project-copy">
-            <p class="eyebrow">Client Website</p>
-            <h3>ReparaTech</h3>
-            <p>
-              Technology services website for a computer and mobile device
-              repair brand, built to clarify services, improve trust and
-              convert visitors into leads.
-            </p>
-            <div class="project-meta" aria-label="ReparaTech project role">
-              <span>Web Developer</span>
-              <span>Designer</span>
-              <span>Technical Consultant</span>
+          <article class="project-card reveal" style="--delay: 50ms">
+            <div class="project-visual concept-visual metanoia-visual" aria-label="Metanoia product visual">
+              <span>Metanoia</span>
             </div>
-            <a class="btn primary blue" href="#reparatech">View Client Work</a>
-          </div>
-          <div class="project-browser-stack" aria-hidden="true">
-            <img src="assets/reparatech-01-home.png" alt="" />
-            <img src="assets/reparatech-02-services.png" alt="" />
-          </div>
-        </div>
+            <div class="project-body">
+              <p class="project-type">Social impact platform</p>
+              <h3>Metanoia</h3>
+              <p>Social reintegration platform for legal guidance, employment resources and growth.</p>
+              <p class="role">Role: Product Strategy, Platform Concept</p>
+              <div class="chips">
+                <span>Product</span><span>UX</span><span>Resources</span>
+              </div>
+              <span class="project-link disabled">Coming Soon</span>
+            </div>
+          </article>
 
-        <div class="featured-project-card yatck-card reveal">
-          <div class="featured-project-copy">
-            <p class="eyebrow">Client Platform</p>
-            <h3>YATCK K CLUB</h3>
-            <p>
-              Luxury yacht rental platform designed for yacht discovery,
-              pricing clarity, availability checks and seamless reservation
-              requests.
-            </p>
-            <div class="project-meta" aria-label="YATCK K CLUB project role">
-              <span>Web Developer</span>
-              <span>Designer</span>
-              <span>Technical Consultant</span>
+          <article class="project-card reveal" style="--delay: 100ms">
+            <div class="project-visual concept-visual visor-visual" aria-label="VisorApp product visual">
+              <span>VisorApp</span>
             </div>
-            <a class="btn primary champagne" href="#yatck">View Luxury Platform</a>
-          </div>
-          <div class="project-browser-stack yacht-stack" aria-hidden="true">
-            <img src="assets/yatck-01-hero.png" alt="" />
-            <img src="assets/yatck-03-calendar.png" alt="" />
-          </div>
+            <div class="project-body">
+              <p class="project-type">Digital concierge</p>
+              <h3>VisorApp</h3>
+              <p>Concierge platform for immigration, documentation and client service workflows.</p>
+              <p class="role">Role: Product Design, Business Analysis</p>
+              <div class="chips">
+                <span>Service UX</span><span>Workflows</span><span>Docs</span>
+              </div>
+              <span class="project-link disabled">Coming Soon</span>
+            </div>
+          </article>
+
+          <article class="project-card reveal">
+            <div class="project-visual browser-visual">
+              <img src="assets/yatck-01-hero.png" alt="YATCK K CLUB luxury yacht rental homepage screenshot" />
+            </div>
+            <div class="project-body">
+              <p class="project-type">Client platform</p>
+              <h3>YATCK K CLUB</h3>
+              <p>Luxury yacht rental experience for discovery, pricing clarity and reservations.</p>
+              <p class="role">Role: Web Developer, Designer, Technical Consultant</p>
+              <div class="chips">
+                <span>React</span><span>Next.js</span><span>TypeScript</span><span>Vercel</span>
+              </div>
+              <a class="project-link" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </article>
+
+          <article class="project-card reveal" style="--delay: 50ms">
+            <div class="project-visual browser-visual">
+              <img src="assets/reparatech-01-home.png" alt="ReparaTech website homepage screenshot" />
+            </div>
+            <div class="project-body">
+              <p class="project-type">Client website</p>
+              <h3>ReparaTech</h3>
+              <p>Technology services website for repair, diagnostics, trust and lead generation.</p>
+              <p class="role">Role: Web Developer, Designer, Technical Consultant</p>
+              <div class="chips">
+                <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Vercel</span>
+              </div>
+              <a class="project-link" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer">View Project</a>
+            </div>
+          </article>
         </div>
       </section>
 
-      <section id="covenant" class="covenant-case">
-        <div class="covenant-hero reveal">
-          <div class="covenant-hero-copy">
-            <p class="eyebrow">Covenant · Flagship Project</p>
-            <h2>Discipline, remembered.</h2>
-            <p>
-              Covenant is a production-level habit-building and personal
-              discipline platform designed to help users create consistency,
-              accountability and long-term personal growth.
-            </p>
-            <div class="covenant-badges" aria-label="Covenant platform details">
-              <span>React Native</span>
-              <span>Expo</span>
-              <span>RevenueCat</span>
-              <span>iOS &amp; Android</span>
-            </div>
-          </div>
-          <div class="covenant-hero-media">
-            <img src="assets/covenant-01-onboarding.png" alt="Covenant mobile app onboarding screen" />
-          </div>
-        </div>
-
-        <div class="project-overview section-grid">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Overview</p>
-            <h2>A quiet system for honest habits and daily progress.</h2>
-          </div>
-          <div class="overview-panel reveal" style="--delay: 80ms">
-            <p>
-              The application focuses on habit tracking, progress
-              visualization, discipline systems, premium content and user
-              motivation. Covenant is positioned as a serious personal growth
-              product, not a noisy social feed or a lightweight checklist.
-            </p>
-            <dl>
-              <div><dt>Project Type</dt><dd>Mobile Application</dd></div>
-              <div><dt>Role</dt><dd>Founder, Product Designer and Developer</dd></div>
-              <div><dt>Platforms</dt><dd>iOS and Android Deployment</dd></div>
-            </dl>
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Key Features</p>
-            <h2>Built around consistency, accountability and motivation.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="case-card reveal"><span>01</span><h3>Habit Tracking</h3><p>Create disciplined routines and track completion over time.</p></article>
-            <article class="case-card reveal" style="--delay: 50ms"><span>02</span><h3>Daily Progress</h3><p>Monitor each day with clear progress states and ritual feedback.</p></article>
-            <article class="case-card reveal" style="--delay: 100ms"><span>03</span><h3>Streak System</h3><p>Make consistency visible through streaks and long-term records.</p></article>
-            <article class="case-card reveal" style="--delay: 150ms"><span>04</span><h3>Premium Content</h3><p>Support deeper discipline flows with premium subscription access.</p></article>
-            <article class="case-card reveal"><span>05</span><h3>User Authentication</h3><p>Protect user progress and connect identity to personal growth data.</p></article>
-            <article class="case-card reveal" style="--delay: 50ms"><span>06</span><h3>Cross Platform UX</h3><p>Designed and deployed for a consistent iOS and Android experience.</p></article>
-          </div>
-        </div>
-
-        <div class="case-block tech-stack-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Technology Stack</p>
-            <h2>Modern mobile tooling with production deployment paths.</h2>
-          </div>
-          <div class="stack-grid reveal">
-            <span>React Native</span>
-            <span>Expo</span>
-            <span>TypeScript</span>
-            <span>RevenueCat</span>
-            <span>Firebase</span>
-            <span>GitHub</span>
-            <span>EAS Build</span>
-            <span>Vercel</span>
-          </div>
-        </div>
-
-        <div class="app-showcase">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Mobile App Showcase</p>
-            <h2>A premium mobile experience designed for focus.</h2>
-            <p>
-              Covenant uses a cinematic dark interface, warm gold accents,
-              quiet typography and full-screen rituals to make the product feel
-              deliberate, private and mature.
-            </p>
-          </div>
-          <div class="showcase-rail reveal" style="--delay: 80ms" aria-label="Covenant mobile application screenshots">
-            <img src="assets/covenant-02-language.png" alt="Covenant language selection screen" />
-            <img src="assets/covenant-07-habits.png" alt="Covenant habit tracking screen" />
-            <img src="assets/covenant-08-progress.png" alt="Covenant daily progress screen" />
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Screenshot Gallery</p>
-            <h2>Product screens that communicate discipline and depth.</h2>
-          </div>
-          <div class="screenshot-gallery">
-            <figure class="reveal"><img src="assets/covenant-01-onboarding.png" alt="Covenant onboarding screen" /><figcaption>Onboarding</figcaption></figure>
-            <figure class="reveal" style="--delay: 40ms"><img src="assets/covenant-04-login.png" alt="Covenant login screen" /><figcaption>Authentication</figcaption></figure>
-            <figure class="reveal" style="--delay: 80ms"><img src="assets/covenant-05-register.png" alt="Covenant registration screen" /><figcaption>Registration</figcaption></figure>
-            <figure class="reveal" style="--delay: 120ms"><img src="assets/covenant-06-pro.png" alt="Covenant premium subscription screen" /><figcaption>Premium</figcaption></figure>
-            <figure class="reveal"><img src="assets/covenant-07-habits.png" alt="Covenant habit list and streak screen" /><figcaption>Habits</figcaption></figure>
-            <figure class="reveal" style="--delay: 40ms"><img src="assets/covenant-09-subscription.png" alt="Covenant subscription support screen" /><figcaption>Subscription</figcaption></figure>
-          </div>
-        </div>
-
-        <div class="impact-panel reveal">
-          <div>
-            <p class="eyebrow">Results / Impact</p>
-            <h2>Built as a real product with monetization, deployment and cross-platform reach.</h2>
-          </div>
-          <div class="impact-grid">
-            <article><strong>Production Ready</strong><span>Designed as a polished mobile product with authentication, premium access and deployment workflows.</span></article>
-            <article><strong>Monetization</strong><span>RevenueCat subscription integration supports premium content and sustainable product growth.</span></article>
-            <article><strong>Platform Reach</strong><span>Prepared for iOS and Android through Expo and EAS Build.</span></article>
-          </div>
-        </div>
-      </section>
-
-      <section id="reparatech" class="reparatech-case">
-        <div class="reparatech-hero reveal">
-          <div class="reparatech-hero-copy">
-            <p class="eyebrow">ReparaTech · Client Project</p>
-            <h2>Digital presence for a technology services company.</h2>
-            <p>
-              ReparaTech is a technology services brand focused on computer
-              repair, mobile device repair, diagnostics, maintenance and
-              technical support. The work centered on website development,
-              service clarity, responsive design and customer contact flows.
-            </p>
-            <div class="covenant-badges blue-badges" aria-label="ReparaTech project details">
-              <span>Website Design</span>
-              <span>Frontend Development</span>
-              <span>Responsive UX</span>
-              <span>Lead Generation</span>
-            </div>
-          </div>
-          <div class="reparatech-hero-media">
-            <img src="assets/reparatech-01-home.png" alt="ReparaTech website homepage screenshot" />
-          </div>
-        </div>
-
-        <div class="project-overview section-grid">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Project Overview</p>
-            <h2>A client website built to turn technical services into clear customer action.</h2>
-          </div>
-          <div class="overview-panel blue-panel reveal" style="--delay: 80ms">
-            <p>
-              My role was to design and develop the digital presence for the
-              business, including branding support, website structure, service
-              presentation, social media integration and contact paths optimized
-              for inquiries.
-            </p>
-            <dl>
-              <div><dt>Project Type</dt><dd>Technology Services Website</dd></div>
-              <div><dt>Role</dt><dd>Web Developer, Designer and Technical Consultant</dd></div>
-              <div><dt>Focus</dt><dd>Business digital presence and lead generation</dd></div>
-            </dl>
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Development Process</p>
-            <h2>From service positioning to a responsive customer journey.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="case-card blue-card reveal"><span>01</span><h3>Brand Translation</h3><p>Adapted ReparaTech’s technical identity into a clean, modern website language.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 50ms"><span>02</span><h3>Service Architecture</h3><p>Structured repair, diagnostics and support offerings so customers can scan quickly.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 100ms"><span>03</span><h3>Contact Flow</h3><p>Prioritized WhatsApp, social links and service navigation to reduce friction.</p></article>
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Features &amp; Functionality</p>
-            <h2>Business-focused features for trust, clarity and conversion.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="case-card blue-card reveal"><span>UX</span><h3>Mobile Responsive Design</h3><p>Optimized the experience for phone-first visitors looking for immediate help.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 50ms"><span>SEO</span><h3>Online Visibility</h3><p>Built clear content sections around local repair services and customer intent.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 100ms"><span>CRM</span><h3>Lead Generation</h3><p>Designed direct contact paths for quotes, diagnostics and customer support.</p></article>
-            <article class="case-card blue-card reveal"><span>SM</span><h3>Social Integration</h3><p>Connected Facebook and Instagram entry points to support brand discovery.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 50ms"><span>UI</span><h3>Service Presentation</h3><p>Created visual sections for repair categories, trust signals and service benefits.</p></article>
-            <article class="case-card blue-card reveal" style="--delay: 100ms"><span>QA</span><h3>Technical Consulting</h3><p>Aligned the site flow with real customer questions around diagnostics and maintenance.</p></article>
-          </div>
-        </div>
-
-        <div class="app-showcase reparatech-showcase">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Responsive Design Showcase</p>
-            <h2>A polished mobile website for local technology services.</h2>
-            <p>
-              The interface uses a dark technical palette, electric blue
-              accents, strong typography and prominent contact actions to help
-              customers understand services and reach the business quickly.
-            </p>
-          </div>
-          <div class="showcase-rail blue-rail reveal" style="--delay: 80ms" aria-label="ReparaTech website screenshots">
-            <img src="assets/reparatech-01-home.png" alt="ReparaTech homepage screenshot" />
-            <img src="assets/reparatech-02-services.png" alt="ReparaTech service presentation screenshot" />
-            <img src="assets/reparatech-03-trust.png" alt="ReparaTech trust and service benefits screenshot" />
-          </div>
-        </div>
-
-        <div class="case-block tech-stack-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Technology Stack</p>
-            <h2>Lean frontend delivery for a practical business website.</h2>
-          </div>
-          <div class="stack-grid blue-stack reveal">
-            <span>HTML</span>
-            <span>CSS</span>
-            <span>JavaScript</span>
-            <span>Responsive Design</span>
-            <span>Vercel</span>
-            <span>Social Media Links</span>
-            <span>WhatsApp Contact Flow</span>
-            <span>UX Writing</span>
-          </div>
-        </div>
-
-        <div class="impact-panel blue-impact reveal">
-          <div>
-            <p class="eyebrow">Results / Impact</p>
-            <h2>Delivered a professional web presence for a real-world technology services client.</h2>
-          </div>
-          <div class="impact-grid">
-            <article><strong>Clearer Service Positioning</strong><span>Presented diagnostics, maintenance and repair work in a way customers can quickly understand.</span></article>
-            <article><strong>Better Contact Readiness</strong><span>Improved the path from visitor interest to WhatsApp, social engagement and service inquiry.</span></article>
-            <article><strong>Digital Transformation</strong><span>Supported the brand with a modern, mobile-first website that strengthens credibility.</span></article>
-          </div>
-        </div>
-      </section>
-
-      <section id="yatck" class="yatck-case">
-        <div class="yatck-hero reveal">
-          <div class="yatck-hero-copy">
-            <p class="eyebrow">YATCK K CLUB · Client Project</p>
-            <h2>Luxury yacht booking with a premium mobile-first experience.</h2>
-            <p>
-              YATCK K CLUB is a luxury yacht rental platform designed to help
-              customers browse yachts, explore private maritime experiences,
-              check availability and submit reservation requests through an
-              elegant interface.
-            </p>
-            <div class="covenant-badges champagne-badges" aria-label="YATCK K CLUB project details">
-              <span>Luxury Brand Presentation</span>
-              <span>Booking Flow Design</span>
-              <span>Mobile-First UX</span>
-              <span>Reservation System</span>
-            </div>
-          </div>
-          <div class="yatck-hero-media">
-            <img src="assets/yatck-01-hero.png" alt="YATCK K CLUB luxury yacht rental homepage screenshot" />
-          </div>
-        </div>
-
-        <div class="project-overview section-grid">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Project Overview</p>
-            <h2>A premium charter platform built for discovery, trust and reservation intent.</h2>
-          </div>
-          <div class="overview-panel champagne-panel reveal" style="--delay: 80ms">
-            <p>
-              The project objective was to create a modern, mobile-friendly
-              platform that presents the yacht offer with luxury polish while
-              making the booking path clear: choose a yacht, review pricing and
-              availability, then submit a reservation request.
-            </p>
-            <dl>
-              <div><dt>Project Type</dt><dd>Luxury Yacht Rental Platform</dd></div>
-              <div><dt>Role</dt><dd>Web Developer, Designer and Technical Consultant</dd></div>
-              <div><dt>Focus</dt><dd>Luxury UX, booking flow and responsive platform delivery</dd></div>
-            </dl>
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Business Goals</p>
-            <h2>Convert premium interest into confident reservation requests.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="case-card champagne-card reveal"><span>01</span><h3>Premium Positioning</h3><p>Present yacht rentals as a private club experience with refined visuals and copy.</p></article>
-            <article class="case-card champagne-card reveal" style="--delay: 50ms"><span>02</span><h3>Booking Clarity</h3><p>Expose price, capacity, duration, location and included amenities before inquiry.</p></article>
-            <article class="case-card champagne-card reveal" style="--delay: 100ms"><span>03</span><h3>Lead Flow</h3><p>Guide visitors from exploration to WhatsApp reservation with minimal friction.</p></article>
-          </div>
-        </div>
-
-        <div class="app-showcase yatck-showcase">
-          <div class="section-copy reveal">
-            <p class="eyebrow">Booking Experience Showcase</p>
-            <h2>Designed around availability, pricing and reservation confidence.</h2>
-            <p>
-              The booking flow gives customers a structured path: compare yacht
-              options, select dates, choose duration, enter guest details and
-              send the reservation request through an integrated contact flow.
-            </p>
-          </div>
-          <div class="showcase-rail champagne-rail reveal" style="--delay: 80ms" aria-label="YATCK K CLUB booking flow screenshots">
-            <img src="assets/yatck-02-catalog.png" alt="YATCK K CLUB yacht catalog and pricing screenshot" />
-            <img src="assets/yatck-03-calendar.png" alt="YATCK K CLUB availability calendar screenshot" />
-            <img src="assets/yatck-04-booking.png" alt="YATCK K CLUB reservation details form screenshot" />
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Yacht Gallery Showcase</p>
-            <h2>Visual product presentation for a premium maritime service.</h2>
-          </div>
-          <div class="screenshot-gallery yacht-gallery">
-            <figure class="reveal"><img src="assets/yatck-01-hero.png" alt="YATCK K CLUB homepage hero screenshot" /><figcaption>Luxury Hero</figcaption></figure>
-            <figure class="reveal" style="--delay: 40ms"><img src="assets/yatck-02-catalog.png" alt="YATCK K CLUB yacht catalog screenshot" /><figcaption>Yacht Catalog</figcaption></figure>
-            <figure class="reveal" style="--delay: 80ms"><img src="assets/yatck-03-calendar.png" alt="YATCK K CLUB booking calendar screenshot" /><figcaption>Availability Calendar</figcaption></figure>
-            <figure class="reveal" style="--delay: 120ms"><img src="assets/yatck-04-booking.png" alt="YATCK K CLUB reservation form screenshot" /><figcaption>Reservation Flow</figcaption></figure>
-          </div>
-        </div>
-
-        <div class="case-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Mobile Experience</p>
-            <h2>Mobile-first interaction for customers browsing premium experiences on the go.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="case-card champagne-card reveal"><span>UX</span><h3>Yacht Showcase</h3><p>Large imagery and concise yacht details support fast comparison.</p></article>
-            <article class="case-card champagne-card reveal" style="--delay: 50ms"><span>RSV</span><h3>Reservation System</h3><p>Structured request flow captures date, duration, guest count and contact data.</p></article>
-            <article class="case-card champagne-card reveal" style="--delay: 100ms"><span>UI</span><h3>Luxury Interface</h3><p>Elegant typography, dark panels and champagne accents align with hospitality expectations.</p></article>
-          </div>
-        </div>
-
-        <div class="case-block tech-stack-block">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Technology Stack</p>
-            <h2>Modern frontend stack for a polished, deployable rental platform.</h2>
-          </div>
-          <div class="stack-grid champagne-stack reveal">
-            <span>React</span>
-            <span>Next.js</span>
-            <span>TypeScript</span>
-            <span>GitHub</span>
-            <span>Vercel</span>
-            <span>Responsive Design</span>
-            <span>Booking UX</span>
-            <span>Performance Optimization</span>
-          </div>
-        </div>
-
-        <div class="impact-panel champagne-impact reveal">
-          <div>
-            <p class="eyebrow">Results / Impact</p>
-            <h2>Created a client platform that turns a luxury offer into a clear digital booking journey.</h2>
-          </div>
-          <div class="impact-grid">
-            <article><strong>Premium Brand Presence</strong><span>Translated the yacht rental offer into a refined digital experience suitable for luxury travel and hospitality.</span></article>
-            <article><strong>Booking Confidence</strong><span>Improved decision-making with yacht details, pricing, duration options and calendar availability.</span></article>
-            <article><strong>Mobile Lead Generation</strong><span>Built a responsive reservation path that connects customer intent to direct contact and inquiry flow.</span></article>
-          </div>
-        </div>
-      </section>
-
-      <section id="skills" class="skills">
+      <section id="proof" class="proof">
         <div class="section-heading reveal">
-          <p class="eyebrow">Skills</p>
-          <h2>Modern software stack with real-world technical support experience.</h2>
+          <p class="eyebrow">Proof / Experience</p>
+          <h2>Grounded in real service, practical technology and shipped work.</h2>
         </div>
-        <div class="skill-cloud reveal" aria-label="Skills">
-          <span>React</span>
-          <span>React Native</span>
-          <span>Expo</span>
-          <span>TypeScript</span>
-          <span>Node.js</span>
-          <span>GitHub</span>
-          <span>Vercel</span>
-          <span>Linux</span>
-          <span>ESP32</span>
-          <span>Mobile Development</span>
-          <span>Web Development</span>
-          <span>Hardware Repair</span>
-        </div>
-      </section>
-
-      <section class="experience section-grid">
-        <div class="section-copy reveal">
-          <p class="eyebrow">Experience</p>
-          <h2>A practical path across service, operations and technology.</h2>
-          <p>
-            A rare combination of customer-facing judgment, business operations
-            and hands-on engineering that supports both product strategy and
-            execution.
-          </p>
-        </div>
-        <div class="experience-grid reveal" style="--delay: 80ms">
-          <article><strong>Customer Experience</strong><span>10+ years serving people, solving problems and managing expectations.</span></article>
-          <article><strong>Business Administration</strong><span>Operational thinking shaped by real service, process and management work.</span></article>
-          <article><strong>Technology Execution</strong><span>Software, mobile apps, web platforms, hardware repair and electronics.</span></article>
-        </div>
-      </section>
-
-      <section class="timeline-section section-grid">
-        <div class="section-copy reveal">
-          <p class="eyebrow">Timeline</p>
-          <h2>Built through execution, not theory alone.</h2>
-        </div>
-        <div class="timeline reveal" style="--delay: 80ms">
-          <div><span></span><p>Customer Service Foundation</p></div>
-          <div><span></span><p>Business Administration</p></div>
-          <div><span></span><p>Hardware &amp; Electronics Repair</p></div>
-          <div><span></span><p>Software Engineering Studies</p></div>
-          <div><span></span><p>Web Platform Development</p></div>
-          <div><span></span><p>Mobile Application Development</p></div>
-          <div><span></span><p>Entrepreneurship &amp; Product Building</p></div>
-        </div>
-      </section>
-
-      <section class="stats" aria-label="Professional statistics">
-        <div class="stat-card reveal">
-          <strong>10+</strong>
-          <span>Years Professional Experience</span>
-        </div>
-        <div class="stat-card reveal" style="--delay: 70ms">
-          <strong>5+</strong>
-          <span>Technology Projects</span>
-        </div>
-        <div class="stat-card reveal" style="--delay: 140ms">
-          <strong>100+</strong>
-          <span>Devices Repaired</span>
-        </div>
-        <div class="stat-card reveal" style="--delay: 210ms">
-          <strong>Multiple</strong>
-          <span>Applications Published</span>
+        <div class="proof-grid">
+          <article class="proof-card reveal"><strong>10+ years</strong><span>Customer service and business administration</span></article>
+          <article class="proof-card reveal" style="--delay: 45ms"><strong>Software Engineering</strong><span>Current student building technical depth</span></article>
+          <article class="proof-card reveal" style="--delay: 90ms"><strong>Product Builder</strong><span>Mobile and web products from concept to deployment</span></article>
+          <article class="proof-card reveal"><strong>Client Work</strong><span>Service websites, digital platforms and business workflows</span></article>
+          <article class="proof-card reveal" style="--delay: 45ms"><strong>Hardware Repair</strong><span>Diagnostics, electronics and practical technical support</span></article>
         </div>
       </section>
 
@@ -616,23 +215,21 @@
         <div class="contact-panel reveal">
           <div class="contact-copy">
             <p class="eyebrow">Contact</p>
-            <h2>Let’s build something useful, elegant and durable.</h2>
-            <div class="contact-links">
-              <a href="https://www.instagram.com/jeremyavalos/" target="_blank" rel="noreferrer">Instagram: @jeremyavalos</a>
-              <a href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
-              <a href="https://www.linkedin.com/" target="_blank" rel="noreferrer">LinkedIn</a>
-              <a href="mailto:contact@jeremyavalos.com">Email</a>
-            </div>
+            <h2>Let’s build something together.</h2>
+            <p>Available for freelance projects, collaborations and technology opportunities.</p>
           </div>
-          <div class="contact-photo">
-            <img src="assets/jeremy-contact-phone.jpeg" alt="Jeremy Avalos talking on the phone wearing sunglasses" />
+          <div class="contact-actions" aria-label="Contact links">
+            <a href="mailto:jeremy.avalos@protonmail.com"><span>Email</span><strong>jeremy.avalos@protonmail.com</strong></a>
+            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer"><span>LinkedIn</span><strong>linkedin.com/in/jeremy-avalos</strong></a>
+            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer"><span>GitHub</span><strong>github.com/jeremyavalos</strong></a>
+            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer"><span>Instagram</span><strong>@jeremyavalos</strong></a>
           </div>
         </div>
       </section>
     </main>
 
     <footer>
-      <p>© <span id="year"></span> Jeremy Avalos. Built for clarity, craft and momentum.</p>
+      <p>© <span id="year"></span> Jeremy Avalos. Software, products and technology.</p>
     </footer>
 
     <script src="script.js"></script>

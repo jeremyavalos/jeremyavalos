@@ -34,8 +34,20 @@ if (window.location.hash) {
   }, 120);
 }
 
+document.querySelectorAll('a[href^="#"]').forEach((link) => {
+  link.addEventListener("click", () => {
+    const target = document.querySelector(link.getAttribute("href"));
+    window.setTimeout(() => {
+      target?.querySelectorAll(".reveal").forEach((item) => {
+        item.classList.add("is-visible");
+        revealObserver.unobserve(item);
+      });
+    }, 220);
+  });
+});
+
 const cards = document.querySelectorAll(
-  ".featured-project-card, .case-card, .stat-card, .contact-panel, .impact-panel",
+  ".service-card, .project-card, .proof-card, .contact-panel, .glass-card",
 );
 
 cards.forEach((card) => {
