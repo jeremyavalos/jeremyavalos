@@ -33,8 +33,9 @@
 
     <main id="top">
       <section class="hero">
+        <div class="scene-light hero-light" aria-hidden="true"></div>
         <div class="hero-copy reveal">
-          <p class="eyebrow">Personal brand · Professional services</p>
+          <p class="eyebrow">Software · Products · Technology</p>
           <h1>Jeremy Avalos</h1>
           <p class="hero-subheadline">Building software, products and technology.</p>
           <p class="hero-role">Software Developer · Entrepreneur · Tech Specialist</p>
@@ -50,7 +51,7 @@
         </div>
 
         <div class="hero-visual reveal" style="--delay: 120ms">
-          <div class="portrait-card">
+          <div class="portrait-card parallax" data-depth="-0.05">
             <img
               src="assets/jeremy-hero-blazer.jpeg"
               alt="Black and white portrait of Jeremy Avalos wearing a blazer"
@@ -58,34 +59,62 @@
             />
             <div class="portrait-fallback" aria-hidden="true">JA</div>
           </div>
-          <div class="floating-note glass-card">
+          <div class="floating-note glass-card parallax" data-depth="0.08">
             <span class="status-dot"></span>
-            <p>Available for freelance projects, collaborations and technology opportunities.</p>
+            <p>Freelance · Product · Consulting</p>
+          </div>
+          <div class="hero-chip hero-chip-a parallax" data-depth="0.12">Mobile Apps</div>
+          <div class="hero-chip hero-chip-b parallax" data-depth="-0.1">SaaS</div>
+          <div class="hero-chip hero-chip-c parallax" data-depth="0.07">Hardware</div>
+        </div>
+
+        <div class="scroll-cue" aria-hidden="true">
+          <span></span>
+          <p>Scroll</p>
+        </div>
+      </section>
+
+      <section class="vision-strip" aria-label="Professional focus">
+        <div class="vision-track reveal">
+          <span>Mobile products</span>
+          <span>Web platforms</span>
+          <span>Technical systems</span>
+          <span>Business workflows</span>
+          <span>Premium interfaces</span>
+          <span>Client solutions</span>
+        </div>
+      </section>
+
+      <section id="services" class="services immersive-section">
+        <div class="scene-light services-light" aria-hidden="true"></div>
+        <div class="section-heading reveal">
+          <p class="eyebrow">What I Do</p>
+          <h2>Services that move from idea to shipped experience.</h2>
+        </div>
+        <div class="service-stage">
+          <div class="service-orbit parallax" data-depth="-0.04" aria-hidden="true">
+            <span>Strategy</span>
+            <span>Design</span>
+            <span>Build</span>
+            <span>Launch</span>
+          </div>
+          <div class="service-grid">
+            <article class="service-card reveal"><span>01</span><h3>Mobile App Development</h3></article>
+            <article class="service-card reveal" style="--delay: 35ms"><span>02</span><h3>Website Development</h3></article>
+            <article class="service-card reveal" style="--delay: 70ms"><span>03</span><h3>Frontend Development</h3></article>
+            <article class="service-card reveal" style="--delay: 105ms"><span>04</span><h3>Backend Development</h3></article>
+            <article class="service-card reveal"><span>05</span><h3>SaaS Platforms</h3></article>
+            <article class="service-card reveal" style="--delay: 35ms"><span>06</span><h3>UI/UX Design</h3></article>
+            <article class="service-card reveal" style="--delay: 70ms"><span>07</span><h3>Product Design</h3></article>
+            <article class="service-card reveal" style="--delay: 105ms"><span>08</span><h3>Business Analysis</h3></article>
+            <article class="service-card reveal"><span>09</span><h3>Technical Consulting</h3></article>
+            <article class="service-card reveal" style="--delay: 35ms"><span>10</span><h3>Hardware Solutions</h3></article>
           </div>
         </div>
       </section>
 
-      <section id="services" class="services">
-        <div class="section-heading reveal">
-          <p class="eyebrow">What I Do</p>
-          <h2>Software, product and technical execution for modern businesses.</h2>
-        </div>
-        <div class="service-grid">
-          <article class="service-card reveal"><span>01</span><h3>Mobile App Development</h3></article>
-          <article class="service-card reveal" style="--delay: 35ms"><span>02</span><h3>Website Development</h3></article>
-          <article class="service-card reveal" style="--delay: 70ms"><span>03</span><h3>Frontend Development</h3></article>
-          <article class="service-card reveal" style="--delay: 105ms"><span>04</span><h3>Backend Development</h3></article>
-          <article class="service-card reveal"><span>05</span><h3>SaaS Platforms</h3></article>
-          <article class="service-card reveal" style="--delay: 35ms"><span>06</span><h3>UI/UX Design</h3></article>
-          <article class="service-card reveal" style="--delay: 70ms"><span>07</span><h3>Product Design</h3></article>
-          <article class="service-card reveal" style="--delay: 105ms"><span>08</span><h3>Business Analysis</h3></article>
-          <article class="service-card reveal"><span>09</span><h3>Technical Consulting</h3></article>
-          <article class="service-card reveal" style="--delay: 35ms"><span>10</span><h3>Hardware Solutions</h3></article>
-        </div>
-      </section>
-
       <section id="about" class="about split-section">
-        <div class="about-media reveal">
+        <div class="about-media reveal parallax" data-depth="0.04">
           <img
             src="assets/jeremy-about-smiling.jpeg"
             alt="Smiling portrait of Jeremy Avalos"
@@ -108,13 +137,14 @@
         </div>
       </section>
 
-      <section id="projects" class="projects">
+      <section id="projects" class="projects immersive-section">
+        <div class="scene-light projects-light" aria-hidden="true"></div>
         <div class="section-heading reveal">
           <p class="eyebrow">Featured Projects</p>
-          <h2>Selected work that proves range, ownership and product thinking.</h2>
+          <h2>Project previews with product energy.</h2>
         </div>
 
-        <div class="project-grid">
+        <div class="project-grid project-showcase">
           <article class="project-card covenant-card reveal">
             <div class="project-visual phone-visual">
               <img src="assets/covenant-07-habits.png" alt="Covenant mobile app habit tracking screen" />
@@ -122,8 +152,8 @@
             <div class="project-body">
               <p class="project-type">Mobile application</p>
               <h3>Covenant</h3>
-              <p>Habit-building and personal discipline app for consistency, accountability and growth.</p>
-              <p class="role">Role: Founder, Product Designer, Developer</p>
+              <p>Discipline system for consistency, accountability and growth.</p>
+              <p class="role">Founder · Designer · Developer</p>
               <div class="chips">
                 <span>React Native</span><span>Expo</span><span>TypeScript</span><span>RevenueCat</span>
               </div>
@@ -138,8 +168,8 @@
             <div class="project-body">
               <p class="project-type">Social impact platform</p>
               <h3>Metanoia</h3>
-              <p>Social reintegration platform for legal guidance, employment resources and growth.</p>
-              <p class="role">Role: Product Strategy, Platform Concept</p>
+              <p>Guidance, employment resources and structured reintegration.</p>
+              <p class="role">Product Strategy · Platform Concept</p>
               <div class="chips">
                 <span>Product</span><span>UX</span><span>Resources</span>
               </div>
@@ -154,8 +184,8 @@
             <div class="project-body">
               <p class="project-type">Digital concierge</p>
               <h3>VisorApp</h3>
-              <p>Concierge platform for immigration, documentation and client service workflows.</p>
-              <p class="role">Role: Product Design, Business Analysis</p>
+              <p>Immigration and documentation workflows with concierge clarity.</p>
+              <p class="role">Product Design · Business Analysis</p>
               <div class="chips">
                 <span>Service UX</span><span>Workflows</span><span>Docs</span>
               </div>
@@ -170,8 +200,8 @@
             <div class="project-body">
               <p class="project-type">Client platform</p>
               <h3>YATCK K CLUB</h3>
-              <p>Luxury yacht rental experience for discovery, pricing clarity and reservations.</p>
-              <p class="role">Role: Web Developer, Designer, Technical Consultant</p>
+              <p>Luxury yacht discovery, pricing clarity and reservations.</p>
+              <p class="role">Web Developer · Designer · Consultant</p>
               <div class="chips">
                 <span>React</span><span>Next.js</span><span>TypeScript</span><span>Vercel</span>
               </div>
@@ -186,8 +216,8 @@
             <div class="project-body">
               <p class="project-type">Client website</p>
               <h3>ReparaTech</h3>
-              <p>Technology services website for repair, diagnostics, trust and lead generation.</p>
-              <p class="role">Role: Web Developer, Designer, Technical Consultant</p>
+              <p>Repair services, diagnostics, trust and lead generation.</p>
+              <p class="role">Web Developer · Designer · Consultant</p>
               <div class="chips">
                 <span>HTML</span><span>CSS</span><span>JavaScript</span><span>Vercel</span>
               </div>
@@ -197,10 +227,10 @@
         </div>
       </section>
 
-      <section id="proof" class="proof">
+      <section id="proof" class="proof immersive-section">
         <div class="section-heading reveal">
           <p class="eyebrow">Proof / Experience</p>
-          <h2>Grounded in real service, practical technology and shipped work.</h2>
+          <h2>Signals from real work.</h2>
         </div>
         <div class="proof-grid">
           <article class="proof-card reveal"><strong>10+ years</strong><span>Customer service and business administration</span></article>
@@ -213,6 +243,7 @@
 
       <section id="contact" class="contact">
         <div class="contact-panel reveal">
+          <div class="contact-glow" aria-hidden="true"></div>
           <div class="contact-copy">
             <p class="eyebrow">Contact</p>
             <h2>Let’s build something together.</h2>
