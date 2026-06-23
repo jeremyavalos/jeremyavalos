@@ -176,6 +176,16 @@ section {
   background: radial-gradient(circle, rgba(242, 210, 133, 0.18), transparent 70%);
 }
 
+.showreel-light {
+  inset: 0 auto auto 42%;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(155, 120, 255, 0.2), transparent 62%),
+    radial-gradient(circle at 30% 70%, rgba(106, 216, 255, 0.16), transparent 52%);
+}
+
 .hero {
   position: relative;
   display: grid;
@@ -493,6 +503,154 @@ footer p {
   font-weight: 900;
 }
 
+.showreel {
+  display: grid;
+  gap: 2rem;
+  min-height: 92vh;
+  align-items: center;
+}
+
+.showreel-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 44rem;
+}
+
+.showreel-copy h2 {
+  max-width: 12ch;
+}
+
+.showreel-stage {
+  position: relative;
+  min-height: 34rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(242, 210, 133, 0.1), transparent 22rem),
+    radial-gradient(circle at 76% 30%, rgba(106, 216, 255, 0.14), transparent 22rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(8, 9, 14, 0.68);
+  box-shadow: var(--shadow-strong), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+}
+
+.showreel-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 5rem 5rem;
+  mask-image: radial-gradient(circle at 54% 44%, black, transparent 74%);
+}
+
+.showreel-panel,
+.showreel-phone,
+.showreel-prompt {
+  position: absolute;
+  z-index: 1;
+}
+
+.showreel-panel {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(20px);
+  animation: floatPanel 8s ease-in-out infinite;
+}
+
+.showreel-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 28%, rgba(255, 255, 255, 0.18), transparent 50%),
+    linear-gradient(180deg, transparent 54%, rgba(0, 0, 0, 0.48));
+}
+
+.showreel-panel img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  filter: saturate(1.08) contrast(1.06);
+}
+
+.showreel-panel span {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  padding: 0.58rem 0.72rem;
+  border: 1px solid rgba(242, 210, 133, 0.22);
+  border-radius: 999px;
+  background: rgba(6, 7, 11, 0.68);
+  color: var(--gold-strong);
+  font-size: 0.76rem;
+  font-weight: 900;
+  backdrop-filter: blur(14px);
+}
+
+.showreel-panel-main {
+  right: 5%;
+  top: 12%;
+  width: min(32rem, 82%);
+  height: 17rem;
+}
+
+.showreel-panel-side {
+  left: 4%;
+  top: 34%;
+  width: min(24rem, 72%);
+  height: 13rem;
+  opacity: 0.78;
+  animation-delay: -2s;
+}
+
+.showreel-phone {
+  right: 6%;
+  bottom: 8%;
+  width: min(9rem, 34%);
+  transform: rotate(4deg);
+}
+
+.showreel-phone img {
+  display: block;
+  width: 100%;
+  border: 1px solid rgba(242, 210, 133, 0.18);
+  border-radius: 24px;
+  box-shadow: 0 28px 75px rgba(0, 0, 0, 0.58);
+}
+
+.showreel-prompt {
+  left: 7%;
+  bottom: 9%;
+  display: grid;
+  gap: 0.35rem;
+  width: min(24rem, 78%);
+  padding: 1rem;
+  background: rgba(8, 9, 14, 0.72);
+}
+
+.showreel-prompt strong {
+  color: #fff7e7;
+  font-size: clamp(1.4rem, 7vw, 2.4rem);
+  line-height: 0.98;
+}
+
+.showreel-prompt span {
+  color: var(--gold-strong);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
 .service-grid,
 .project-grid,
 .proof-grid,
@@ -591,6 +749,20 @@ footer p {
   overflow: hidden;
   min-height: 100%;
   transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+}
+
+.project-card:nth-child(odd) {
+  background:
+    radial-gradient(circle at 74% 18%, rgba(155, 120, 255, 0.12), transparent 13rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035)),
+    var(--panel);
+}
+
+.project-card:nth-child(even) {
+  background:
+    radial-gradient(circle at 18% 16%, rgba(106, 216, 255, 0.12), transparent 13rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035)),
+    var(--panel);
 }
 
 .project-card:hover {
@@ -896,6 +1068,17 @@ footer p {
   }
 }
 
+@keyframes floatPanel {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-1deg);
+  }
+
+  50% {
+    transform: translate3d(0, -12px, 0) rotate(1deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -906,6 +1089,10 @@ footer p {
   }
 
   .concept-visual::before {
+    animation: none;
+  }
+
+  .showreel-panel {
     animation: none;
   }
 }
@@ -933,6 +1120,36 @@ footer p {
 
   .vision-track {
     justify-content: center;
+  }
+
+  .showreel {
+    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  }
+
+  .showreel-copy {
+    align-self: center;
+  }
+
+  .showreel-stage {
+    min-height: 40rem;
+  }
+
+  .showreel-panel-main {
+    right: 7%;
+    top: 13%;
+    width: min(38rem, 78%);
+    height: 20rem;
+  }
+
+  .showreel-panel-side {
+    left: 4%;
+    top: 30%;
+    width: min(28rem, 66%);
+    height: 16rem;
+  }
+
+  .showreel-phone {
+    width: min(11rem, 34%);
   }
 
   .service-grid,
@@ -992,6 +1209,11 @@ footer p {
 
   .services {
     padding-top: 7.5rem;
+  }
+
+  .showreel {
+    padding-top: 5.5rem;
+    padding-bottom: 7rem;
   }
 
   .project-grid {
