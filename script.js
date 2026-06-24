@@ -78,7 +78,8 @@ const updateParallax = () => {
     const rect = item.getBoundingClientRect();
     const itemMid = rect.top + rect.height / 2;
     const offset = (viewportMid - itemMid) * depth;
-    item.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
+    const clampedOffset = Math.max(-56, Math.min(56, offset));
+    item.style.transform = `translate3d(0, ${clampedOffset.toFixed(2)}px, 0)`;
   });
 };
 
