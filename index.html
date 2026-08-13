@@ -12,34 +12,60 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="ambient-field" aria-hidden="true"></div>
-
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="Jeremy Avalos home">JA</a>
-      <nav class="nav-links" aria-label="Primary navigation">
-        <a href="#services">Services</a>
-        <a href="#projects">Projects</a>
-        <a href="#about">About</a>
-        <a href="#contact">Contact</a>
+      <a class="brand" href="#home" aria-label="Jeremy Avalos home">JA</a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        MENU
+      </button>
+
+      <nav id="site-nav" class="nav-links" aria-label="Primary navigation">
+        <a href="#work">01 WORK</a>
+        <a href="#capabilities">02 CAPABILITIES</a>
+        <a href="#about">03 ABOUT</a>
+        <a href="#contact">04 CONTACT</a>
       </nav>
     </header>
 
-    <main id="top">
+    <main id="home">
       <section class="hero">
         <div class="hero-copy reveal">
-          <p class="eyebrow">Software · Products · Technology</p>
+          <p class="eyebrow mono">JEREMY / DEV.01</p>
           <h1>Jeremy Avalos</h1>
           <p class="hero-subheadline">Building digital products with presence.</p>
           <p class="hero-role">Software Developer · Entrepreneur · Tech Specialist</p>
+
+          <div class="meta-grid" aria-label="Profile metadata">
+            <div>
+              <span class="meta-label mono">STATUS</span>
+              <strong>AVAILABLE</strong>
+            </div>
+            <div>
+              <span class="meta-label mono">LOCATION</span>
+              <strong>MEXICO</strong>
+            </div>
+            <div>
+              <span class="meta-label mono">FOCUS</span>
+              <strong>SOFTWARE · PRODUCTS · TECHNOLOGY</strong>
+            </div>
+          </div>
+
           <div class="primary-actions" aria-label="Primary contact links">
-            <a class="btn primary" href="#contact">Start a Project</a>
-            <a class="btn" href="#projects">View Work</a>
+            <a class="btn primary" href="#contact">START A PROJECT</a>
+            <a class="btn" href="#work">VIEW WORK</a>
+          </div>
+
+          <div class="social-links" aria-label="Social media links">
+            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer">LinkedIn</a>
+            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer">Instagram</a>
+            <a href="mailto:jeremy.avalos@protonmail.com">Email</a>
           </div>
         </div>
 
@@ -52,330 +78,163 @@
             />
             <div class="portrait-fallback" aria-hidden="true">JA</div>
           </div>
-          <div class="hero-glass hero-glass-top glass-card parallax" data-depth="0.08">
-            <span>Mobile Apps</span>
-            <strong>SaaS</strong>
-          </div>
-          <div class="hero-glass hero-glass-bottom glass-card parallax" data-depth="-0.1">
-            <span>Web Platforms</span>
-            <strong>Client Systems</strong>
-          </div>
         </div>
       </section>
 
-      <section class="product-strip reveal" aria-label="Professional focus">
-        <span>Strategy</span>
-        <span>UI/UX</span>
-        <span>Frontend</span>
-        <span>Backend</span>
-        <span>Launch</span>
-      </section>
-
-      <section id="services" class="services immersive-section">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Services</p>
-          <h2>Premium capability cards for serious builds.</h2>
+      <section id="capabilities" class="capabilities">
+        <div class="section-header reveal">
+          <p class="eyebrow mono">02 / CAPABILITIES</p>
+          <h2>Products. Systems. Product-minded execution.</h2>
         </div>
-        <div class="service-grid">
-          <article class="service-card reveal">
-            <span>01</span>
-            <h3>Mobile App Development</h3>
-            <p>Native-feeling products built for real workflows.</p>
+
+        <div class="capability-grid">
+          <article class="capability-card reveal">
+            <span class="module-tag mono">CAPABILITY / 01</span>
+            <h3>BUILD</h3>
+            <ul>
+              <li>Mobile Apps</li>
+              <li>Websites</li>
+              <li>SaaS Platforms</li>
+            </ul>
           </article>
-          <article class="service-card reveal" style="--delay: 45ms">
-            <span>02</span>
-            <h3>Website Development</h3>
-            <p>Sharp, fast, responsive web experiences.</p>
+
+          <article class="capability-card reveal" style="--delay: 50ms">
+            <span class="module-tag mono">CAPABILITY / 02</span>
+            <h3>ENGINEERING</h3>
+            <ul>
+              <li>Frontend</li>
+              <li>Backend</li>
+              <li>APIs</li>
+              <li>Databases</li>
+            </ul>
           </article>
-          <article class="service-card reveal" style="--delay: 90ms">
-            <span>03</span>
-            <h3>Frontend Development</h3>
-            <p>Interfaces with polish, motion and clarity.</p>
+
+          <article class="capability-card reveal" style="--delay: 100ms">
+            <span class="module-tag mono">CAPABILITY / 03</span>
+            <h3>PRODUCT</h3>
+            <ul>
+              <li>UI/UX</li>
+              <li>Product Design</li>
+              <li>Business Analysis</li>
+            </ul>
           </article>
-          <article class="service-card reveal">
-            <span>04</span>
-            <h3>Backend Development</h3>
-            <p>APIs and systems that support the product.</p>
-          </article>
-          <article class="service-card reveal" style="--delay: 45ms">
-            <span>05</span>
-            <h3>SaaS Platforms</h3>
-            <p>Subscription-ready platforms from concept to launch.</p>
-          </article>
-          <article class="service-card reveal" style="--delay: 90ms">
-            <span>06</span>
-            <h3>UI/UX Design</h3>
-            <p>Cleaner journeys, stronger screens, better flow.</p>
-          </article>
-          <article class="service-card reveal">
-            <span>07</span>
-            <h3>Product Design</h3>
-            <p>Ideas shaped into focused product experiences.</p>
-          </article>
-          <article class="service-card reveal" style="--delay: 45ms">
-            <span>08</span>
-            <h3>Business Analysis</h3>
-            <p>Requirements, workflows and decisions made visible.</p>
-          </article>
-          <article class="service-card reveal" style="--delay: 90ms">
-            <span>09</span>
-            <h3>Technical Consulting</h3>
-            <p>Practical guidance across product and technology.</p>
-          </article>
-          <article class="service-card reveal">
-            <span>10</span>
-            <h3>Hardware Solutions</h3>
-            <p>Diagnostics, repair and hands-on technical support.</p>
+
+          <article class="capability-card reveal" style="--delay: 150ms">
+            <span class="module-tag mono">CAPABILITY / 04</span>
+            <h3>TECHNOLOGY</h3>
+            <ul>
+              <li>Technical Consulting</li>
+              <li>Hardware</li>
+              <li>Digital Solutions</li>
+            </ul>
           </article>
         </div>
       </section>
 
-      <section id="projects" class="projects immersive-section">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Projects</p>
-          <h2>Cleaner previews. Stronger hierarchy.</h2>
+      <section id="work" class="work">
+        <div class="section-header reveal">
+          <p class="eyebrow mono">03 / WORK</p>
+          <h2>Selected product work.</h2>
         </div>
 
         <div class="project-grid">
           <article class="project-card feature-project reveal">
-            <a class="project-visual phone-visual" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">
-              <img src="assets/covenant-07-habits.png" alt="Covenant mobile app habit tracking screen" />
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 01</p>
+              <h3>Metanoia</h3>
+              <p>Support resources designed to reduce friction for people navigating legal, psychological, and employment challenges.</p>
+              <p class="role mono">CREATOR · PRODUCT DESIGN · DEVELOPMENT</p>
+              <div class="chips">
+                <span class="mono">React Native</span>
+                <span class="mono">Expo</span>
+                <span class="mono">Node.js</span>
+                <span class="mono">Vercel</span>
+              </div>
+              <a class="project-link" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+            </div>
+            <a class="project-visual small-visual" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open Metanoia website">
+              <img src="assets/metanoia-website.png" alt="Metanoia website preview" />
             </a>
-            <div class="project-body">
-              <p class="project-type">Mobile application</p>
+          </article>
+
+          <article class="project-card reveal" style="--delay: 60ms">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 02</p>
               <h3>Covenant</h3>
-              <p>Discipline system for consistency, accountability and growth.</p>
-              <p class="role">Founder · Designer · Developer</p>
+              <p>Discipline system designed to keep routines, accountability and personal growth consistent.</p>
+              <p class="role mono">FOUNDER · DESIGNER · DEVELOPER</p>
               <div class="chips">
-                <span>React Native</span><span>Expo</span><span>TypeScript</span><span>RevenueCat</span>
+                <span class="mono">React Native</span>
+                <span class="mono">Expo</span>
+                <span class="mono">TypeScript</span>
+                <span class="mono">RevenueCat</span>
               </div>
-              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">View Project</a>
+              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
             </div>
+            <a class="project-visual small-visual" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer" aria-label="Open Covenant project preview">
+              <img src="assets/covenant-07-habits.png" alt="Covenant product screen" />
+            </a>
           </article>
 
-          <article class="project-card feature-project ocean-card reveal" style="--delay: 60ms">
-            <a class="project-visual ocean-card-visual" href="#ocean-majesty" aria-label="View Ocean Majesty Cancún case study">
-              <img src="assets/yatck-01-hero.png" alt="Ocean Majesty Cancún yacht reservation mobile homepage" />
-              <img src="assets/yatck-02-catalog.png" alt="Ocean Majesty Cancún yacht catalog mobile screen" />
-              <img src="assets/yatck-03-calendar.png" alt="Ocean Majesty Cancún booking calendar mobile screen" />
-            </a>
-            <div class="project-body">
-              <p class="project-type">Flagship full-stack platform</p>
+          <article class="project-card reveal" style="--delay: 80ms">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 03</p>
               <h3>Ocean Majesty Cancún</h3>
-              <p>Luxury yacht reservation platform with catalog browsing, availability workflows, inquiry capture and admin-ready backend architecture.</p>
-              <p class="role">Full Stack Developer · Product Design · Backend Architecture</p>
-              <div class="chips">
-                <span>React Native</span><span>Expo</span><span>TypeScript</span><span>Node.js</span><span>PostgreSQL</span><span>Railway</span>
+              <p>Luxury yacht reservation platform connecting a mobile-first customer experience with a real reservation backend.</p>
+              <p class="role mono">FULL STACK DEVELOPMENT</p>
+              <div class="chips" aria-label="Ocean Majesty technologies">
+                <span class="mono">React Native</span>
+                <span class="mono">Node.js</span>
+                <span class="mono">PostgreSQL</span>
+                <span class="mono">Railway</span>
               </div>
-              <a class="project-link" href="#ocean-majesty">View Case Study</a>
+              <a class="project-link" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">VIEW PROJECT / CASE STUDY →</a>
             </div>
-          </article>
-
-          <article class="project-card feature-project metanoia-card reveal" style="--delay: 45ms">
-            <a class="project-visual metanoia-card-visual" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open the Metanoia website">
-              <img src="assets/metanoia-website.png" alt="Metanoia website home page" />
-              <span class="metanoia-mark" aria-hidden="true">M</span>
-              <span class="app-store-badge">Disponible en App Store</span>
+            <a class="project-visual" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer" aria-label="Open Ocean Majesty project preview">
+              <img src="assets/yatck-01-hero.png" alt="Ocean Majesty Cancún mobile reservation experience" />
             </a>
-            <div class="project-body">
-              <p class="project-type">Featured · Social impact mobile app</p>
-              <h3>Metanoia <span class="project-subtitle">— Una Segunda Oportunidad</span></h3>
-              <p>Free, anonymous legal, psychological and employment support for people who are incarcerated, recently released or rebuilding their lives in Mexico.</p>
-              <p class="role">Creator · Product Design · Development</p>
-              <div class="chips"><span>React Native</span><span>Expo</span><span>Expo Router</span><span>TypeScript</span><span>Node.js</span><span>Render</span><span>Vercel</span></div>
-              <div class="project-actions" aria-label="Metanoia project links">
-                <a class="project-link primary-link" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">Website ↗</a>
-                <a class="project-link" href="https://apps.apple.com/mx/app/metanoia-segunda-oportunidad/id6785067895?l=en-GB" target="_blank" rel="noreferrer">App Store ↗</a>
-                <a class="project-link" href="https://github.com/jeremyavalos/metanoia" target="_blank" rel="noreferrer">GitHub ↗</a>
-              </div>
-            </div>
           </article>
 
-          <article class="project-card reveal" style="--delay: 90ms">
-            <div class="project-visual concept-visual visor-visual" aria-label="VisorApp product visual">
+          <article class="project-card reveal" style="--delay: 110ms">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 04</p>
+              <h3>VisorApp</h3>
+              <p>Documentation-first service journey creating clarity around immigration support and next steps.</p>
+              <p class="role mono">PRODUCT DESIGN · BUSINESS ANALYSIS</p>
+              <div class="chips">
+                <span class="mono">UX</span>
+                <span class="mono">Workflow</span>
+                <span class="mono">Strategy</span>
+              </div>
+              <a class="project-link" href="#contact">VIEW PROJECT →</a>
+            </div>
+            <div class="project-visual concept-visual" aria-label="VisorApp concept preview">
               <span>VisorApp</span>
             </div>
-            <div class="project-body">
-              <p class="project-type">Digital concierge</p>
-              <h3>VisorApp</h3>
-              <p>Immigration and documentation workflows with concierge clarity.</p>
-              <p class="role">Product Design · Business Analysis</p>
-              <div class="chips"><span>Service UX</span><span>Workflows</span><span>Docs</span></div>
-              <span class="project-link disabled">Coming Soon</span>
-            </div>
           </article>
 
-          <article class="project-card reveal">
-            <a class="project-visual browser-visual" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">
-              <img src="assets/yatck-01-hero.png" alt="YATCK K CLUB luxury yacht rental homepage screenshot" />
-            </a>
-            <div class="project-body">
-              <p class="project-type">Client platform</p>
-              <h3>YATCK K CLUB</h3>
-              <p>Luxury yacht discovery, pricing clarity and reservations.</p>
-              <p class="role">Web Developer · Designer · Consultant</p>
-              <div class="chips"><span>React</span><span>Next.js</span><span>TypeScript</span><span>Vercel</span></div>
-              <a class="project-link" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">View Project</a>
-            </div>
-          </article>
-
-          <article class="project-card reveal" style="--delay: 45ms">
-            <a class="project-visual browser-visual" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer">
-              <img src="assets/reparatech-01-home.png" alt="ReparaTech website homepage screenshot" />
-            </a>
-            <div class="project-body">
-              <p class="project-type">Client website</p>
+          <article class="project-card reveal" style="--delay: 150ms">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 05</p>
               <h3>ReparaTech</h3>
-              <p>Repair services, diagnostics, trust and lead generation.</p>
-              <p class="role">Web Developer · Designer · Consultant</p>
-              <div class="chips"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>Vercel</span></div>
-              <a class="project-link" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer">View Project</a>
+              <p>Repair service site built to communicate trust, diagnostics and professional support.</p>
+              <p class="role mono">WEB DEVELOPER · DESIGNER · CONSULTANT</p>
+              <div class="chips">
+                <span class="mono">HTML</span>
+                <span class="mono">CSS</span>
+                <span class="mono">JavaScript</span>
+                <span class="mono">Vercel</span>
+              </div>
+              <a class="project-link" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
             </div>
+            <a class="project-visual small-visual" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer" aria-label="Open ReparaTech project preview">
+              <img src="assets/reparatech-01-home.png" alt="ReparaTech landing page preview" />
+            </a>
           </article>
         </div>
       </section>
 
-      <section id="metanoia" class="metanoia-showcase immersive-section">
-        <div class="metanoia-hero reveal">
-          <div class="metanoia-copy">
-            <p class="eyebrow">Created by Jeremy Avalos</p>
-            <h2>Information that helps people move forward.</h2>
-            <p class="metanoia-lead">Metanoia is a free, private and human-centered product for people seeking guidance and a second opportunity.</p>
-            <div class="primary-actions">
-              <a class="btn primary" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">Visit Metanoia ↗</a>
-              <a class="btn" href="https://metanoia-flame.vercel.app/marketing" target="_blank" rel="noreferrer">Explore the product</a>
-            </div>
-          </div>
-          <a class="metanoia-browser parallax" data-depth="-0.025" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open the Metanoia website">
-            <span class="browser-bar"><i></i><i></i><i></i><small>metanoia-flame.vercel.app</small></span>
-            <img src="assets/metanoia-website.png" alt="Metanoia website showing the project mission and visual identity" />
-          </a>
-        </div>
-
-        <div class="metanoia-feature-grid reveal" aria-label="Metanoia key features">
-          <article><span>⚖️</span><h3>Legal Library</h3><p>Clear legal concepts and penal codes organized by state.</p></article>
-          <article><span>📋</span><h3>Precautionary Measures</h3><p>Practical guidance for understanding rights and next steps.</p></article>
-          <article><span>💼</span><h3>Employment &amp; Documents</h3><p>Tools for CVs, interviews, documents and returning to work.</p></article>
-          <article><span>🧠</span><h3>Resources &amp; Psychology</h3><p>Simple wellbeing resources and direct access to support lines.</p></article>
-        </div>
-
-        <div class="metanoia-impact reveal">
-          <div>
-            <p class="eyebrow">Why it matters</p>
-            <h2>Private by design. Useful from the first visit.</h2>
-          </div>
-          <div class="impact-points">
-            <span><strong>No account required</strong>Core tools can be used without creating a profile.</span>
-            <span><strong>Accessible information</strong>Complex topics are translated into clear, useful steps.</span>
-            <span><strong>Built with dignity</strong>The experience informs without judgment or empty promises.</span>
-          </div>
-        </div>
-      </section>
-
-      <section id="ocean-majesty" class="ocean-showcase immersive-section">
-        <div class="ocean-hero reveal">
-          <div class="ocean-hero-copy">
-            <p class="eyebrow">Flagship Project</p>
-            <h2>Ocean Majesty Cancún</h2>
-            <p>
-              A mobile-first luxury yacht reservation platform designed to help customers explore experiences,
-              compare yachts, select destinations and submit high-intent booking requests through a polished
-              reservation workflow.
-            </p>
-            <div class="proof-row" aria-label="Ocean Majesty responsibilities">
-              <span>Full Stack Development</span>
-              <span>Reservation Architecture</span>
-              <span>Database Design</span>
-              <span>Luxury UX</span>
-            </div>
-          </div>
-          <a class="ocean-hero-phone parallax" data-depth="-0.035" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">
-            <img src="assets/yatck-01-hero.png" alt="Ocean Majesty Cancún mobile home screen" />
-          </a>
-        </div>
-
-        <div class="ocean-section reveal">
-          <div class="section-heading compact-heading">
-            <p class="eyebrow">Technology Stack</p>
-            <h2>Built as a real business system.</h2>
-          </div>
-          <div class="stack-grid">
-            <span>React Native</span>
-            <span>Expo</span>
-            <span>TypeScript</span>
-            <span>Node.js</span>
-            <span>Express</span>
-            <span>PostgreSQL</span>
-            <span>Railway</span>
-            <span>Resend</span>
-            <span>GitHub</span>
-          </div>
-        </div>
-
-        <div class="ocean-section reveal">
-          <div class="section-heading compact-heading">
-            <p class="eyebrow">Key Features</p>
-            <h2>From discovery to reservation request.</h2>
-          </div>
-          <div class="feature-grid">
-            <article><span>01</span><h3>Yacht Catalog</h3><p>Fleet browsing with yacht details, capacity, pricing signals and premium visuals.</p></article>
-            <article><span>02</span><h3>Reservation System</h3><p>Customer inquiry flow that captures booking details and prepares requests for follow-up.</p></article>
-            <article><span>03</span><h3>Availability Calendar</h3><p>Date selection and scheduling logic designed around yacht availability workflows.</p></article>
-            <article><span>04</span><h3>Packages & Destinations</h3><p>Manageable routes, yacht experiences and destination content for Cancún, Isla Mujeres and Riviera Maya.</p></article>
-            <article><span>05</span><h3>Email Notifications</h3><p>Automated reservation communication powered by transactional email infrastructure.</p></article>
-            <article><span>06</span><h3>Admin Dashboard</h3><p>Operational foundation for managing yachts, packages, destinations and customer requests.</p></article>
-          </div>
-        </div>
-
-        <div class="architecture-panel reveal">
-          <div>
-            <p class="eyebrow">Architecture Overview</p>
-            <h2>Mobile app, API layer and reservation data model.</h2>
-            <p>
-              The platform separates the customer-facing Expo application from an Express API and PostgreSQL
-              database. Reservation requests, yacht inventory, destination content, package rules and notification
-              events are modeled as backend resources so the business can scale beyond a static marketing site.
-            </p>
-          </div>
-          <div class="architecture-flow" aria-label="Ocean Majesty system architecture">
-            <span>Expo Mobile App</span>
-            <span>Express API</span>
-            <span>PostgreSQL</span>
-            <span>Resend Emails</span>
-            <span>Railway Deployment</span>
-          </div>
-        </div>
-
-        <div class="ocean-section reveal">
-          <div class="section-heading compact-heading">
-            <p class="eyebrow">Mobile Screenshots</p>
-            <h2>Luxury experience shaped for phones first.</h2>
-          </div>
-          <div class="mobile-gallery">
-            <a href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer"><img src="assets/yatck-01-hero.png" alt="Ocean Majesty mobile homepage" /></a>
-            <a href="assets/yatck-02-catalog.png" target="_blank" rel="noreferrer"><img src="assets/yatck-02-catalog.png" alt="Ocean Majesty yacht catalog screen" /></a>
-            <a href="assets/yatck-03-calendar.png" target="_blank" rel="noreferrer"><img src="assets/yatck-03-calendar.png" alt="Ocean Majesty availability calendar screen" /></a>
-            <a href="assets/yatck-04-booking.png" target="_blank" rel="noreferrer"><img src="assets/yatck-04-booking.png" alt="Ocean Majesty booking workflow screen" /></a>
-          </div>
-        </div>
-
-        <div class="impact-grid reveal">
-          <article>
-            <strong>Business-ready</strong>
-            <span>Moves yacht sales conversations from manual chat into structured reservation workflows.</span>
-          </article>
-          <article>
-            <strong>Operational clarity</strong>
-            <span>Connects catalog, destinations, availability and customer inquiries through one system.</span>
-          </article>
-          <article>
-            <strong>Premium UX</strong>
-            <span>Presents yacht rentals with a luxury mobile interface built for confidence and conversion.</span>
-          </article>
-        </div>
-      </section>
-
-      <section id="about" class="about split-section">
+      <section id="about" class="about">
         <div class="about-media reveal parallax" data-depth="0.04">
           <img
             src="assets/jeremy-about-smiling.jpeg"
@@ -384,17 +243,20 @@
           />
           <div class="portrait-fallback" aria-hidden="true">JA</div>
         </div>
-        <div class="section-copy reveal" style="--delay: 80ms">
-          <p class="eyebrow">About</p>
+
+        <div class="about-copy reveal" style="--delay: 80ms">
+          <p class="eyebrow mono">04 / ABOUT</p>
           <h2>Business discipline with a builder’s eye for technology.</h2>
           <p>
-            I’m currently studying Software Engineering while building digital
-            products, mobile applications and web platforms.
+            I’m currently studying Software Engineering while building digital products, mobile applications and web platforms.
           </p>
-          <div class="proof-row" aria-label="Experience highlights">
-            <span>10+ years customer service</span>
-            <span>Business administration</span>
-            <span>Hardware repair</span>
+
+          <div class="proof-row" aria-label="Professional highlights">
+            <span class="mono">10+ YEARS</span>
+            <span class="mono">CUSTOMER SERVICE</span>
+            <span class="mono">BUSINESS ADMINISTRATION</span>
+            <span class="mono">CURRENT / SOFTWARE ENGINEERING</span>
+            <span class="mono">ALSO / HARDWARE & ELECTRONICS</span>
           </div>
         </div>
       </section>
@@ -402,22 +264,35 @@
       <section id="contact" class="contact">
         <div class="contact-panel reveal">
           <div class="contact-copy">
-            <p class="eyebrow">Contact</p>
-            <h2>Let’s build something together.</h2>
-            <p>Available for freelance projects, collaborations and technology opportunities.</p>
+            <p class="eyebrow mono">05 / CONTACT</p>
+            <h2>AVAILABLE FOR NEW WORK.</h2>
+            <p>Freelance projects, product collaborations and technology opportunities.</p>
           </div>
+
           <div class="contact-actions" aria-label="Contact links">
-            <a href="mailto:jeremy.avalos@protonmail.com"><span>Email</span><strong>jeremy.avalos@protonmail.com</strong></a>
-            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer"><span>LinkedIn</span><strong>linkedin.com/in/jeremy-avalos</strong></a>
-            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer"><span>GitHub</span><strong>github.com/jeremyavalos</strong></a>
-            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer"><span>Instagram</span><strong>@jeremyavalos</strong></a>
+            <a href="mailto:jeremy.avalos@protonmail.com">
+              <span class="mono">EMAIL</span>
+              <strong>jeremy.avalos@protonmail.com</strong>
+            </a>
+            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer">
+              <span class="mono">LINKEDIN</span>
+              <strong>Jeremy Avalos</strong>
+            </a>
+            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer">
+              <span class="mono">GITHUB</span>
+              <strong>@jeremyavalos</strong>
+            </a>
+            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer">
+              <span class="mono">INSTAGRAM</span>
+              <strong>@jeremyavalos</strong>
+            </a>
           </div>
         </div>
       </section>
     </main>
 
     <footer>
-      <p>© <span id="year"></span> Jeremy Avalos. Software, products and technology.</p>
+      <p>© <span id="year"></span> Jeremy Avalos.</p>
     </footer>
 
     <script src="script.js"></script>
