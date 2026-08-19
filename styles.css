@@ -1547,6 +1547,131 @@ footer p {
 .impact-grid span {
   display: block;
 }
+/* Challenge section styles */
+.challenge {
+  position: relative;
+}
+
+.challenge-grid {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.challenge-panel {
+  padding: 1.2rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--line);
+}
+
+.challenge-panel h3 {
+  margin-top: 0.4rem;
+}
+
+.challenge-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.challenge-form {
+  margin-top: 1rem;
+  display: none;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.challenge-form label {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.challenge-form input,
+.challenge-form select {
+  width: 100%;
+  margin-top: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.02);
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.challenge-form[aria-hidden="false"] {
+  display: grid;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.challenge-side {
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  display: grid;
+  gap: 1rem;
+}
+
+.status-panel {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.01);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.status-row strong { font-size: 1.05rem; }
+
+.boards {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.match-container {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.chess-board { }
+.chess-square {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.chess-square:focus { outline: 2px solid rgba(211,167,90,0.24); }
+
+.board-preview {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.board-svg {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+}
+
+@media (min-width: 720px) {
+  .challenge-grid {
+    grid-template-columns: 1fr 360px;
+    align-items: start;
+  }
+}
+
 
 .impact-grid strong {
   margin-bottom: 1rem;

@@ -28,6 +28,7 @@
       <nav id="site-nav" class="nav-links" aria-label="Primary navigation">
         <a href="#work">01 WORK</a>
         <a href="#capabilities">02 CAPABILITIES</a>
+        <a href="#challenge">CHALLENGE</a>
         <a href="#about">03 ABOUT</a>
         <a href="#contact">04 CONTACT</a>
       </nav>
@@ -78,6 +79,88 @@
             />
             <div class="portrait-fallback" aria-hidden="true">JA</div>
           </div>
+        </div>
+      </section>
+
+      <section id="challenge" class="challenge">
+        <div class="section-header reveal">
+          <p class="eyebrow mono">CHALLENGE / 01</p>
+          <h2>Play me. Chess or Backgammon.</h2>
+        </div>
+
+        <div class="challenge-grid">
+          <div class="challenge-panel reveal">
+            <p class="mono">CHALLENGE / 01</p>
+            <h3>Beat me in a best-of-3 and win a free one-page website.</h3>
+            <p class="muted">This is a developer experiment — lightweight, minimal and polished. No accounts required. Create a challenge and I'll respond.</p>
+
+            <div class="challenge-actions">
+              <button id="start-challenge" class="btn">Start Challenge</button>
+              <button id="view-rules" class="btn">Rules</button>
+              <button id="view-leaderboard" class="btn">Leaderboard</button>
+            </div>
+
+            <form id="challenge-form" class="challenge-form" aria-hidden="true">
+              <label class="mono">Gamertag
+                <input id="gamertag" name="gamertag" type="text" placeholder="Your handle" />
+              </label>
+
+              <label class="mono">Game
+                <select id="game-select" name="game">
+                  <option value="chess">Chess</option>
+                  <option value="backgammon">Backgammon</option>
+                </select>
+              </label>
+
+              <label class="mono">Match format
+                <select id="format-select" name="format">
+                  <option value="bo3">Best of 3</option>
+                </select>
+              </label>
+
+              <div class="form-actions">
+                <button type="button" id="create-challenge" class="btn primary">Create Challenge</button>
+                <button type="button" id="cancel-challenge" class="btn">Cancel</button>
+              </div>
+            </form>
+          </div>
+
+          <aside class="challenge-side reveal">
+            <div class="status-panel">
+              <div class="status-row"><span class="mono">OPEN MATCHES</span><strong id="open-matches">0</strong></div>
+              <div class="status-row"><span class="mono">WINS</span><strong id="wins">0</strong></div>
+              <div class="status-row"><span class="mono">LOSSES</span><strong id="losses">0</strong></div>
+              <div class="status-row"><span class="mono">CURRENT STREAK</span><strong id="streak">0</strong></div>
+            </div>
+
+            <div class="boards">
+              <div class="board-preview">
+                <p class="mono">Chess (preview)</p>
+                <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
+                  <defs>
+                    <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
+                      <rect width="15" height="15" fill="var(--panel)"></rect>
+                      <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
+                    </pattern>
+                  </defs>
+                  <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
+                </svg>
+              </div>
+
+              <div class="board-preview">
+                <p class="mono">Backgammon (preview)</p>
+                <svg viewBox="0 0 140 80" class="board-svg" aria-hidden="true">
+                  <rect x="0" y="0" width="140" height="80" rx="8" fill="var(--panel)" stroke="var(--line)"/>
+                  <g fill="rgba(255,255,255,0.03)">
+                    <polygon points="10,0 20,40 10,80"/>
+                    <polygon points="30,0 40,40 30,80"/>
+                    <polygon points="50,0 60,40 50,80"/>
+                    <polygon points="110,0 100,40 110,80"/>
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -295,6 +378,7 @@
       <p>© <span id="year"></span> Jeremy Avalos.</p>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/chess.js@1.1.0/chess.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
