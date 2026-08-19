@@ -231,8 +231,8 @@ updateParallax();
   });
 })();
 
-/* Match loader and interactive board */
-(function () {
+/* Match loader and interactive board (defensive) */
+function initMatchUI() {
   const params = new URLSearchParams(window.location.search);
   const challengeId = params.get('challenge') || params.get('match');
   const tokenFromUrl = params.get('token');
@@ -287,8 +287,14 @@ updateParallax();
     return container;
   }
 
-  // overwrite renderChessBoard with enhanced UX: legal move highlights, promotion dialog, last move
+  // renderChessBoard assumes `Chess` is available
   function renderChessBoard(fen, onMove, opts = {}) {
+    if (typeof window.Chess !== 'function') {
+      const container = ensureBoardContainer();
+      container.innerHTML = '<div style="color:var(--muted);">Chess UI unavailable.</div>';
+      return;
+    }
+
     const container = ensureBoardContainer();
     // keep meta area if present
     const existingMeta = container.querySelector('.match-meta');
@@ -305,7 +311,7 @@ updateParallax();
     boardEl.style.padding = '6px';
     boardEl.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))';
 
-    const chess = new Chess(fen);
+    const chess = new window.Chess(fen);
     const board = chess.board();
     const lastMove = opts.lastMove;
     // board is 8 rows from 8 to 1
@@ -474,5 +480,24 @@ updateParallax();
     const token = tokenFromUrl || localStorage.getItem(`challenge_token_${challengeId}`);
     loadMatch(challengeId, token);
   }
-})();
+}
+
+// Initialize immediately if Chess already available, otherwise wait for chess-ready event.
+if (typeof window !== 'undefined') {
+  if (typeof window.Chess === 'function') {
+    try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); }
+  } else {
+    window.addEventListener('chess-ready', () => { try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); } }, { once: true });
+    // If chess fails to load, ensure challenge UI doesn't throw — show a muted notice when user opens the form
+    window.addEventListener('chess-failed', () => {
+      const panel = document.querySelector('.challenge-panel');
+      if (!panel) return;
+      const note = document.createElement('div');
+      note.style.color = 'var(--muted)';
+      note.style.marginTop = '0.6rem';
+      note.textContent = 'Challenge (Chess) is currently unavailable. You can still create a challenge; board rendering will appear when supported.';
+      panel.appendChild(note);
+    }, { once: true });
+  }
+}
 

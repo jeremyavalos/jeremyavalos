@@ -382,14 +382,22 @@
       window.API_BASE = 'https://jeremyavalos-production.up.railway.app';
     </script>
 
+    <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
+    <script src="script.js"></script>
+
+    <!-- Try to load Chess as an ES module; signal success/failure so challenge code can initialize safely -->
     <script type="module">
-      import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/chess.mjs';
-      // expose Chess to non-module scripts
-      window.Chess = Chess;
-      // load the main non-module script after Chess is available
-      const s = document.createElement('script');
-      s.src = 'script.js';
-      document.body.appendChild(s);
+      (async () => {
+        try {
+          const mod = await import('https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/chess.mjs');
+          window.Chess = mod.Chess;
+          window.dispatchEvent(new CustomEvent('chess-ready'));
+        } catch (err) {
+          // chess failed to load (CSP/MIME/blocked). Notify the page but do not throw.
+          console.warn('Failed to load Chess module:', err);
+          window.dispatchEvent(new CustomEvent('chess-failed'));
+        }
+      })();
     </script>
   </body>
 </html>
