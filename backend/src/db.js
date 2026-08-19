@@ -6,7 +6,11 @@ if (!connectionString) {
   console.error('DATABASE_URL is not set');
 }
 
-const pool = new Pool({ connectionString });
+// Configure SSL for Railway/Postgres when PGSSLMODE is set (e.g. require)
+// Scope SSL behavior to the pg client only; do NOT disable global TLS verification.
+const sslOption = process.env.PGSSLMODE ? { rejectUnauthorized: false } : false;
+
+const pool = new Pool({ connectionString, ssl: sslOption });
 
 module.exports = {
   query: (text, params) => pool.query(text, params),

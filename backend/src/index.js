@@ -10,6 +10,8 @@ const { Chess } = require('chess.js');
 const db = require('./db');
 
 const app = express();
+// Trust the first proxy (Railway) so req.ip and related helpers reflect the client IP
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
