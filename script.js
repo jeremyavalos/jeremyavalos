@@ -355,9 +355,16 @@ function initMatchUI() {
     container.innerHTML = '';
     if (existingMeta) container.appendChild(existingMeta);
 
+    // opts: { lastMove, challengerColor, gameId, token, isPlayerTurn }
+    const gameId = opts.gameId;
+    const token = opts.token;
+    const isPlayerTurn = Boolean(opts.isPlayerTurn);
+
     // If interactive Chess lib available, use it. Otherwise render a static board from FEN.
     if (typeof window.Chess !== 'function') {
-      renderFenOnlyBoard(fen, opts.lastMove);
+      renderFenOnlyBoard(fen, opts.lastMove, opts.challengerColor);
+      // attach server-side based interactivity (read-only if not player's turn)
+      attachServerLegalMoveHandlers(container, gameId, token, opts.challengerColor, isPlayerTurn, onMove);
       return;
     }
 
@@ -412,15 +419,27 @@ function initMatchUI() {
 
     // click-to-select then click-to-move with legal move highlighting
     let selected = null;
+    let isProcessing = false;
     boardEl.addEventListener('click', async (ev) => {
+      if (isProcessing) return;
       const btn = ev.target.closest('.chess-square');
       if (!btn) return;
       const sq = btn.dataset.square;
+
+      const piece = chess.get(sq);
+      const pieceColor = piece ? (piece.color === 'w' ? 'white' : 'black') : null;
+      const challengerColor = opts.challengerColor || 'white';
+
+      // Only allow selecting player's own pieces when it's their turn
+      if (!isPlayerTurn) return;
       if (!selected) {
+        if (!piece || pieceColor !== challengerColor) return; // not player's piece
         selected = sq;
+        console.log('[Chess] selected square', selected);
         btn.style.outline = `2px solid var(--gold)`;
-        // highlight legal moves
+        // highlight legal moves via local chess.js
         const moves = chess.moves({ square: selected, verbose: true }) || [];
+        console.log('[Chess] legal moves', moves.map(m=>m.to));
         document.querySelectorAll('.chess-square').forEach(s => s.style.borderColor = 'var(--line)');
         moves.forEach(m => {
           const el = boardEl.querySelector(`[data-square='${m.to}']`);
@@ -440,7 +459,19 @@ function initMatchUI() {
         if (!candidate) return; // illegal
         const doMove = async (promotionPiece) => {
           if (typeof onMove === 'function') {
-            await onMove({ from, to, promotion: promotionPiece });
+            try {
+              isProcessing = true;
+              await showInlineStatus('Submitting move...', 0);
+              console.log('[Chess] submitting move', { from, to, promotion: promotionPiece });
+              await onMove({ from, to, promotion: promotionPiece });
+              console.log('[Chess] server response: move accepted');
+              await showInlineStatus('MOVE SAVED', 800);
+            } catch (err) {
+              console.error('[Chess] server response', err);
+              await showInlineStatus(err.message || 'MOVE COULD NOT BE SAVED', 1600);
+            } finally {
+              isProcessing = false;
+            }
           }
         };
         if (candidate.promotion) {
@@ -572,6 +603,106 @@ function initMatchUI() {
     container.appendChild(boardEl);
   }
 
+  // show an inline status in the match meta area; timeout 0 means persist until cleared
+  function showInlineStatus(msg, timeout = 1200) {
+    return new Promise((resolve) => {
+      const panel = document.querySelector('.challenge-panel');
+      if (!panel) return resolve();
+      const meta = panel.querySelector('.match-meta');
+      if (!meta) return resolve();
+      let s = meta.querySelector('.match-status-inline');
+      if (!s) {
+        s = document.createElement('div');
+        s.className = 'match-status-inline';
+        s.style.fontFamily = 'var(--mono)';
+        s.style.color = 'var(--muted)';
+        s.style.marginTop = '6px';
+        meta.appendChild(s);
+      }
+      s.textContent = msg;
+      if (timeout > 0) setTimeout(() => { s.remove(); resolve(); }, timeout);
+      else resolve();
+    });
+  }
+
+  // Attach handlers that query the server for legal moves when local chess.js is unavailable.
+  function attachServerLegalMoveHandlers(container, gameId, token, challengerColor = 'white', isPlayerTurn = false, onMove) {
+    if (!gameId) return;
+    let selected = null;
+    let legal = [];
+    let processing = false;
+
+    function clearHighlights() {
+      container.querySelectorAll('.chess-square').forEach(s => { s.style.borderColor = 'var(--line)'; s.style.outline = 'none'; });
+    }
+
+    container.addEventListener('click', async (ev) => {
+      if (processing) return;
+      const btn = ev.target.closest('.chess-square');
+      if (!btn) return;
+      const sq = btn.dataset.square;
+      // read piece from DOM (unicode present for static renderer)
+      const text = (btn.textContent || '').trim();
+
+      // If not player's turn, ignore selection
+      if (!isPlayerTurn) return;
+
+      // If no selection yet, ensure clicked square has player's piece
+      if (!selected) {
+        // simple heuristic: fetch legal moves for this square; if none, it's not selectable
+        try {
+          const headers = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const resp = await fetch(`${API_BASE}/api/games/${gameId}/legal?square=${sq}`, { headers });
+          if (!resp.ok) return; // not authorized or no moves
+          const j = await resp.json();
+          legal = j.moves || [];
+          if (!legal.length) return; // nothing to do
+          selected = sq;
+          console.log('[Chess] selected square', selected);
+          btn.style.outline = `2px solid var(--gold)`;
+          console.log('[Chess] legal moves', legal.map(m=>m.to));
+          legal.forEach(m => {
+            const el = container.querySelector(`[data-square='${m.to}']`);
+            if (el) el.style.borderColor = 'rgba(211,167,90,0.8)';
+          });
+        } catch (err) {
+          console.error('Failed to fetch legal moves', err);
+        }
+      } else if (selected === sq) {
+        selected = null;
+        clearHighlights();
+      } else {
+        const from = selected;
+        const to = sq;
+        const candidate = legal.find(m => m.to === to);
+        if (!candidate) return; // illegal
+        // handle promotion
+        let promotionChoice = null;
+        if (candidate.promotion) {
+          promotionChoice = await showPromotionDialog();
+          if (!promotionChoice) return;
+        }
+        try {
+          processing = true;
+          await showInlineStatus('Submitting move...', 0);
+          console.log('[Chess] submitting move', { from, to, promotion: promotionChoice });
+          if (typeof onMove === 'function') await onMove({ from, to, promotion: promotionChoice });
+          console.log('[Chess] server response');
+          await showInlineStatus('MOVE SAVED', 800);
+        } catch (err) {
+          console.error('[Chess] server response', err);
+          await showInlineStatus(err.message || 'MOVE COULD NOT BE SAVED', 1600);
+        } finally {
+          processing = false;
+          selected = null;
+          legal = [];
+          clearHighlights();
+        }
+      }
+    });
+  }
+
   async function loadMatch(matchId, token) {
     const container = ensureBoardContainer();
     container.innerHTML = '';
@@ -647,14 +778,27 @@ function initMatchUI() {
       // render board (static or interactive)
       try {
         console.log('FEN received:', fen);
+        const isPlayerTurn = sideToMove === playerSide;
         renderChessBoard(fen, async (move) => {
           try {
             const resp = await apiPostMove(game.id, move, token);
             await loadMatch(matchId, token);
           } catch (err) {
-            alert(err.message || 'Move failed');
+            // show inline error instead of alert
+            console.error('Move error', err);
+            const panel = document.querySelector('.challenge-panel');
+            const meta = panel.querySelector('.match-meta');
+            if (meta) {
+              const s = meta.querySelector('.match-status-inline') || document.createElement('div');
+              s.className = 'match-status-inline';
+              s.style.fontFamily = 'var(--mono)';
+              s.style.color = 'var(--muted)';
+              s.textContent = err.message || 'Move failed';
+              meta.appendChild(s);
+              setTimeout(()=>s.remove(), 2200);
+            }
           }
-        }, { lastMove: moves.length ? moves[moves.length-1] : null, challengerColor: game.challenger_color });
+        }, { lastMove: moves.length ? moves[moves.length-1] : null, challengerColor: game.challenger_color, gameId: game.id, token, isPlayerTurn });
         console.log('Board render invoked');
       } catch (err) {
         console.error('Board render failed', err);

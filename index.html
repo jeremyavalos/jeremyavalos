@@ -385,16 +385,20 @@
     <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
     <script src="script.js"></script>
 
-    <!-- Try to load Chess as an ES module; signal success/failure so challenge code can initialize safely -->
+    <!-- Load local chess module if available; fall back to static renderer otherwise -->
     <script type="module">
       (async () => {
         try {
-          const mod = await import('https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/chess.mjs');
-          window.Chess = mod.Chess;
-          window.dispatchEvent(new CustomEvent('chess-ready'));
+          const mod = await import('/assets/chess.mjs');
+          if (mod && typeof mod.Chess === 'function') {
+            window.Chess = mod.Chess;
+            window.dispatchEvent(new CustomEvent('chess-ready'));
+          } else {
+            console.warn('Local Chess module did not provide Chess');
+            window.dispatchEvent(new CustomEvent('chess-failed'));
+          }
         } catch (err) {
-          // chess failed to load (CSP/MIME/blocked). Notify the page but do not throw.
-          console.warn('Failed to load Chess module:', err);
+          console.warn('Failed to load local Chess module:', err);
           window.dispatchEvent(new CustomEvent('chess-failed'));
         }
       })();

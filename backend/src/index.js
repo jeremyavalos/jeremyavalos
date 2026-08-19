@@ -241,6 +241,37 @@ app.post('/api/games/:id/moves', async (req, res) => {
   }
 });
 
+// Return legal moves for a given square (requires authorization: player token or admin)
+app.get('/api/games/:id/legal', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const square = req.query.square;
+    if (!square) return res.status(400).json({ error: 'square required' });
+
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+
+    const gq = await db.query('SELECT * FROM games WHERE id = $1', [gameId]);
+    if (!gq.rows.length) return res.status(404).json({ error: 'game not found' });
+    const game = gq.rows[0];
+    const chq = await db.query('SELECT * FROM challenges WHERE id = $1', [game.challenge_id]);
+    const challenge = chq.rows[0];
+
+    const tokenHash = token ? hashToken(token) : null;
+    const isChallenger = tokenHash && tokenHash === challenge.player_token_hash;
+    const isAdmin = isAdminAuthenticated(req);
+    if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
+
+    const chess = new Chess(game.fen_current);
+    const moves = chess.moves({ square, verbose: true }) || [];
+    // return concise moves
+    const out = moves.map(m => ({ to: m.to, from: m.from, san: m.san, flags: m.flags, promotion: m.promotion || null }));
+    res.json({ moves: out });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
 // Leaderboard: public summary
 app.get('/api/leaderboard', async (req, res) => {
   try {
