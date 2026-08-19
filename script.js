@@ -50,6 +50,40 @@ if (window.location.hash) {
   }, 120);
 }
 
+// If the page was opened with a challenge match link, open the Challenge section immediately
+// and preserve the token in session storage so the match UI can restore when ready.
+(function handleInitialChallengeParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const challengeId = params.get('challenge') || params.get('match');
+    const token = params.get('token');
+    if (!challengeId) return;
+
+    // scroll to challenge section and reveal its items
+    const target = document.querySelector('#challenge');
+    if (target) {
+      target.scrollIntoView({ block: 'start' });
+      target.querySelectorAll('.reveal').forEach((item) => {
+        item.classList.add('is-visible');
+      });
+    }
+
+    // hide the creation form (we're restoring an existing match)
+    const form = document.getElementById('challenge-form');
+    if (form) form.setAttribute('aria-hidden', 'true');
+
+    // persist token for the session (localStorage) so match UI can use it
+    if (token) {
+      try { localStorage.setItem(`challenge_token_${challengeId}`, token); } catch (e) { /* ignore storage errors */ }
+    }
+
+    // expose the initial challenge id so match UI can opt-in if needed
+    window.__initialChallenge = { id: challengeId };
+  } catch (err) {
+    console.error('Failed to parse initial challenge params', err);
+  }
+})();
+
 document.querySelectorAll('a[href^="#"]').forEach((link) => {
   link.addEventListener("click", () => {
     const target = document.querySelector(link.getAttribute("href"));
@@ -116,6 +150,12 @@ updateParallax();
 
   startBtn?.addEventListener("click", () => showForm());
   cancelBtn?.addEventListener("click", () => hideForm());
+
+  // If the page was opened with an existing challenge URL, disable creating a new challenge
+  if (window.__initialChallenge && createBtn) {
+    createBtn.disabled = true;
+    createBtn.title = 'Viewing an existing match';
+  }
 
   const API_BASE = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
 
