@@ -372,15 +372,17 @@ function initMatchUI() {
     boardEl.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))';
 
     const chess = new window.Chess(fen);
-    const board = chess.board();
     const lastMove = opts.lastMove;
-    // board is 8 rows from 8 to 1
-    for (let r = 7; r >= 0; r--) {
-      for (let f = 0; f < 8; f++) {
-        const sq = board[r][f];
-        const file = 'abcdefgh'[f];
-        const rank = r + 1;
+    const challengerColor = opts.challengerColor || 'white';
+    // Determine orientation: if challenger is black, rotate board 180deg
+    const rowRanks = challengerColor === 'black' ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1];
+    const fileChars = challengerColor === 'black' ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h'];
+    for (let ri = 0; ri < rowRanks.length; ri++) {
+      const rank = rowRanks[ri];
+      for (let fi = 0; fi < fileChars.length; fi++) {
+        const file = fileChars[fi];
         const coord = `${file}${rank}`;
+        const sq = chess.get(coord);
         const sqEl = document.createElement('button');
         sqEl.className = 'chess-square';
         sqEl.dataset.square = coord;
@@ -388,7 +390,9 @@ function initMatchUI() {
         sqEl.style.display = 'grid';
         sqEl.style.placeItems = 'center';
         sqEl.style.border = '1px solid var(--line)';
-        sqEl.style.background = ((f + r) % 2 === 0) ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
+        // color based on file+rank parity for visual checkboard
+        const parity = (fileChars.indexOf(file) + (rowRanks.length - 1 - ri)) % 2 === 0;
+        sqEl.style.background = parity ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
         sqEl.style.color = 'var(--text)';
         sqEl.style.fontSize = '1.35rem';
         sqEl.style.fontFamily = 'var(--mono)';
@@ -485,7 +489,7 @@ function initMatchUI() {
   }
 
   // Static FEN-only renderer: displays board position using unicode pieces without relying on chess.js
-  function renderFenOnlyBoard(fen, lastMove) {
+  function renderFenOnlyBoard(fen, lastMove, challengerColor) {
     const container = ensureBoardContainer();
     const boardEl = document.createElement('div');
     boardEl.className = 'chess-board';
@@ -499,7 +503,8 @@ function initMatchUI() {
 
     const placement = (fen || '').split(' ')[0] || '';
     const rows = placement.split('/');
-    // rows are from 8 to 1
+    // build a map coord -> pieceChar
+    const boardMap = {};
     for (let r = 0; r < 8; r++) {
       const row = rows[r] || '';
       let fileIndex = 0;
@@ -511,45 +516,52 @@ function initMatchUI() {
             const file = 'abcdefgh'[fileIndex];
             const rank = 8 - r;
             const coord = `${file}${rank}`;
-            const sqEl = document.createElement('div');
-            sqEl.className = 'chess-square';
-            sqEl.dataset.square = coord;
-            sqEl.style.minHeight = '48px';
-            sqEl.style.display = 'grid';
-            sqEl.style.placeItems = 'center';
-            sqEl.style.border = '1px solid var(--line)';
-            sqEl.style.background = ((fileIndex + (7 - r)) % 2 === 0) ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
-            sqEl.style.color = 'var(--text)';
-            sqEl.style.fontSize = '1.35rem';
-            sqEl.style.fontFamily = 'var(--mono)';
-            boardEl.appendChild(sqEl);
+            boardMap[coord] = null;
             fileIndex++;
           }
         } else {
           const file = 'abcdefgh'[fileIndex];
           const rank = 8 - r;
           const coord = `${file}${rank}`;
-          const sqEl = document.createElement('div');
-          sqEl.className = 'chess-square';
-          sqEl.dataset.square = coord;
-          sqEl.style.minHeight = '48px';
-          sqEl.style.display = 'grid';
-          sqEl.style.placeItems = 'center';
-          sqEl.style.border = '1px solid var(--line)';
-          sqEl.style.background = ((fileIndex + (7 - r)) % 2 === 0) ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
-          sqEl.style.color = 'var(--text)';
-          sqEl.style.fontSize = '1.35rem';
-          sqEl.style.fontFamily = 'var(--mono)';
+          boardMap[coord] = ch;
+          fileIndex++;
+        }
+      }
+    }
+
+    // orientation
+    const challenger = challengerColor || 'white';
+    const rowRanks = challenger === 'black' ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1];
+    const fileChars = challenger === 'black' ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h'];
+
+    for (let ri = 0; ri < rowRanks.length; ri++) {
+      const rank = rowRanks[ri];
+      for (let fi = 0; fi < fileChars.length; fi++) {
+        const file = fileChars[fi];
+        const coord = `${file}${rank}`;
+        const sqEl = document.createElement('div');
+        sqEl.className = 'chess-square';
+        sqEl.dataset.square = coord;
+        sqEl.style.minHeight = '48px';
+        sqEl.style.display = 'grid';
+        sqEl.style.placeItems = 'center';
+        sqEl.style.border = '1px solid var(--line)';
+        const parity = (fi + (rowRanks.length - 1 - ri)) % 2 === 0;
+        sqEl.style.background = parity ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
+        sqEl.style.color = 'var(--text)';
+        sqEl.style.fontSize = '1.35rem';
+        sqEl.style.fontFamily = 'var(--mono)';
+        const ch = boardMap[coord];
+        if (ch) {
           const isUpper = ch === ch.toUpperCase();
           const type = ch.toLowerCase();
           const color = isUpper ? 'w' : 'b';
           sqEl.textContent = pieceToUnicode(type, color === 'w' ? 'w' : 'b');
-          if (lastMove && (lastMove.from === coord || lastMove.to === coord)) {
-            sqEl.style.boxShadow = 'inset 0 0 0 3px rgba(211,167,90,0.12)';
-          }
-          boardEl.appendChild(sqEl);
-          fileIndex++;
         }
+        if (lastMove && (lastMove.from === coord || lastMove.to === coord)) {
+          sqEl.style.boxShadow = 'inset 0 0 0 3px rgba(211,167,90,0.12)';
+        }
+        boardEl.appendChild(sqEl);
       }
     }
 
@@ -642,7 +654,7 @@ function initMatchUI() {
           } catch (err) {
             alert(err.message || 'Move failed');
           }
-        }, { lastMove: moves.length ? moves[moves.length-1] : null });
+        }, { lastMove: moves.length ? moves[moves.length-1] : null, challengerColor: game.challenger_color });
         console.log('Board render invoked');
       } catch (err) {
         console.error('Board render failed', err);
@@ -698,20 +710,28 @@ function initMatchUI() {
 
 // Initialize immediately if Chess already available, otherwise wait for chess-ready event.
 if (typeof window !== 'undefined') {
-  if (typeof window.Chess === 'function') {
-    try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); }
-  } else {
-    window.addEventListener('chess-ready', () => { try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); } }, { once: true });
-    // If chess fails to load, ensure challenge UI doesn't throw — show a muted notice when user opens the form
-    window.addEventListener('chess-failed', () => {
-      const panel = document.querySelector('.challenge-panel');
-      if (!panel) return;
-      const note = document.createElement('div');
-      note.style.color = 'var(--muted)';
-      note.style.marginTop = '0.6rem';
-      note.textContent = 'Challenge (Chess) is currently unavailable. You can still create a challenge; board rendering will appear when supported.';
-      panel.appendChild(note);
-    }, { once: true });
-  }
+  // Always initialize match UI immediately (it will fall back to a static FEN renderer if Chess is unavailable)
+  try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); }
+
+  // Still listen for chess-ready to allow upgrading the static board to interactive later
+  window.addEventListener('chess-ready', () => {
+    try {
+      // Re-initialize match UI to enable interactive features if a match is active
+      initMatchUI();
+    } catch (e) {
+      console.error('Match UI upgrade failed', e);
+    }
+  }, { once: true });
+
+  // If chess fails to load, show a muted notice (non-fatal)
+  window.addEventListener('chess-failed', () => {
+    const panel = document.querySelector('.challenge-panel');
+    if (!panel) return;
+    const note = document.createElement('div');
+    note.style.color = 'var(--muted)';
+    note.style.marginTop = '0.6rem';
+    note.textContent = 'Challenge (Chess) is currently unavailable. Board will be displayed in a static view.';
+    panel.appendChild(note);
+  }, { once: true });
 }
 
