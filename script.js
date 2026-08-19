@@ -20,6 +20,12 @@ if (navToggle && navLinks) {
   });
 }
 
+// piece unicode helper
+function pieceToUnicode(type, color) {
+  const m = { p: { w: '♙', b: '♟' }, r: { w: '♖', b: '♜' }, n: { w: '♘', b: '♞' }, b: { w: '♗', b: '♝' }, q: { w: '♕', b: '♛' }, k: { w: '♔', b: '♚' } };
+  return m[type]?.[color] || '';
+}
+
 const revealItems = document.querySelectorAll(".reveal");
 const revealObserver = new IntersectionObserver(
   (entries) => {
@@ -279,22 +285,36 @@ function initMatchUI() {
   const API_BASE = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
 
   async function apiGetChallenge(id, token) {
-    const url = new URL(`${API_BASE}/api/challenges/${id}`);
-    if (token) url.searchParams.set('token', token);
-    const resp = await fetch(url.toString());
-    if (!resp.ok) throw new Error('not found');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(`${API_BASE}/api/challenges/${id}`, { headers });
+    if (!resp.ok) {
+      const text = await resp.text().catch(()=>null);
+      const msg = `GET /api/challenges/${id} failed: ${resp.status} ${resp.statusText} ${text||''}`;
+      throw new Error(msg);
+    }
     return resp.json();
   }
 
-  async function apiGetCurrentGame(challengeId) {
-    const resp = await fetch(`${API_BASE}/api/challenges/${challengeId}/games/current`);
-    if (!resp.ok) throw new Error('no game');
+  async function apiGetCurrentGame(challengeId, token) {
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(`${API_BASE}/api/challenges/${challengeId}/games/current`, { headers });
+    if (!resp.ok) {
+      const text = await resp.text().catch(()=>null);
+      throw new Error(`GET /api/challenges/${challengeId}/games/current failed: ${resp.status} ${resp.statusText} ${text||''}`);
+    }
     return resp.json();
   }
 
-  async function apiGetGame(gameId) {
-    const resp = await fetch(`${API_BASE}/api/games/${gameId}`);
-    if (!resp.ok) throw new Error('game not found');
+  async function apiGetGame(gameId, token) {
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const resp = await fetch(`${API_BASE}/api/games/${gameId}`, { headers });
+    if (!resp.ok) {
+      const text = await resp.text().catch(()=>null);
+      throw new Error(`GET /api/games/${gameId} failed: ${resp.status} ${resp.statusText} ${text||''}`);
+    }
     return resp.json();
   }
 
@@ -329,17 +349,17 @@ function initMatchUI() {
 
   // renderChessBoard assumes `Chess` is available
   function renderChessBoard(fen, onMove, opts = {}) {
-    if (typeof window.Chess !== 'function') {
-      const container = ensureBoardContainer();
-      container.innerHTML = '<div style="color:var(--muted);">Chess UI unavailable.</div>';
-      return;
-    }
-
     const container = ensureBoardContainer();
     // keep meta area if present
     const existingMeta = container.querySelector('.match-meta');
     container.innerHTML = '';
     if (existingMeta) container.appendChild(existingMeta);
+
+    // If interactive Chess lib available, use it. Otherwise render a static board from FEN.
+    if (typeof window.Chess !== 'function') {
+      renderFenOnlyBoard(fen, opts.lastMove);
+      return;
+    }
 
     const boardEl = document.createElement('div');
     boardEl.className = 'chess-board';
@@ -464,54 +484,208 @@ function initMatchUI() {
     });
   }
 
+  // Static FEN-only renderer: displays board position using unicode pieces without relying on chess.js
+  function renderFenOnlyBoard(fen, lastMove) {
+    const container = ensureBoardContainer();
+    const boardEl = document.createElement('div');
+    boardEl.className = 'chess-board';
+    boardEl.style.display = 'grid';
+    boardEl.style.gridTemplateColumns = 'repeat(8, 1fr)';
+    boardEl.style.gap = '4px';
+    boardEl.style.maxWidth = '420px';
+    boardEl.style.borderRadius = '8px';
+    boardEl.style.padding = '6px';
+    boardEl.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))';
+
+    const placement = (fen || '').split(' ')[0] || '';
+    const rows = placement.split('/');
+    // rows are from 8 to 1
+    for (let r = 0; r < 8; r++) {
+      const row = rows[r] || '';
+      let fileIndex = 0;
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (/[1-8]/.test(ch)) {
+          const count = Number(ch);
+          for (let k = 0; k < count; k++) {
+            const file = 'abcdefgh'[fileIndex];
+            const rank = 8 - r;
+            const coord = `${file}${rank}`;
+            const sqEl = document.createElement('div');
+            sqEl.className = 'chess-square';
+            sqEl.dataset.square = coord;
+            sqEl.style.minHeight = '48px';
+            sqEl.style.display = 'grid';
+            sqEl.style.placeItems = 'center';
+            sqEl.style.border = '1px solid var(--line)';
+            sqEl.style.background = ((fileIndex + (7 - r)) % 2 === 0) ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
+            sqEl.style.color = 'var(--text)';
+            sqEl.style.fontSize = '1.35rem';
+            sqEl.style.fontFamily = 'var(--mono)';
+            boardEl.appendChild(sqEl);
+            fileIndex++;
+          }
+        } else {
+          const file = 'abcdefgh'[fileIndex];
+          const rank = 8 - r;
+          const coord = `${file}${rank}`;
+          const sqEl = document.createElement('div');
+          sqEl.className = 'chess-square';
+          sqEl.dataset.square = coord;
+          sqEl.style.minHeight = '48px';
+          sqEl.style.display = 'grid';
+          sqEl.style.placeItems = 'center';
+          sqEl.style.border = '1px solid var(--line)';
+          sqEl.style.background = ((fileIndex + (7 - r)) % 2 === 0) ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.25)';
+          sqEl.style.color = 'var(--text)';
+          sqEl.style.fontSize = '1.35rem';
+          sqEl.style.fontFamily = 'var(--mono)';
+          const isUpper = ch === ch.toUpperCase();
+          const type = ch.toLowerCase();
+          const color = isUpper ? 'w' : 'b';
+          sqEl.textContent = pieceToUnicode(type, color === 'w' ? 'w' : 'b');
+          if (lastMove && (lastMove.from === coord || lastMove.to === coord)) {
+            sqEl.style.boxShadow = 'inset 0 0 0 3px rgba(211,167,90,0.12)';
+          }
+          boardEl.appendChild(sqEl);
+          fileIndex++;
+        }
+      }
+    }
+
+    // replace container content but preserve any .match-meta
+    const existingMeta = container.querySelector('.match-meta');
+    container.innerHTML = '';
+    if (existingMeta) container.appendChild(existingMeta);
+    container.appendChild(boardEl);
+  }
+
   async function loadMatch(matchId, token) {
+    const container = ensureBoardContainer();
+    container.innerHTML = '';
+    const status = document.createElement('div');
+    status.className = 'match-status';
+    status.style.fontFamily = 'var(--mono)';
+    status.style.color = 'var(--muted)';
+    status.textContent = 'Loading match...';
+    container.appendChild(status);
+
     try {
+      console.log('Match restore: challengeId=', matchId);
+      console.log('Match restore: token present=', Boolean(token));
+
       const challengeResp = await apiGetChallenge(matchId, token);
+      console.log('GET /api/challenges/:', challengeResp);
       const challenge = challengeResp.challenge;
-      const container = ensureBoardContainer();
-      // meta area
+      if (!challenge) {
+        status.textContent = 'Invalid or expired private match link.';
+        console.error('Challenge not found or invalid');
+        return;
+      }
+      if (!challengeResp.authorized) {
+        status.textContent = 'Invalid or expired private match link.';
+        console.error('Token not authorized for this challenge');
+        return;
+      }
+
+      // now fetch current game
+      const cg = await apiGetCurrentGame(matchId, token);
+      console.log('GET current game:', cg);
+      const game = cg && cg.game;
+      if (!game) {
+        status.textContent = 'Match found, but game data could not be loaded.';
+        console.error('No current game for challenge', matchId);
+        return;
+      }
+
+      // fetch game details (moves + fen)
+      const gameDetails = await apiGetGame(game.id, token);
+      console.log('GET game details:', gameDetails);
+      const moves = (gameDetails && gameDetails.moves) || [];
+
+      // render meta and board
       const meta = document.createElement('div');
       meta.className = 'match-meta';
       meta.style.display = 'grid';
       meta.style.gap = '0.6rem';
+
+      const playerWins = challenge.player_wins || 0;
+      const jeremyWins = challenge.jeremy_wins || 0;
+      meta.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;"><div class=\"mono\">MATCH / ACTIVE</div><div style=\"font-size:1.1rem;\">${challenge.gamertag}</div><div class=\"mono\">GAME ${game.game_number} / BEST OF 3</div><div class=\"mono\">Jeremy ${jeremyWins} — ${playerWins} Player</div><div class=\"mono\">Status: ${game.status}</div></div>`;
+
       container.innerHTML = '';
       container.appendChild(meta);
 
-      async function refresh() {
-        const ch = await apiGetChallenge(matchId, token).catch(()=>null);
-        const cg = await apiGetCurrentGame(matchId);
-        const game = cg.game;
-        const gameDetails = await apiGetGame(game.id).catch(()=>null);
-        const moves = (gameDetails && gameDetails.moves) || [];
-        // meta
-        meta.innerHTML = `<div style="display:flex;gap:1rem;align-items:center;"><div class=\"mono\">${challenge.gamertag}</div><div class=\"mono\">Score: ${ch?.challenge?.player_wins||0} - ${ch?.challenge?.jeremy_wins||0} (draws ${ch?.challenge?.draws||0})</div><div class=\"mono\">Game ${game.game_number}</div><div class=\"mono\">Status: ${game.status}</div></div>`;
-        const lastMove = moves.length ? moves[moves.length-1] : null;
-        // render board with last move highlight
-        renderChessBoard(game.fen_current, async (move) => {
+      // determine whose turn from FEN
+      const fen = game.fen_current;
+      const activeColor = (fen || '').split(' ')[1] || 'w';
+      const challengerColor = game.challenger_color || 'white';
+      const playerSide = challengerColor === 'white' ? 'white' : 'black';
+      const jeremySide = playerSide === 'white' ? 'black' : 'white';
+      const sideToMove = activeColor === 'w' ? 'white' : 'black';
+      const turnText = sideToMove === playerSide ? 'YOUR TURN' : "JEREMY'S TURN";
+
+      const turnEl = document.createElement('div');
+      turnEl.className = 'match-turn';
+      turnEl.style.fontFamily = 'var(--mono)';
+      turnEl.style.marginTop = '6px';
+      turnEl.textContent = turnText;
+      meta.appendChild(turnEl);
+
+      // render board (static or interactive)
+      try {
+        console.log('FEN received:', fen);
+        renderChessBoard(fen, async (move) => {
           try {
             const resp = await apiPostMove(game.id, move, token);
-            // after successful move refresh
-            await refresh();
+            await loadMatch(matchId, token);
           } catch (err) {
             alert(err.message || 'Move failed');
           }
-        }, { lastMove });
-
-        // move history
-        let historyEl = meta.querySelector('.move-history');
-        if (!historyEl) {
-          historyEl = document.createElement('div');
-          historyEl.className = 'move-history';
-          historyEl.style.fontFamily = 'var(--mono)';
-          historyEl.style.color = 'var(--muted)';
-          meta.appendChild(historyEl);
-        }
-        historyEl.innerHTML = `<div style="margin-top:8px;">Move history:</div><ol>${moves.map(m=>`<li>${m.san || m.uci}</li>`).join('')}</ol>`;
+        }, { lastMove: moves.length ? moves[moves.length-1] : null });
+        console.log('Board render invoked');
+      } catch (err) {
+        console.error('Board render failed', err);
+        status.textContent = 'Match found, but board could not be rendered.';
       }
 
-      await refresh();
+      // move history
+      let historyEl = meta.querySelector('.move-history');
+      if (!historyEl) {
+        historyEl = document.createElement('div');
+        historyEl.className = 'move-history';
+        historyEl.style.fontFamily = 'var(--mono)';
+        historyEl.style.color = 'var(--muted)';
+        meta.appendChild(historyEl);
+      }
+      historyEl.innerHTML = `<div style="margin-top:8px;">Move history:</div><ol>${moves.map(m=>`<li>${m.san || m.uci}</li>`).join('')}</ol>`;
+
+      // copy link button
+      const copyArea = document.createElement('div');
+      copyArea.style.marginTop = '8px';
+      const linkInput = document.createElement('input');
+      linkInput.value = `${window.location.origin}/?challenge=${matchId}`;
+      linkInput.readOnly = true;
+      linkInput.style.padding = '0.5rem';
+      linkInput.style.marginRight = '8px';
+      linkInput.style.border = '1px solid var(--line)';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn';
+      copyBtn.textContent = 'Copy Private Match Link';
+      copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(linkInput.value);
+        copyBtn.textContent = 'Copied';
+        setTimeout(()=>copyBtn.textContent = 'Copy Private Match Link',2000);
+      });
+      copyArea.appendChild(linkInput);
+      copyArea.appendChild(copyBtn);
+      container.appendChild(copyArea);
+
     } catch (err) {
-      console.error(err);
+      console.error('Match restore error:', err);
+      const msg = String(err?.message || err);
+      const userMsg = msg.includes('401') || msg.includes('not authorized') ? 'Invalid or expired private match link.' : (msg.includes('Failed to fetch') ? 'Unable to connect to match server.' : 'Match found, but game data could not be loaded.');
+      container.innerHTML = `<div style="color:var(--muted);font-family:var(--mono);">${userMsg}</div><div style="display:none">${msg}</div>`;
     }
   }
 
