@@ -190,10 +190,10 @@ app.post('/api/games/:id/moves', async (req, res) => {
       // determine game terminal state
       let gameStatus = 'ongoing';
       let gameResult = null;
-      if (chess.in_checkmate()) {
+      if (chess.isCheckmate()) {
         gameStatus = 'finished';
         gameResult = chess.turn() === 'w' ? 'black' : 'white';
-      } else if (chess.in_stalemate() || chess.in_draw() || chess.in_threefold_repetition() || chess.insufficient_material()) {
+      } else if (chess.isStalemate() || chess.isDraw() || chess.isThreefoldRepetition() || chess.isInsufficientMaterial()) {
         gameStatus = 'finished';
         gameResult = 'draw';
       }
