@@ -165,14 +165,75 @@ updateParallax();
 
   const API_BASE = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
 
-  async function apiCreateChallenge(gamertag, game) {
+  async function apiCreateChallenge(gamertag, game, email) {
     const resp = await fetch(`${API_BASE}/api/challenges`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gamertag, game })
+      body: JSON.stringify({ gamertag, game, email })
     });
     if (!resp.ok) throw new Error('create failed');
     return resp.json();
+  }
+
+  // localStorage activeChallenges helpers
+  function getActiveChallenges() {
+    try {
+      const raw = localStorage.getItem('activeChallenges');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveActiveChallenges(list) {
+    try { localStorage.setItem('activeChallenges', JSON.stringify(list)); } catch (e) {}
+  }
+
+  function addActiveChallenge(entry) {
+    const list = getActiveChallenges().filter(x => x.challengeId !== entry.challengeId);
+    list.unshift(entry);
+    saveActiveChallenges(list);
+  }
+
+  function removeActiveChallenge(challengeId) {
+    const list = getActiveChallenges().filter(x => x.challengeId !== challengeId);
+    saveActiveChallenges(list);
+  }
+
+  function renderContinueCards() {
+    const params = new URLSearchParams(window.location.search);
+    const haveQuery = params.has('challenge') || params.has('match');
+    if (haveQuery) return; // don't show continue when viewing a link
+    const list = getActiveChallenges();
+    if (!list.length) return;
+    const panel = document.querySelector('.challenge-panel');
+    if (!panel) return;
+    // create container
+    let container = panel.querySelector('.continue-list');
+    if (container) container.remove();
+    container = document.createElement('div');
+    container.className = 'continue-list';
+    container.style.marginTop = '0.8rem';
+    list.slice(0,4).forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'continue-card';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.gap = '0.6rem';
+      card.style.padding = '0.6rem';
+      card.style.border = '1px solid var(--line)';
+      card.style.borderRadius = '8px';
+      card.innerHTML = `<div><div class="mono">ACTIVE CHALLENGE</div><div style="font-size:1rem">${item.gamertag}</div><div class="mono">${item.game || 'chess'} · Game 1/3</div></div>`;
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = 'CONTINUE MATCH';
+      btn.addEventListener('click', () => {
+        history.replaceState({}, '', `/?challenge=${item.challengeId}&token=${item.token}`);
+        loadMatch(item.challengeId, item.token);
+      });
+      card.appendChild(btn);
+      container.appendChild(card);
+    });
+    panel.insertBefore(container, panel.querySelector('.challenge-actions'));
   }
 
   const ensureBoardContainer = () => {
@@ -218,6 +279,7 @@ updateParallax();
   createBtn?.addEventListener('click', async () => {
     const tag = document.getElementById('gamertag')?.value?.trim();
     const game = document.getElementById('game-select')?.value;
+    const email = document.getElementById('email')?.value?.trim();
     if (!tag) {
       alert('Please enter a gamertag to create a challenge.');
       return;
@@ -225,12 +287,19 @@ updateParallax();
 
     try {
       createBtn.disabled = true;
-      const data = await apiCreateChallenge(tag, game);
+      const data = await apiCreateChallenge(tag, game, email);
       if (data?.match_url) {
+        // persist token in localStorage
+        try { localStorage.setItem(`challenge_token_${data.challenge.id}`, data.token); } catch (e) {}
+        // add to activeChallenges list
+        addActiveChallenge({ challengeId: data.challenge.id, token: data.token, gamertag: data.challenge.gamertag, game: data.challenge.game_type || game, lastOpened: Date.now() });
+        // update URL and auto-open match
+        history.replaceState({}, '', `/?challenge=${data.challenge.id}&token=${data.token}`);
         renderLinkArea(data.match_url);
-        // update open matches UI
         openMatches += 1;
         if (openMatchesEl) openMatchesEl.textContent = String(openMatches);
+        // load match immediately
+        loadMatch(data.challenge.id, data.token);
       }
     } catch (err) {
       console.error(err);
@@ -856,6 +925,9 @@ function initMatchUI() {
 if (typeof window !== 'undefined') {
   // Always initialize match UI immediately (it will fall back to a static FEN renderer if Chess is unavailable)
   try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); }
+
+  // Show continue cards when returning to homepage
+  try { renderContinueCards(); } catch (e) { /* ignore */ }
 
   // Still listen for chess-ready to allow upgrading the static board to interactive later
   window.addEventListener('chess-ready', () => {

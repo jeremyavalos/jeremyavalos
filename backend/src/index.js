@@ -61,7 +61,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Create challenge
 app.post('/api/challenges', async (req, res) => {
   try {
-    const { gamertag, game } = req.body;
+    const { gamertag, game, email } = req.body;
     if (!gamertag) return res.status(400).json({ error: 'gamertag required' });
     const gameType = game === 'backgammon' ? 'backgammon' : 'chess';
 
@@ -71,7 +71,7 @@ app.post('/api/challenges', async (req, res) => {
     // create challenge row
     // transactional creation: challenge + first game (if chess)
     const result = await db.transaction(async (client) => {
-      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type) VALUES ($1,$2,$3) RETURNING *`, [gamertag, tokenHash, gameType]);
+      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email) VALUES ($1,$2,$3,$4) RETURNING *`, [gamertag, tokenHash, gameType, email || null]);
       const challenge = r.rows[0];
       let gameRow = null;
       if (gameType === 'chess') {
@@ -235,6 +235,51 @@ app.post('/api/games/:id/moves', async (req, res) => {
     });
 
     res.json(Object.assign({ ok: true }, response));
+    // Send non-blocking notifications
+    (async () => {
+      try {
+        const fromChallenger = isChallenger;
+        const challengerEmail = challenge.email;
+        const fromEmail = process.env.CHALLENGE_FROM_EMAIL;
+        const resendKey = process.env.RESEND_API_KEY;
+        const jeremyEmail = process.env.JEREMY_NOTIFICATION_EMAIL;
+
+        // Helper
+        async function sendMail(to, subject, html) {
+          if (!resendKey || !fromEmail || !to) return;
+          try {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${resendKey}`
+              },
+              body: JSON.stringify({ from: fromEmail, to: [to], subject, html })
+            });
+          } catch (e) {
+            console.error('Email send failed', e);
+          }
+        }
+
+        if (fromChallenger) {
+          // Notify Jeremy of a new move
+          if (jeremyEmail) {
+            const subject = `${challenge.gamertag} made a move`;
+            const html = `<p>${challenge.gamertag} made a move.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${process.env.PUBLIC_URL || ''}/admin/open/${challenge.id}">Open Match</a></p>`;
+            await sendMail(jeremyEmail, subject, html);
+          }
+        } else {
+          // Admin moved (Jeremy) — notify challenger if email provided
+          if (challengerEmail) {
+            const subject = `Jeremy made his move — your turn`;
+            const html = `<p>Jeremy responded to your chess challenge.<br/>Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${process.env.PUBLIC_URL || ''}/?challenge=${challenge.id}">Continue Match</a></p>`;
+            await sendMail(challengerEmail, subject, html).catch(()=>{});
+          }
+        }
+      } catch (e) {
+        console.error('Notification error', e);
+      }
+    })();
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'server error' });
@@ -302,8 +347,30 @@ app.get('/api/games/:id', async (req, res) => {
 app.get('/admin/challenges', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const rows = await db.query('SELECT id, gamertag, status, player_wins, jeremy_wins, draws, current_game_id, winner, created_at, updated_at FROM challenges ORDER BY created_at DESC LIMIT 200');
-    res.json({ challenges: rows.rows });
+    const q = await db.query('SELECT id, gamertag, status, player_wins, jeremy_wins, draws, current_game_id, winner, created_at, updated_at, game_type FROM challenges ORDER BY created_at DESC LIMIT 200');
+    const out = [];
+    for (const c of q.rows) {
+      let game = null;
+      let lastMoveAt = null;
+      let adminTurn = false;
+      if (c.current_game_id) {
+        const gq = await db.query('SELECT * FROM games WHERE id = $1', [c.current_game_id]);
+        if (gq.rows.length) {
+          game = gq.rows[0];
+          const mv = await db.query('SELECT max(created_at) as last_at FROM moves WHERE game_id = $1', [game.id]);
+          lastMoveAt = mv.rows[0].last_at;
+          try {
+            const chess = new Chess(game.fen_current);
+            const sideToMove = chess.turn() === 'w' ? 'white' : 'black';
+            adminTurn = sideToMove !== game.challenger_color;
+          } catch (e) {
+            adminTurn = false;
+          }
+        }
+      }
+      out.push({ id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, current_game: game ? { id: game.id, game_number: game.game_number, challenger_color: game.challenger_color } : null, last_move_at: lastMoveAt, admin_turn: adminTurn });
+    }
+    res.json({ challenges: out });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'server error' });
