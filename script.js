@@ -165,6 +165,18 @@ updateParallax();
 
   const API_BASE = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
 
+  async function loadPublicStats() {
+    try {
+      const resp = await fetch(`${API_BASE}/api/stats`);
+      if (!resp.ok) return;
+      const j = await resp.json();
+      document.getElementById('open-matches').textContent = String(j.total_challenges || 0);
+      document.getElementById('wins').textContent = String(j.jeremy_wins || 0);
+      document.getElementById('losses').textContent = String(j.challenger_wins || 0);
+      document.getElementById('streak').textContent = String((j.current_streak && j.current_streak.count) || 0);
+    } catch (e) { /* ignore */ }
+  }
+
   async function apiCreateChallenge(gamertag, game, email) {
     const resp = await fetch(`${API_BASE}/api/challenges`, {
       method: 'POST',
@@ -309,6 +321,9 @@ updateParallax();
       hideForm();
     }
   });
+
+  // Load public stats once
+  try { loadPublicStats(); } catch (e) {}
 
   const showModal = (title, body) => {
     const existing = document.getElementById("challenge-modal");
@@ -962,4 +977,17 @@ if (typeof window !== 'undefined') {
     panel.appendChild(note);
   }, { once: true });
 }
+
+// Privacy-friendly analytics ping (non-blocking)
+try {
+  (function sendAnalytics(){
+    try {
+      const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
+      const ua = navigator.userAgent || '';
+      const device = /Mobi|Android|iPhone/.test(ua) ? 'mobile' : /iPad|Tablet/.test(ua) ? 'tablet' : 'desktop';
+      const browser = /Chrome\//.test(ua) ? 'chrome' : /Firefox\//.test(ua) ? 'firefox' : /Safari\//.test(ua) ? 'safari' : 'other';
+      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser }) }).catch(()=>{});
+    } catch (e) { /* ignore */ }
+  })();
+} catch (e) { /* ignore */ }
 

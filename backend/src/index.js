@@ -56,12 +56,28 @@ const allowedOrigins = [
   'http://localhost:8000'
 ].filter(Boolean);
 
+// Skip CORS checks for top-level HTML navigations (serving pages like /admin).
+// Browsers may send Origin: "null" or omit Origin for certain navigations;
+// it's acceptable to serve HTML pages without enforcing CORS.
+app.use((req, res, next) => {
+  const accept = req.headers.accept || '';
+  if (req.method === 'GET' && accept.includes('text/html')) {
+    return next();
+  }
+  return next();
+});
+
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no Origin (same-origin or server-side requests)
     if (!origin) return cb(null, true);
+    // Explicitly reject the literal string "null" unless the request is a
+    // top-level HTML navigation (those are skipped above). Log it for debug.
+    if (origin === 'null') {
+      try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
+      return cb(new Error('Not allowed by CORS'));
+    }
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    // Log rejected origin for debugging in production (temporary)
     try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
     return cb(new Error('Not allowed by CORS'));
   },
@@ -72,6 +88,23 @@ app.use(cors({
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', apiLimiter);
+
+// Retention: remove analytics older than 90 days on startup, and run daily.
+(async () => {
+  try {
+    await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+  } catch (e) {
+    console.error('analytics retention cleanup failed', e);
+  }
+  setInterval(async () => {
+    try {
+      await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+    } catch (e) {
+      console.error('analytics retention cleanup failed', e);
+    }
+  }, 24 * 60 * 60 * 1000);
+}
+)();
 
 function hashToken(token) {
   const secret = process.env.PLAYER_TOKEN_SECRET || 'dev_secret';
@@ -384,10 +417,43 @@ app.get('/api/leaderboard', async (req, res) => {
 app.post('/api/analytics/track', async (req, res) => {
   try {
     const { path, referrer, device_category, browser_family, country } = req.body || {};
-    await db.query('INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country) VALUES ($1,$2,$3,$4,$5,$6)', [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, country || req.get('CF-IPCountry') || null]);
+    // Determine client IP using Express's req.ip with trust proxy set. This
+    // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
+    // headers from clients.
+    const ip = req.ip || null;
+    const countryResolved = country || req.get('CF-IPCountry') || null;
+    await db.query(
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, countryResolved, ip]
+    );
     res.json({ ok: true });
   } catch (e) {
     console.error('analytics track error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Admin-only visitors list (IP addresses and recent activity)
+app.get('/api/admin/visitors', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const q = await db.query(`SELECT ip, country, device_category, COUNT(*) AS visits, MAX(created_at) AS last_seen FROM analytics_events GROUP BY ip, country, device_category ORDER BY last_seen DESC LIMIT 200`);
+    const out = q.rows.map(r => ({ ip: r.ip, country: r.country, device_category: r.device_category, visits: Number(r.visits), last_seen: r.last_seen }));
+    res.json({ visitors: out });
+  } catch (e) {
+    console.error('admin visitors error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.get('/api/admin/visitors/:ip', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const ip = req.params.ip;
+    const q = await db.query('SELECT path, referrer, user_agent, device_category, browser_family, country, created_at FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200', [ip]);
+    res.json({ visits: q.rows });
+  } catch (e) {
+    console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -491,7 +557,7 @@ app.get('/admin/challenges', async (req, res) => {
 const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6 });
 app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
-    console.info('POST /admin/login reached from', req.ip);
+    console.info('POST /admin/login reached');
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'missing credentials' });
     const expectedUser = process.env.ADMIN_USERNAME;
@@ -507,7 +573,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
         return res.status(500).json({ error: 'server error' });
       }
       setAdminSession(req);
-      console.info('admin login success (session established) from', req.ip);
+      console.info('admin login success (session established)');
       // attach a CSRF token for subsequent admin requests
       try {
         runMiddleware(req, res, csurf())
@@ -530,7 +596,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
 });
 
 app.get('/admin', async (req, res) => {
-  console.info('GET /admin reached from', req.ip);
+  console.info('GET /admin reached');
   if (!isAdminAuthenticated(req)) {
     return res.send(`
       <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
