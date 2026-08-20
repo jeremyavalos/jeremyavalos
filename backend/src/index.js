@@ -114,6 +114,26 @@ function generateToken() {
   return crypto.randomBytes(28).toString('hex');
 }
 
+function generateResumeToken(challenge) {
+  const secret = process.env.PLAYER_TOKEN_SECRET || 'dev_secret';
+  return crypto.createHmac('sha256', secret)
+    .update(`resume:${challenge.id}:${challenge.player_token_hash}`)
+    .digest('hex');
+}
+
+function isValidPlayerToken(challenge, token) {
+  if (!challenge || !token) return false;
+  const suppliedHash = hashToken(token);
+  if (suppliedHash === challenge.player_token_hash) return true;
+  const expectedResume = Buffer.from(generateResumeToken(challenge));
+  const suppliedResume = Buffer.from(String(token));
+  return expectedResume.length === suppliedResume.length && crypto.timingSafeEqual(expectedResume, suppliedResume);
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
 function isAdminAuthenticated(req) {
   try {
     return Boolean(req.session && req.session.isAdmin === true && req.session.username === process.env.ADMIN_USERNAME);
@@ -189,8 +209,7 @@ async function getChallengeAndVerify(id, token) {
   if (!ch.rows.length) return null;
   const challenge = ch.rows[0];
   if (!token) return { challenge, authorized: false };
-  const tokenHash = hashToken(token);
-  return { challenge, authorized: tokenHash === challenge.player_token_hash };
+  return { challenge, authorized: isValidPlayerToken(challenge, token) };
 }
 
 // Get challenge
@@ -242,8 +261,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
     if (game.status === 'finished') return res.status(409).json({ error: 'game already completed' });
 
     // determine actor: challenger (with token) or admin (Jeremy)
-    const tokenHash = token ? hashToken(token) : null;
-    const isChallenger = tokenHash && tokenHash === challenge.player_token_hash;
+    const isChallenger = isValidPlayerToken(challenge, token);
     const isAdmin = isAdminAuthenticated(req);
     if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
 
@@ -285,6 +303,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
       // determine game terminal state
       let gameStatus = 'ongoing';
       let gameResult = null;
+      let challengerTurnAfterMove = true;
       if (chess.isCheckmate()) {
         gameStatus = 'finished';
         gameResult = chess.turn() === 'w' ? 'black' : 'white';
@@ -312,21 +331,24 @@ app.post('/api/games/:id/moves', async (req, res) => {
         const c2 = await client.query('SELECT player_wins, jeremy_wins FROM challenges WHERE id = $1 FOR UPDATE', [challenge.id]);
         const counts = c2.rows[0];
         if (counts.player_wins >= 2 || counts.jeremy_wins >= 2) {
+          challengerTurnAfterMove = false;
           const winner = counts.player_wins >= 2 ? 'player' : 'jeremy';
           await client.query('UPDATE challenges SET status = $1, winner = $2, updated_at = now() WHERE id = $3', ['completed', winner, challenge.id]);
         } else {
           const nextNumber = game.game_number + 1;
           const nextChallengerColor = game.challenger_color === 'white' ? 'black' : 'white';
+          challengerTurnAfterMove = nextChallengerColor === 'white';
           const fen = new Chess().fen();
           const newG = await client.query('INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1,$2,$3,$4,$5) RETURNING *', [challenge.id, nextNumber, fen, fen, nextChallengerColor]);
           await client.query('UPDATE challenges SET current_game_id = $1, updated_at = now() WHERE id = $2', [newG.rows[0].id, challenge.id]);
         }
       }
 
-      return { move: result, fen: fenAfter, gameStatus, gameResult };
+      return { move: result, fen: fenAfter, gameStatus, gameResult, challengerTurnAfterMove };
     });
 
-    res.json(Object.assign({ ok: true }, response));
+    const { challengerTurnAfterMove, ...moveResponse } = response;
+    res.json(Object.assign({ ok: true }, moveResponse));
     // Send non-blocking notifications
     (async () => {
       try {
@@ -340,7 +362,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
         async function sendMail(to, subject, html) {
           if (!resendKey || !fromEmail || !to) return;
           try {
-            await fetch('https://api.resend.com/emails', {
+            const response = await fetch('https://api.resend.com/emails', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -348,6 +370,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
               },
               body: JSON.stringify({ from: fromEmail, to: [to], subject, html })
             });
+            if (!response.ok) console.error('Email send failed with status', response.status);
           } catch (e) {
             console.error('Email send failed', e);
           }
@@ -362,9 +385,11 @@ app.post('/api/games/:id/moves', async (req, res) => {
           }
         } else {
           // Admin moved (Jeremy) — notify challenger if email provided
-          if (challengerEmail) {
-            const subject = `Jeremy made his move — your turn`;
-            const html = `<p>Jeremy responded to your chess challenge.<br/>Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${process.env.PUBLIC_URL || ''}/?challenge=${challenge.id}">Continue Match</a></p>`;
+          if (challengerEmail && challengerTurnAfterMove) {
+            const resumeToken = generateResumeToken(challenge);
+            const matchUrl = `${process.env.PUBLIC_URL || ''}/?challenge=${encodeURIComponent(challenge.id)}&token=${encodeURIComponent(resumeToken)}`;
+            const subject = `Jeremy moved against ${challenge.gamertag} — your turn`;
+            const html = `<p>Jeremy responded to ${escapeHtml(challenge.gamertag)}.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${matchUrl}">Continue Match</a></p>`;
             await sendMail(challengerEmail, subject, html).catch(()=>{});
           }
         }
@@ -393,8 +418,7 @@ app.get('/api/games/:id/legal', async (req, res) => {
     const chq = await db.query('SELECT * FROM challenges WHERE id = $1', [game.challenge_id]);
     const challenge = chq.rows[0];
 
-    const tokenHash = token ? hashToken(token) : null;
-    const isChallenger = tokenHash && tokenHash === challenge.player_token_hash;
+    const isChallenger = isValidPlayerToken(challenge, token);
     const isAdmin = isAdminAuthenticated(req);
     if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
 
