@@ -590,6 +590,9 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
     }
     // Normalize accidental surrounding whitespace in stored hash only
     const adminPasswordHash = String(process.env.ADMIN_PASSWORD_HASH || '').trim();
+    // Diagnostic: did the submitted password equal the configured hash?
+    const passwordEqualsHash = String(password) === adminPasswordHash;
+    console.info('ADMIN LOGIN: password equals configured hash:', Boolean(passwordEqualsHash));
     const ok = await bcrypt.compare(password, adminPasswordHash);
     console.info('ADMIN LOGIN: bcrypt comparison result:', Boolean(ok));
     if (!ok) {
@@ -631,9 +634,9 @@ app.get('/admin', async (req, res) => {
     return res.send(`
       <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
         <h2 style="font-family:monospace;color:#d3a75a">SYSTEM / ADMIN</h2>
-        <form id="login" style="display:flex;flex-direction:column;gap:8px;max-width:360px;margin-top:1rem;" method="POST" action="/admin/login">
-          <input name="username" id="username" placeholder="Username" />
-          <input name="password" id="password" type="password" placeholder="Password" />
+        <form id="login" autocomplete="off" style="display:flex;flex-direction:column;gap:8px;max-width:360px;margin-top:1rem;" method="POST" action="/admin/login">
+          <input name="username" id="username" placeholder="Username" autocomplete="username" />
+          <input name="password" id="password" type="password" placeholder="Password" autocomplete="new-password" />
           <button id="loginBtn" type="submit" class="btn">Login</button>
         </form>
         <div id="msg" style="color:#f78a8a;margin-top:8px"></div>
@@ -644,6 +647,8 @@ app.get('/admin', async (req, res) => {
             const msg = document.getElementById('msg');
             if (!form) return;
             console.log('Admin login form initialized');
+            // Clear any autofilled value on load (defensive) then handle submit
+            try { const pwd = document.getElementById('password'); if (pwd) { pwd.value = ''; } } catch (e) {}
             form.addEventListener('submit', async (e) => {
               e.preventDefault();
               msg.textContent = '';
