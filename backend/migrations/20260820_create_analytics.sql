@@ -7,5 +7,9 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   device_category text,
   browser_family text,
   country text,
+  region text,
+  city text,
+  timezone text,
+  asn_org text,
   created_at timestamptz DEFAULT now()
 );

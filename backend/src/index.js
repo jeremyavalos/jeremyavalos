@@ -14,6 +14,9 @@ const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
 const db = require('./db');
 const { getTurnState } = require('./turn');
+const { createGeolocationService } = require('./geolocation');
+
+const geolocation = createGeolocationService({ db, token: process.env.IPINFO_TOKEN });
 
 const app = express();
 // Trust the first proxy (Railway) so req.ip and related helpers reflect the client IP
@@ -89,16 +92,21 @@ app.use('/api', apiCors, apiLimiter);
 // (apiLimiter and /api mount moved above with apiCors)
 
 // Retention: remove analytics older than 90 days on startup, and run daily.
+async function cleanExpiredAnalytics() {
+  await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+  await db.query('DELETE FROM ip_geolocation_cache c WHERE NOT EXISTS (SELECT 1 FROM analytics_events ae WHERE ae.ip = c.ip)');
+}
+
 (async () => {
   if (process.env.NODE_ENV === 'test') return;
   try {
-    await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+    await cleanExpiredAnalytics();
   } catch (e) {
     console.error('analytics retention cleanup failed', e);
   }
   setInterval(async () => {
     try {
-      await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+      await cleanExpiredAnalytics();
     } catch (e) {
       console.error('analytics retention cleanup failed', e);
     }
@@ -478,17 +486,17 @@ app.get('/api/leaderboard', async (req, res) => {
 // Analytics tracking (privacy-friendly)
 app.post('/api/analytics/track', async (req, res) => {
   try {
-    const { path, referrer, device_category, browser_family, country } = req.body || {};
+    const { path, referrer, device_category, browser_family } = req.body || {};
     // Determine client IP using Express's req.ip with trust proxy set. This
     // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
     // headers from clients.
     const ip = req.ip || null;
-    const countryResolved = country || req.get('CF-IPCountry') || null;
-    await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, countryResolved, ip]
+    const inserted = await db.query(
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip]
     );
     res.json({ ok: true });
+    geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
   } catch (e) {
     console.error('analytics track error', e);
     res.status(500).json({ error: 'server error' });
@@ -508,6 +516,8 @@ app.get('/api/admin/visitors', async (req, res) => {
         COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
           (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.created_ip = ae.ip) a), ARRAY[]::text[]) AS associated_gamertags,
         (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
+        (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
+        (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
         (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
         (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
         COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
@@ -527,6 +537,10 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
     const ip = req.params.ip;
     const summary = await db.query(`SELECT COUNT(*) AS total_visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
       (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+      (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
+      (array_agg(city ORDER BY created_at DESC) FILTER (WHERE city IS NOT NULL))[1] AS city,
+      (array_agg(timezone ORDER BY created_at DESC) FILTER (WHERE timezone IS NOT NULL))[1] AS timezone,
+      (array_agg(asn_org ORDER BY created_at DESC) FILTER (WHERE asn_org IS NOT NULL))[1] AS asn_org,
       (array_agg(browser_family ORDER BY created_at DESC) FILTER (WHERE browser_family IS NOT NULL))[1] AS browser_family,
       (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
@@ -537,7 +551,7 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
       FROM challenges WHERE created_ip = $1 ORDER BY created_at DESC`, [ip]);
     const s = summary.rows[0];
     const associatedChallenges = associated.rows.map(c => ({ gamertag: c.gamertag, status: c.status, created_at: c.created_at, result: c.status === 'completed' ? (c.winner === 'jeremy' ? 'Jeremy won' : c.winner === 'player' ? 'Challenger won' : 'Completed') : null, score: { jeremy: Number(c.jeremy_wins), challenger: Number(c.player_wins), draws: Number(c.draws) } }));
-    res.json({ visitor: { ip, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
+    res.json({ visitor: { ip, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });

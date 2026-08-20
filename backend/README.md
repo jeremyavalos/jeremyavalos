@@ -15,6 +15,7 @@ Environment variables
 - `ADMIN_SECRET` - secret for admin endpoints
 - `PLAYER_TOKEN_SECRET` - secret used to HMAC player tokens
 - `PUBLIC_URL` - optional public URL for match link generation (e.g. https://jeremyavalos.vercel.app)
+- `IPINFO_TOKEN` - IPinfo access token used only by the backend for approximate visitor geolocation
 
 Installation
 
@@ -55,7 +56,7 @@ Deployment on Railway
 
 1. Create a new Project and add the PostgreSQL plugin.
 2. Add the repository or upload these files.
-3. Set environment variables in Railway: `DATABASE_URL`, `ADMIN_SECRET`, `PLAYER_TOKEN_SECRET`, `CORS_ORIGIN`, and `PUBLIC_URL`.
+3. Set the application environment variables in Railway, including `IPINFO_TOKEN` to enable cached approximate visitor geolocation.
 4. Start the app — Railway runs `npm start`, which applies pending idempotent migrations before starting the server.
 
 Notes
