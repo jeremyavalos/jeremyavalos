@@ -1,4 +1,4 @@
-require('dotenv').config();
+const dotenvResult = require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -41,6 +41,27 @@ function runMiddleware(req, res, fn) {
   return new Promise((resolve, reject) => {
     fn(req, res, (err) => err ? reject(err) : resolve());
   });
+}
+
+// Startup diagnostics for admin config (safe, do NOT log secrets)
+try {
+  const fs = require('fs');
+  const hasDotenvFile = fs.existsSync('.env');
+  const bpkg = (() => { try { return require('bcrypt/package.json').version; } catch (e) { return null } })();
+  const adminHashRaw = process.env.ADMIN_PASSWORD_HASH;
+  const adminHashConfigured = Boolean(adminHashRaw);
+  const adminHashLength = adminHashConfigured ? String(adminHashRaw).length : 0;
+  const adminHashHasSurroundingWhitespace = adminHashConfigured ? String(adminHashRaw) !== String(adminHashRaw).trim() : false;
+  const adminHashPrefixValid = adminHashConfigured ? String(adminHashRaw).startsWith('$2') : false;
+  console.info('ADMIN CONFIG: username configured:', Boolean(process.env.ADMIN_USERNAME));
+  console.info('ADMIN CONFIG: password hash configured:', adminHashConfigured);
+  console.info('ADMIN CONFIG: password hash length:', adminHashLength);
+  console.info('ADMIN CONFIG: password hash prefix valid ($2*):', adminHashPrefixValid);
+  console.info('ADMIN CONFIG: password hash has surrounding whitespace:', adminHashHasSurroundingWhitespace);
+  console.info('ADMIN CONFIG: bcrypt package version:', bpkg || 'unknown');
+  console.info('ADMIN CONFIG: dotenv file present:', hasDotenvFile, 'dotenv parsed:', Boolean(dotenvResult && dotenvResult.parsed));
+} catch (e) {
+  console.error('admin config diagnostics failed', e);
 }
 
 const PORT = process.env.PORT || 4000;
@@ -551,11 +572,14 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
   try {
     console.info('POST /admin/login reached');
     const { username, password } = req.body || {};
+    // Safe diagnostics: do not log password contents
+    const passwordReceived = typeof password === 'string';
+    const passwordLength = passwordReceived ? password.length : 0;
+    console.info('ADMIN LOGIN: password field received:', passwordReceived, 'length:', passwordLength);
     if (!username || !password) {
       console.info('ADMIN LOGIN REJECTED: missing credentials');
       return res.status(400).json({ error: 'missing credentials' });
     }
-    if (!username || !password) return res.status(400).json({ error: 'missing credentials' });
     const expectedUser = process.env.ADMIN_USERNAME;
     const expectedHash = process.env.ADMIN_PASSWORD_HASH;
     if (!expectedUser || !expectedHash) return res.status(500).json({ error: 'admin not configured' });
@@ -564,7 +588,10 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
       console.info('ADMIN LOGIN REJECTED: invalid username');
       return res.status(403).json({ error: 'forbidden' });
     }
-    const ok = await bcrypt.compare(password, expectedHash);
+    // Normalize accidental surrounding whitespace in stored hash only
+    const adminPasswordHash = String(process.env.ADMIN_PASSWORD_HASH || '').trim();
+    const ok = await bcrypt.compare(password, adminPasswordHash);
+    console.info('ADMIN LOGIN: bcrypt comparison result:', Boolean(ok));
     if (!ok) {
       console.info('ADMIN LOGIN REJECTED: invalid password');
       return res.status(403).json({ error: 'forbidden' });
