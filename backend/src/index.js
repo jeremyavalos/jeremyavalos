@@ -13,6 +13,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
 const db = require('./db');
+const { getTurnState } = require('./turn');
 
 const app = express();
 // Trust the first proxy (Railway) so req.ip and related helpers reflect the client IP
@@ -160,6 +161,12 @@ app.use('/admin/assets', requireAdmin, express.static(path.join(__dirname, '..',
   maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
 }));
 
+// Turn classifications must never be served from a stale browser cache.
+app.use('/api/admin', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Health
 app.get('/health', (req, res) => res.json({ ok: true }));
 
@@ -277,12 +284,9 @@ app.post('/api/games/:id/moves', async (req, res) => {
 
     // server-side chess validation
     const chess = new Chess(game.fen_current);
-    // enforce turn: only the side to move can move
-    const sideToMove = chess.turn() === 'w' ? 'white' : 'black';
-    // determine which side the challenger plays this game
-    const challengerSide = game.challenger_color === 'white' ? 'white' : 'black';
-    const actorSide = isChallenger ? challengerSide : (isAdmin ? (challengerSide === 'white' ? 'black' : 'white') : null);
-    if (actorSide !== sideToMove) return res.status(403).json({ error: 'not your turn' });
+    const turn = getTurnState(game.fen_current, game.challenger_color);
+    const actorCanMove = isChallenger ? turn.isChallengerTurn : (isAdmin && turn.isJeremyTurn);
+    if (!actorCanMove) return res.status(403).json({ error: 'not your turn' });
 
     const moveObj = { from, to };
     if (promotion) moveObj.promotion = promotion;
@@ -320,7 +324,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
           await client.query('UPDATE challenges SET draws = draws + 1, updated_at = now() WHERE id = $1', [challenge.id]);
         } else {
           // determine who won: compare gameResult with challenger_side
-          const challengerWon = (gameResult === game.challenger_color);
+          const challengerWon = (gameResult === turn.challengerColor);
           if (challengerWon) {
             await client.query('UPDATE challenges SET player_wins = player_wins + 1, updated_at = now() WHERE id = $1', [challenge.id]);
           } else {
@@ -336,7 +340,7 @@ app.post('/api/games/:id/moves', async (req, res) => {
           await client.query('UPDATE challenges SET status = $1, winner = $2, updated_at = now() WHERE id = $3', ['completed', winner, challenge.id]);
         } else {
           const nextNumber = game.game_number + 1;
-          const nextChallengerColor = game.challenger_color === 'white' ? 'black' : 'white';
+          const nextChallengerColor = turn.challengerColor === 'white' ? 'black' : 'white';
           challengerTurnAfterMove = nextChallengerColor === 'white';
           const fen = new Chess().fen();
           const newG = await client.query('INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1,$2,$3,$4,$5) RETURNING *', [challenge.id, nextNumber, fen, fen, nextChallengerColor]);
@@ -421,6 +425,10 @@ app.get('/api/games/:id/legal', async (req, res) => {
     const isChallenger = isValidPlayerToken(challenge, token);
     const isAdmin = isAdminAuthenticated(req);
     if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
+
+    const turn = getTurnState(game.fen_current, game.challenger_color);
+    const actorCanMove = isChallenger ? turn.isChallengerTurn : turn.isJeremyTurn;
+    if (!actorCanMove) return res.status(403).json({ error: 'not your turn' });
 
     const chess = new Chess(game.fen_current);
     const moves = chess.moves({ square, verbose: true }) || [];
@@ -528,10 +536,11 @@ app.get('/api/admin/overview', async (req, res) => {
       if (!streak.who) { streak.who = r.winner; streak.count = 1; }
       else if (r.winner === streak.who) streak.count += 1; else break;
     }
-    const myTurn = await db.query(`SELECT COUNT(*) FROM challenges c JOIN games g ON g.id = c.current_game_id
-      WHERE c.status <> 'completed' AND (CASE WHEN split_part(g.fen_current, ' ', 2) = 'w' THEN 'white' ELSE 'black' END) <> g.challenger_color`);
+    const activeTurns = await db.query(`SELECT g.fen_current, g.challenger_color FROM challenges c
+      JOIN games g ON g.id = c.current_game_id WHERE c.status <> 'completed'`);
+    const myTurnCount = activeTurns.rows.reduce((count, game) => count + (getTurnState(game.fen_current, game.challenger_color).isJeremyTurn ? 1 : 0), 0);
     const t = totals.rows[0];
-    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), unique_visitors: Number(t.unique_visitors), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: Number(myTurn.rows[0].count) } });
+    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), unique_visitors: Number(t.unique_visitors), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: myTurnCount } });
   } catch (e) {
     console.error('admin overview error', e);
     res.status(500).json({ error: 'server error' });
@@ -579,12 +588,13 @@ app.get('/api/admin/challenges', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
     const q = await db.query(`SELECT c.id, c.gamertag, c.status, c.player_wins, c.jeremy_wins, c.draws, c.winner, c.created_at, c.updated_at, c.game_type,
-      g.id AS game_id, g.game_number, g.challenger_color, g.status AS game_status,
-      COALESCE((SELECT MAX(m.created_at) FROM moves m WHERE m.game_id = g.id), g.created_at, c.updated_at) AS last_move_at,
-      CASE WHEN c.status <> 'completed' AND g.id IS NOT NULL THEN
-        (CASE WHEN split_part(g.fen_current, ' ', 2) = 'w' THEN 'white' ELSE 'black' END) <> g.challenger_color ELSE false END AS admin_turn
+      g.id AS game_id, g.game_number, g.fen_current, g.challenger_color, g.status AS game_status,
+      COALESCE((SELECT MAX(m.created_at) FROM moves m WHERE m.game_id = g.id), g.created_at, c.updated_at) AS last_move_at
       FROM challenges c LEFT JOIN games g ON g.id = c.current_game_id ORDER BY c.updated_at DESC LIMIT 200`);
-    const out = q.rows.map(c => ({ id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, winner: c.winner, created_at: c.created_at, updated_at: c.updated_at, last_move_at: c.last_move_at, admin_turn: c.admin_turn, current_game: c.game_id ? { id: c.game_id, game_number: c.game_number, challenger_color: c.challenger_color, status: c.game_status } : null }));
+    const out = q.rows.map(c => {
+      const turn = c.game_id ? getTurnState(c.fen_current, c.challenger_color) : null;
+      return { id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, winner: c.winner, created_at: c.created_at, updated_at: c.updated_at, last_move_at: c.last_move_at, admin_turn: c.status !== 'completed' && Boolean(turn?.isJeremyTurn), challenger_turn: c.status !== 'completed' && Boolean(turn?.isChallengerTurn), current_game: c.game_id ? { id: c.game_id, game_number: c.game_number, challenger_color: turn.challengerColor, jeremy_color: turn.jeremyColor, side_to_move: turn.sideToMove, status: c.game_status } : null };
+    });
     res.json({ challenges: out });
   } catch (err) {
     console.error(err);
@@ -606,8 +616,8 @@ app.get('/api/admin/challenges/:id/match', async (req, res) => {
     const game = g.rows[0];
     const moves = await db.query(`SELECT move_number, uci, san, from_sq, to_sq, player_side, created_at
       FROM moves WHERE game_id = $1 ORDER BY move_number`, [game.id]);
-    const sideToMove = new Chess(game.fen_current).turn() === 'w' ? 'white' : 'black';
-    res.json({ challenge: { id: challenge.id, gamertag: challenge.gamertag, status: challenge.status, player_wins: challenge.player_wins, jeremy_wins: challenge.jeremy_wins, draws: challenge.draws, winner: challenge.winner }, game: { ...game, side_to_move: sideToMove, admin_turn: challenge.status !== 'completed' && sideToMove !== game.challenger_color }, moves: moves.rows });
+    const turn = getTurnState(game.fen_current, game.challenger_color);
+    res.json({ challenge: { id: challenge.id, gamertag: challenge.gamertag, status: challenge.status, player_wins: challenge.player_wins, jeremy_wins: challenge.jeremy_wins, draws: challenge.draws, winner: challenge.winner }, game: { ...game, challenger_color: turn.challengerColor, jeremy_color: turn.jeremyColor, side_to_move: turn.sideToMove, admin_turn: challenge.status !== 'completed' && turn.isJeremyTurn, challenger_turn: challenge.status !== 'completed' && turn.isChallengerTurn }, moves: moves.rows });
   } catch (err) {
     console.error('admin match error', err);
     res.status(500).json({ error: 'server error' });

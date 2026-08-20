@@ -10,7 +10,7 @@
   async function choose(square) {
     if (!currentGame?.admin_turn) return;
     if (selected && legal.some(move => move.to === square)) { await move(selected,square,legal.find(item=>item.to===square)?.promotion); return; }
-    const adminColor = currentGame.challenger_color === 'white' ? 'b' : 'w';
+    const adminColor = currentGame.jeremy_color === 'white' ? 'w' : 'b';
     if (currentPosition[square]?.color !== adminColor) { selected=null; legal=[]; renderBoard(); return; }
     selected=square; legal=[];
     try { const data=await api(`/api/games/${encodeURIComponent(currentGame.id)}/legal?square=${square}`); legal=data.moves || []; if (!legal.length) selected=null; renderBoard(); } catch(error) { selected=null; renderBoard(); showError(`Unable to load legal moves — ${error.message}`); }
@@ -21,7 +21,7 @@
     catch(error) { document.getElementById('move-status').textContent=`Move failed — ${error.message}`; }
   }
   function renderBoard() {
-    const board=document.getElementById('board'); board.replaceChildren(); currentPosition=position(currentGame.fen_current); const map=currentPosition; const adminColor=currentGame.challenger_color==='white'?'black':'white'; const whiteBottom=adminColor==='white'; const ranks=whiteBottom?[8,7,6,5,4,3,2,1]:[1,2,3,4,5,6,7,8]; const files=whiteBottom?'abcdefgh'.split(''):'hgfedcba'.split('');
+    const board=document.getElementById('board'); board.replaceChildren(); currentPosition=position(currentGame.fen_current); const map=currentPosition; const whiteBottom=currentGame.jeremy_color==='white'; const ranks=whiteBottom?[8,7,6,5,4,3,2,1]:[1,2,3,4,5,6,7,8]; const files=whiteBottom?'abcdefgh'.split(''):'hgfedcba'.split('');
     ranks.forEach(rank=>files.forEach((file,index)=>{const square=file+rank; const piece=map[square]; const button=document.createElement('button'); button.className=`square ${(index+ranks.indexOf(rank))%2?'dark':''}${selected===square?' selected':''}${legal.some(m=>m.to===square)?' legal':''}`; button.textContent=piece?pieces[piece.type][piece.color]:''; button.title=square; button.disabled=!currentGame.admin_turn; button.addEventListener('click',()=>choose(square)); board.append(button);}));
   }
   async function load() {

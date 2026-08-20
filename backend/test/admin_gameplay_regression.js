@@ -27,8 +27,8 @@ async function query(sql) {
   if (normalized.includes('FROM games WHERE id = $1')) return rows([game]);
   if (normalized.includes('FROM challenges WHERE id = $1')) return rows([challenge]);
   if (normalized.includes('FROM moves WHERE game_id = $1 ORDER BY move_number')) return rows(moves);
-  if (normalized.includes('FROM challenges c LEFT JOIN games g')) return rows([{ ...challenge, game_id: game.id, game_number: game.game_number, challenger_color: game.challenger_color, game_status: game.status, last_move_at: moves.at(-1)?.created_at || game.created_at, admin_turn: challenge.status !== 'completed' && sideToMove() !== game.challenger_color }]);
-  if (normalized.startsWith('SELECT COUNT(*) FROM challenges c JOIN games g')) return rows([{ count: challenge.status !== 'completed' && sideToMove() !== game.challenger_color ? '1' : '0' }]);
+  if (normalized.includes('FROM challenges c LEFT JOIN games g')) return rows([{ ...challenge, game_id: game.id, game_number: game.game_number, fen_current: game.fen_current, challenger_color: game.challenger_color, game_status: game.status, last_move_at: moves.at(-1)?.created_at || game.created_at }]);
+  if (normalized.startsWith('SELECT g.fen_current, g.challenger_color FROM challenges c')) return rows(challenge.status === 'completed' ? [] : [{ fen_current: game.fen_current, challenger_color: game.challenger_color }]);
   if (normalized.startsWith('SELECT winner, updated_at FROM challenges')) return rows([]);
   if (normalized.startsWith('SELECT (SELECT COUNT(*) FROM analytics_events)')) return rows([{ total_visits: '1', visits_today: '1', unique_visitors: '0', total_challenges: '1', active_matches: challenge.status === 'completed' ? '0' : '1', games_completed: game.status === 'finished' ? '1' : '0', jeremy_wins: String(challenge.jeremy_wins), player_wins: String(challenge.player_wins) }]);
   throw new Error(`Unexpected query: ${normalized}`);
