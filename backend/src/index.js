@@ -491,6 +491,7 @@ app.get('/admin/challenges', async (req, res) => {
 const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6 });
 app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
+    console.info('POST /admin/login reached from', req.ip);
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'missing credentials' });
     const expectedUser = process.env.ADMIN_USERNAME;
@@ -506,6 +507,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
         return res.status(500).json({ error: 'server error' });
       }
       setAdminSession(req);
+      console.info('admin login success (session established) from', req.ip);
       // attach a CSRF token for subsequent admin requests
       try {
         runMiddleware(req, res, csurf())
@@ -528,24 +530,46 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
 });
 
 app.get('/admin', async (req, res) => {
+  console.info('GET /admin reached from', req.ip);
   if (!isAdminAuthenticated(req)) {
     return res.send(`
       <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
         <h2 style="font-family:monospace;color:#d3a75a">SYSTEM / ADMIN</h2>
-        <form id="login" style="display:flex;flex-direction:column;gap:8px;max-width:360px;margin-top:1rem;">
+        <form id="login" style="display:flex;flex-direction:column;gap:8px;max-width:360px;margin-top:1rem;" method="POST" action="/admin/login">
           <input name="username" id="username" placeholder="Username" />
           <input name="password" id="password" type="password" placeholder="Password" />
-          <button id="loginBtn" class="btn">Login</button>
+          <button id="loginBtn" type="submit" class="btn">Login</button>
         </form>
         <div id="msg" style="color:#f78a8a;margin-top:8px"></div>
         <script>
-          document.getElementById('login').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ username: u, password: p }) });
-            if (r.ok) { location.reload(); } else { const j = await r.json().catch(()=>null); document.getElementById('msg').textContent = j?.error || 'Login failed'; }
-          });
+          // Diagnostic-friendly submit handler: surface network errors and do a fetch if JS runs.
+          (function(){
+            const form = document.getElementById('login');
+            const msg = document.getElementById('msg');
+            if (!form) return;
+            console.log('Admin login form initialized');
+            form.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              msg.textContent = '';
+              const u = document.getElementById('username').value;
+              const p = document.getElementById('password').value;
+              try {
+                console.log('Admin login: submitting request');
+                const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ username: u, password: p }) });
+                if (r.ok) {
+                  console.log('Admin login: success response received');
+                  location.reload();
+                } else {
+                  console.warn('Admin login: non-OK response');
+                  const j = await r.json().catch(()=>null);
+                  msg.textContent = j?.error || 'Login failed';
+                }
+              } catch (err) {
+                console.error('Admin login: fetch failed', err);
+                msg.textContent = 'Network error during login. See console.';
+              }
+            });
+          })();
         </script>
       </body></html>
     `);
