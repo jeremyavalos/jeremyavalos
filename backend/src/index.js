@@ -173,9 +173,9 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Create challenge
 app.post('/api/challenges', async (req, res) => {
   try {
-    const { gamertag, game, email } = req.body;
+    const { gamertag, email } = req.body;
     if (!gamertag) return res.status(400).json({ error: 'gamertag required' });
-    const gameType = game === 'backgammon' ? 'backgammon' : 'chess';
+    const gameType = 'chess';
 
     const token = generateToken();
     const tokenHash = hashToken(token);

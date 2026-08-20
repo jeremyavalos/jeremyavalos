@@ -1647,11 +1647,6 @@ footer p {
 
 .status-row strong { font-size: 1.05rem; }
 
-.boards {
-  display: grid;
-  gap: 0.8rem;
-}
-
 .match-container {
   display: grid;
   gap: 0.8rem;

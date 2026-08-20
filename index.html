@@ -86,7 +86,7 @@
       <section id="challenge" class="challenge">
         <div class="section-header reveal">
           <p class="eyebrow mono">03 / CHALLENGE</p>
-          <h2>Play me. Chess or Backgammon.</h2>
+          <h2>Challenge me to Chess. Best of 3.</h2>
         </div>
 
         <div class="challenge-grid">
@@ -111,12 +111,7 @@
                 <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">Optional — get notified when Jeremy responds.</div>
               </label>
 
-              <label class="mono">Game
-                <select id="game-select" name="game">
-                  <option value="chess">Chess</option>
-                  <option value="backgammon">Backgammon</option>
-                </select>
-              </label>
+              <div class="mono">Game<br /><strong>Chess</strong></div>
 
               <label class="mono">Match format
                 <select id="format-select" name="format">
@@ -139,32 +134,17 @@
               <div class="status-row"><span class="mono">CURRENT STREAK</span><strong id="streak">0</strong></div>
             </div>
 
-            <div class="boards">
-              <div class="board-preview">
-                <p class="mono">Chess / Live</p>
-                <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
-                  <defs>
-                    <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
-                      <rect width="15" height="15" fill="var(--panel)"></rect>
-                      <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
-                    </pattern>
-                  </defs>
-                  <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
-                </svg>
-              </div>
-
-              <div class="board-preview">
-                <p class="mono">Backgammon (preview)</p>
-                <svg viewBox="0 0 140 80" class="board-svg" aria-hidden="true">
-                  <rect x="0" y="0" width="140" height="80" rx="8" fill="var(--panel)" stroke="var(--line)"/>
-                  <g fill="rgba(255,255,255,0.03)">
-                    <polygon points="10,0 20,40 10,80"/>
-                    <polygon points="30,0 40,40 30,80"/>
-                    <polygon points="50,0 60,40 50,80"/>
-                    <polygon points="110,0 100,40 110,80"/>
-                  </g>
-                </svg>
-              </div>
+            <div class="board-preview">
+              <p class="mono">Chess / Live</p>
+              <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
+                <defs>
+                  <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
+                    <rect width="15" height="15" fill="var(--panel)"></rect>
+                    <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
+                  </pattern>
+                </defs>
+                <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
+              </svg>
             </div>
           </aside>
         </div>

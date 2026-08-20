@@ -290,7 +290,7 @@ updateParallax();
 
   createBtn?.addEventListener('click', async () => {
     const tag = document.getElementById('gamertag')?.value?.trim();
-    const game = document.getElementById('game-select')?.value;
+    const game = 'chess';
     const email = document.getElementById('email')?.value?.trim();
     if (!tag) {
       alert('Please enter a gamertag to create a challenge.');
@@ -349,7 +349,7 @@ updateParallax();
     showModal("Rules", `
       <ul>
         <li>Match format: Best of 3.</li>
-        <li>Chess: standard rules. Backgammon: standard rules.</li>
+        <li>Chess: standard rules.</li>
         <li>This is an honor system — results will be confirmed manually.</li>
         <li>Winner receives a free one-page website. I will contact the winner to arrange details.</li>
       </ul>
