@@ -135,16 +135,6 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
-function formatChallengeSender(value) {
-  const sender = String(value || '').trim();
-  if (!sender || sender.includes('<')) return sender;
-  return `Jeremy Challenge <${sender}>`;
-}
-
-function baseUrl(value) {
-  return String(value || '').replace(/\/+$/, '');
-}
-
 function isAdminAuthenticated(req) {
   try {
     return Boolean(req.session && req.session.isAdmin === true && req.session.username === process.env.ADMIN_USERNAME);
@@ -318,7 +308,6 @@ app.post('/api/games/:id/moves', async (req, res) => {
       let gameStatus = 'ongoing';
       let gameResult = null;
       let challengerTurnAfterMove = true;
-      let scoreAfter = { jeremy: Number(challenge.jeremy_wins) || 0, challenger: Number(challenge.player_wins) || 0 };
       if (chess.isCheckmate()) {
         gameStatus = 'finished';
         gameResult = chess.turn() === 'w' ? 'black' : 'white';
@@ -345,7 +334,6 @@ app.post('/api/games/:id/moves', async (req, res) => {
         }
         const c2 = await client.query('SELECT player_wins, jeremy_wins FROM challenges WHERE id = $1 FOR UPDATE', [challenge.id]);
         const counts = c2.rows[0];
-        scoreAfter = { jeremy: Number(counts.jeremy_wins), challenger: Number(counts.player_wins) };
         if (counts.player_wins >= 2 || counts.jeremy_wins >= 2) {
           challengerTurnAfterMove = false;
           const winner = counts.player_wins >= 2 ? 'player' : 'jeremy';
@@ -360,17 +348,17 @@ app.post('/api/games/:id/moves', async (req, res) => {
         }
       }
 
-      return { move: result, fen: fenAfter, gameStatus, gameResult, challengerTurnAfterMove, scoreAfter };
+      return { move: result, fen: fenAfter, gameStatus, gameResult, challengerTurnAfterMove };
     });
 
-    const { challengerTurnAfterMove, scoreAfter, ...moveResponse } = response;
+    const { challengerTurnAfterMove, ...moveResponse } = response;
     res.json(Object.assign({ ok: true }, moveResponse));
     // Send non-blocking notifications
     (async () => {
       try {
         const fromChallenger = isChallenger;
         const challengerEmail = challenge.email;
-        const fromEmail = formatChallengeSender(process.env.CHALLENGE_FROM_EMAIL);
+        const fromEmail = process.env.CHALLENGE_FROM_EMAIL;
         const resendKey = process.env.RESEND_API_KEY;
         const jeremyEmail = process.env.JEREMY_NOTIFICATION_EMAIL;
         console.info(`EMAIL: challenge email present: ${Boolean(challengerEmail)}`);
@@ -411,9 +399,8 @@ app.post('/api/games/:id/moves', async (req, res) => {
         if (fromChallenger) {
           // Notify Jeremy of a new move
           if (jeremyEmail) {
-            const adminBase = baseUrl(process.env.BACKEND_PUBLIC_URL || `${req.protocol}://${req.get('host')}`);
-            const subject = `New move from ${challenge.gamertag}`;
-            const html = `<p>${escapeHtml(challenge.gamertag)} made a move.<br/>Game ${game.game_number} / Best of 3<br/>It's your turn.</p><p><a href="${adminBase}/admin/open/${encodeURIComponent(challenge.id)}">OPEN MATCH</a></p>`;
+            const subject = `${challenge.gamertag} made a move`;
+            const html = `<p>${escapeHtml(challenge.gamertag)} made a move.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${process.env.PUBLIC_URL || ''}/admin/open/${challenge.id}">Open Match</a></p>`;
             await sendMail(jeremyEmail, subject, html, 'Jeremy');
           } else {
             console.warn('EMAIL: skipped — JEREMY_NOTIFICATION_EMAIL not configured');
@@ -422,9 +409,9 @@ app.post('/api/games/:id/moves', async (req, res) => {
           // Admin moved (Jeremy) — notify challenger if email provided
           if (challengerEmail && challengerTurnAfterMove) {
             const resumeToken = generateResumeToken(challenge);
-            const matchUrl = `${baseUrl(process.env.PUBLIC_URL)}/?challenge=${encodeURIComponent(challenge.id)}&token=${encodeURIComponent(resumeToken)}`;
-            const subject = 'Jeremy made his move — your turn';
-            const html = `<p>Jeremy moved against ${escapeHtml(challenge.gamertag)}.<br/>Game ${game.game_number} / Best of 3<br/>Score: Jeremy ${scoreAfter.jeremy} — ${scoreAfter.challenger} ${escapeHtml(challenge.gamertag)}<br/>It's your turn.</p><p><a href="${matchUrl}">CONTINUE MATCH</a></p>`;
+            const matchUrl = `${process.env.PUBLIC_URL || ''}/?challenge=${encodeURIComponent(challenge.id)}&token=${encodeURIComponent(resumeToken)}`;
+            const subject = `Jeremy moved against ${challenge.gamertag} — your turn`;
+            const html = `<p>Jeremy responded to ${escapeHtml(challenge.gamertag)}.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${matchUrl}">Continue Match</a></p>`;
             await sendMail(challengerEmail, subject, html, 'challenger');
           } else if (!challengerEmail) {
             console.info('EMAIL: skipped — challenger has no email');

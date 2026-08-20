@@ -102,7 +102,7 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     if ((await response.json()).overview.my_turn !== 0) throw new Error('Jeremy move count did not decrease');
 
     await new Promise(resolve => setTimeout(resolve, 10));
-    if (sentEmails.length !== 1 || sentEmails[0].subject !== 'Jeremy made his move — your turn' || !sentEmails[0].html.includes(challenge.gamertag) || sentEmails[0].from !== 'Jeremy Challenge <matches@example.test>') throw new Error('Challenger email was not sent with the required content');
+    if (sentEmails.length !== 1 || sentEmails[0].subject !== `Jeremy moved against ${challenge.gamertag} — your turn` || !sentEmails[0].html.includes(challenge.gamertag) || sentEmails[0].from !== 'matches@example.test') throw new Error('Challenger email flow changed unexpectedly');
     const href = sentEmails[0].html.match(/href="([^"]+)"/)?.[1];
     const resumeUrl = new URL(href);
     if (!resumeUrl.searchParams.get('token')) throw new Error('Continue Match link omitted private credentials');
@@ -126,7 +126,7 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     response = await request(`/api/games/${gameId}/moves`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${privateToken}`}, body:JSON.stringify({from:'e2',to:'e4'}) });
     if (!response.ok) throw new Error(`Challenger move failed: ${await response.text()}`);
     await new Promise(resolve => setTimeout(resolve, 10));
-    if (sentEmails.length !== 2 || sentEmails[1].subject !== `New move from ${challenge.gamertag}` || !sentEmails[1].html.includes(`/admin/open/${challengeId}`) || sentEmails[1].html.includes('token=')) throw new Error('Jeremy notification was not sent safely');
+    if (sentEmails.length !== 2 || sentEmails[1].subject !== `${challenge.gamertag} made a move` || !sentEmails[1].html.includes(`/admin/open/${challengeId}`) || sentEmails[1].html.includes('token=')) throw new Error('Jeremy notification flow changed unexpectedly');
 
     resendResponseStatus=422;
     response = await request(`/api/games/${gameId}/moves`, { method:'POST', headers:{...headers,'Content-Type':'application/json','x-csrf-token':csrfToken}, body:JSON.stringify({from:'e7',to:'e5'}) });

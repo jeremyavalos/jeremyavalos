@@ -304,9 +304,7 @@ updateParallax();
         // persist token in localStorage
         try { localStorage.setItem(`challenge_token_${data.challenge.id}`, data.token); } catch (e) {}
         // add to activeChallenges list
-        const emailEnabled = Boolean(email);
-        addActiveChallenge({ challengeId: data.challenge.id, token: data.token, gamertag: data.challenge.gamertag, game: data.challenge.game_type || game, emailEnabled, lastOpened: Date.now() });
-        try { localStorage.setItem(`challenge_email_enabled_${data.challenge.id}`, String(emailEnabled)); } catch (e) {}
+        addActiveChallenge({ challengeId: data.challenge.id, token: data.token, gamertag: data.challenge.gamertag, game: data.challenge.game_type || game, lastOpened: Date.now() });
         // update URL and auto-open match
         history.replaceState({}, '', `/?challenge=${data.challenge.id}&token=${data.token}`);
         renderLinkArea(data.match_url);
@@ -915,7 +913,7 @@ function initMatchUI() {
       const copyArea = document.createElement('div');
       copyArea.style.marginTop = '8px';
       const linkInput = document.createElement('input');
-      linkInput.value = `${window.location.origin}/?challenge=${matchId}&token=${encodeURIComponent(token)}`;
+      linkInput.value = `${window.location.origin}/?challenge=${matchId}`;
       linkInput.readOnly = true;
       linkInput.style.padding = '0.5rem';
       linkInput.style.marginRight = '8px';
@@ -931,15 +929,6 @@ function initMatchUI() {
       copyArea.appendChild(linkInput);
       copyArea.appendChild(copyBtn);
       container.appendChild(copyArea);
-
-      try {
-        if (localStorage.getItem(`challenge_email_enabled_${matchId}`) === 'false') {
-          const emailNote = document.createElement('p');
-          emailNote.className = 'muted mono';
-          emailNote.textContent = 'No email notifications enabled. Save your private match link to continue from another device.';
-          container.appendChild(emailNote);
-        }
-      } catch (e) { /* storage is optional */ }
 
     } catch (err) {
       console.error('Match restore error:', err);
