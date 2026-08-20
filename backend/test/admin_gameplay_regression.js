@@ -20,6 +20,7 @@ const challenge = { id: challengeId, gamertag: 'Test Challenger', game_type: 'ch
 const game = { id: gameId, challenge_id: challengeId, game_number: 1, fen_current: new Chess().fen(), fen_start: new Chess().fen(), challenger_color: 'black', status: 'ongoing', result: null, created_at: new Date(), ended_at: null };
 const moves = [];
 let nextGameCreated = null;
+let capturedCreatedIp = null;
 
 function rows(value) { return { rows: value }; }
 function sideToMove() { return new Chess(game.fen_current).turn() === 'w' ? 'white' : 'black'; }
@@ -28,6 +29,14 @@ async function query(sql) {
   if (normalized.includes('FROM games WHERE id = $1')) return rows([game]);
   if (normalized.includes('FROM challenges WHERE id = $1')) return rows([challenge]);
   if (normalized.includes('FROM moves WHERE game_id = $1 ORDER BY move_number')) return rows(moves);
+  if (normalized.startsWith('SELECT COUNT(DISTINCT ip) FROM analytics_events')) return rows([{ count:'1' }]);
+  if (normalized.includes('FROM analytics_events ae WHERE ae.ip IS NOT NULL')) {
+    if (!normalized.includes('c.created_ip = ae.ip')) throw new Error('Visitor list is missing challenge IP association');
+    return rows([{ ip:'203.0.113.42', associated_gamertags:['Alias One','Alias Two'], country:'MX', device_category:'desktop', browser_family:'chrome', visits:'2', first_seen:new Date(), last_seen:new Date() }]);
+  }
+  if (normalized.startsWith('SELECT COUNT(*) AS total_visits')) return rows([{ total_visits:'2', first_seen:new Date(), last_seen:new Date(), country:'MX', browser_family:'chrome', device_category:'desktop', user_agent:'test' }]);
+  if (normalized.startsWith('SELECT path, referrer')) return rows([{ path:'/challenge', referrer:null, created_at:new Date() }]);
+  if (normalized.includes('FROM challenges WHERE created_ip = $1')) return rows([{ gamertag:'Alias One', status:'completed', created_at:new Date(), winner:'jeremy', player_wins:0, jeremy_wins:2, draws:0 }]);
   if (normalized.includes('FROM challenges c LEFT JOIN games g')) return rows([{ ...challenge, game_id: game.id, game_number: game.game_number, fen_current: game.fen_current, challenger_color: game.challenger_color, game_status: game.status, last_move_at: moves.at(-1)?.created_at || game.created_at }]);
   if (normalized.startsWith('SELECT g.fen_current, g.challenger_color FROM challenges c')) return rows(challenge.status === 'completed' ? [] : [{ fen_current: game.fen_current, challenger_color: game.challenger_color }]);
   if (normalized.startsWith('SELECT winner, updated_at FROM challenges')) return rows([]);
@@ -37,6 +46,7 @@ async function query(sql) {
 async function transaction(callback) {
   return callback({ query: async (sql, params = []) => {
     const normalized = sql.replace(/\s+/g, ' ').trim();
+    if (normalized.startsWith('INSERT INTO challenges')) { capturedCreatedIp=params[4]; return rows([{ id:'44444444-4444-4444-8444-444444444444', gamertag:params[0], game_type:'chess' }]); }
     if (normalized.startsWith('SELECT COUNT(*) FROM moves')) return rows([{ count: String(moves.length) }]);
     if (normalized.startsWith('INSERT INTO moves')) { moves.push({ move_number: params[1], uci: params[2], san: params[3], from_sq: params[4], to_sq: params[5], player_side: params[8], created_at: new Date() }); return rows([]); }
     if (normalized.startsWith('UPDATE games SET fen_current')) { game.fen_current=params[0]; game.status=params[1]; game.result=params[2]; if (game.status === 'finished') game.ended_at=new Date(); return rows([]); }
@@ -133,6 +143,17 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     if (!response.ok || moves.length !== 2) throw new Error('Resend rejection blocked a valid move');
     await new Promise(resolve => setTimeout(resolve, 10));
     if (sentEmails.length !== 3) throw new Error('Rejected Resend request was not attempted');
+
+    response = await request('/api/challenges', { method:'POST', headers:{'Content-Type':'application/json','X-Forwarded-For':'203.0.113.42'}, body:JSON.stringify({gamertag:'IP Test',email:''}) });
+    const created = await response.json();
+    if (!response.ok || capturedCreatedIp !== '203.0.113.42' || JSON.stringify(created).includes('created_ip')) throw new Error('Trusted challenge creation IP was not stored privately');
+
+    response = await request('/api/admin/visitors?page=1&page_size=25', { headers });
+    const visitors = await response.json();
+    if (!response.ok || visitors.visitors[0].associated_gamertags.length !== 2) throw new Error('Visitor gamertag associations missing');
+    response = await request('/api/admin/visitors/203.0.113.42', { headers });
+    const visitor = await response.json();
+    if (!response.ok || visitor.visitor.associated_challenges[0].result !== 'Jeremy won' || JSON.stringify(visitor).includes('player_token_hash') || JSON.stringify(visitor).includes('email')) throw new Error('Private visitor challenge details are incorrect or unsafe');
     console.log('Admin gameplay, CSRF, persistence, transition, email, and best-of-three regressions passed');
   } finally { global.fetch=realFetch; await new Promise(resolve=>server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode=1; });

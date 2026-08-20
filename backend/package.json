@@ -4,7 +4,7 @@
   "description": "Backend for Challenge Me — Chess matches API",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node src/migrate.js && node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "psql $DATABASE_URL -f migrations/init.sql",
     "migrate:node": "node src/migrate.js",

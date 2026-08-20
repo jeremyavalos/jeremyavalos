@@ -179,11 +179,12 @@ app.post('/api/challenges', async (req, res) => {
 
     const token = generateToken();
     const tokenHash = hashToken(token);
+    const createdIp = req.ip || null;
 
     // create challenge row
     // transactional creation: challenge + first game (if chess)
     const result = await db.transaction(async (client) => {
-      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email) VALUES ($1,$2,$3,$4) RETURNING *`, [gamertag, tokenHash, gameType, email || null]);
+      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email, created_ip) VALUES ($1,$2,$3,$4,$5) RETURNING *`, [gamertag, tokenHash, gameType, email || null, createdIp]);
       const challenge = r.rows[0];
       let gameRow = null;
       if (gameType === 'chess') {
@@ -503,13 +504,15 @@ app.get('/api/admin/visitors', async (req, res) => {
     const offset = (page - 1) * pageSize;
     const count = await db.query('SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL');
     const q = await db.query(`
-      SELECT ip,
-        (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
-        (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
-        (array_agg(browser_family ORDER BY created_at DESC) FILTER (WHERE browser_family IS NOT NULL))[1] AS browser_family,
-        COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
-      FROM analytics_events WHERE ip IS NOT NULL
-      GROUP BY ip ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
+      SELECT ae.ip,
+        COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
+          (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.created_ip = ae.ip) a), ARRAY[]::text[]) AS associated_gamertags,
+        (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
+        (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
+        (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
+        COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
+      FROM analytics_events ae WHERE ae.ip IS NOT NULL
+      GROUP BY ae.ip ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
     const out = q.rows.map(r => ({ ...r, visits: Number(r.visits) }));
     res.json({ visitors: out, pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
@@ -530,8 +533,11 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
       FROM analytics_events WHERE ip = $1`, [ip]);
     const q = await db.query('SELECT path, referrer, user_agent, device_category, browser_family, country, created_at FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200', [ip]);
     if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
+    const associated = await db.query(`SELECT gamertag, status, created_at, winner, player_wins, jeremy_wins, draws
+      FROM challenges WHERE created_ip = $1 ORDER BY created_at DESC`, [ip]);
     const s = summary.rows[0];
-    res.json({ visitor: { ip, country: s.country, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
+    const associatedChallenges = associated.rows.map(c => ({ gamertag: c.gamertag, status: c.status, created_at: c.created_at, result: c.status === 'completed' ? (c.winner === 'jeremy' ? 'Jeremy won' : c.winner === 'player' ? 'Challenger won' : 'Completed') : null, score: { jeremy: Number(c.jeremy_wins), challenger: Number(c.player_wins), draws: Number(c.draws) } }));
+    res.json({ visitor: { ip, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });

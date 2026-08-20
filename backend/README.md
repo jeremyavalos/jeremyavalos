@@ -56,8 +56,7 @@ Deployment on Railway
 1. Create a new Project and add the PostgreSQL plugin.
 2. Add the repository or upload these files.
 3. Set environment variables in Railway: `DATABASE_URL`, `ADMIN_SECRET`, `PLAYER_TOKEN_SECRET`, `CORS_ORIGIN`, and `PUBLIC_URL`.
-4. Run the migration: `npm run migrate` (Railway has a Console where you can run the command or configure an init step).
-5. Start the app — Railway will run `npm start` by default.
+4. Start the app — Railway runs `npm start`, which applies pending idempotent migrations before starting the server.
 
 Notes
 - Tokens are returned to the client once on challenge creation. The server stores only a hashed token.
