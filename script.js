@@ -476,6 +476,9 @@ function initMatchUI() {
         if (sq) {
           const glyph = pieceToUnicode(sq.type, sq.color);
           sqEl.textContent = glyph;
+          // preserve piece info for ownership checks: 'w' or 'b'
+          sqEl.dataset.piece = sq.type;
+          sqEl.dataset.color = sq.color; // 'w' or 'b'
         }
 
         if (lastMove && (lastMove.from === coord || lastMove.to === coord)) {
@@ -657,6 +660,8 @@ function initMatchUI() {
           const type = ch.toLowerCase();
           const color = isUpper ? 'w' : 'b';
           sqEl.textContent = pieceToUnicode(type, color === 'w' ? 'w' : 'b');
+          sqEl.dataset.piece = type;
+          sqEl.dataset.color = color; // 'w' or 'b'
         }
         if (lastMove && (lastMove.from === coord || lastMove.to === coord)) {
           sqEl.style.boxShadow = 'inset 0 0 0 3px rgba(211,167,90,0.12)';
@@ -711,14 +716,18 @@ function initMatchUI() {
       if (!btn) return;
       const sq = btn.dataset.square;
       // read piece from DOM (unicode present for static renderer)
-      const text = (btn.textContent || '').trim();
-
       // If not player's turn, ignore selection
       if (!isPlayerTurn) return;
 
       // If no selection yet, ensure clicked square has player's piece
       if (!selected) {
-        // simple heuristic: fetch legal moves for this square; if none, it's not selectable
+        // check DOM-stored piece color before requesting legal moves
+        const dataColor = btn.dataset.color; // 'w' or 'b'
+        if (!dataColor) return; // empty square
+        const pieceColor = dataColor === 'w' ? 'white' : 'black';
+        if (pieceColor !== challengerColor) return; // not player's piece
+
+        // fetch legal moves for this square; if none, it's not selectable
         try {
           const headers = {};
           if (token) headers['Authorization'] = `Bearer ${token}`;
