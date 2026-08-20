@@ -522,7 +522,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
   }
 });
 
-app.get('/admin', (req, res) => {
+app.get('/admin', async (req, res) => {
   if (!isAdminAuthenticated(req)) {
     return res.send(`
       <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
