@@ -4,6 +4,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
+const csurf = require('csurf');
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
@@ -17,14 +21,49 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Session middleware (server-side session). For production, consider a persistent store.
+app.use(session({
+  store: new PgSession({ pool: db.pool, tableName: 'session' }),
+  name: 'admin.sid',
+  secret: process.env.SESSION_SECRET || 'dev_session_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 4 // 4 hours
+  }
+}));
+
+// helper to run middleware-style functions (like csurf) in async handlers
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (err) => err ? reject(err) : resolve());
+  });
+}
+
 const PORT = process.env.PORT || 4000;
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:8000';
-app.use(cors({ origin: (origin, cb) => {
-  if (!origin) return cb(null, true);
-  if ([CORS_ORIGIN, 'http://localhost:3000', 'http://localhost:8000'].includes(origin)) return cb(null, true);
-  return cb(new Error('Not allowed by CORS'));
-}}));
+// CORS allowlist: prefer explicit origins only. Do NOT use '*'.
+const allowedOrigins = [
+  process.env.CORS_ORIGIN, // public frontend (e.g. https://www.jeremyavalos.xyz)
+  process.env.BACKEND_PUBLIC_URL, // backend's own public URL (Railway)
+  'http://localhost:3000',
+  'http://localhost:8000'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no Origin (same-origin or server-side requests)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  // Credentials (cookies) are required for admin session flows. Only
+  // allowed origins will be accepted by the origin check above.
+  credentials: true
+}));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 app.use('/api/', apiLimiter);
@@ -39,20 +78,18 @@ function generateToken() {
 }
 
 function isAdminAuthenticated(req) {
-  const cookie = req.cookies?.admin_session;
-  if (!cookie) return false;
-  const expected = crypto.createHmac('sha256', process.env.ADMIN_SECRET || 'admin_dev').update('admin_session').digest('hex');
-  return cookie === expected;
+  try {
+    return Boolean(req.session && req.session.isAdmin === true && req.session.username === process.env.ADMIN_USERNAME);
+  } catch (e) { return false; }
 }
 
-function setAdminSession(res) {
-  const value = crypto.createHmac('sha256', process.env.ADMIN_SECRET || 'admin_dev').update('admin_session').digest('hex');
-  // set httpOnly secure cookie
-  res.cookie('admin_session', value, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
+function setAdminSession(req) {
+  req.session.isAdmin = true;
+  req.session.username = process.env.ADMIN_USERNAME || 'admin';
 }
 
-function clearAdminSession(res) {
-  res.clearCookie('admin_session');
+function clearAdminSession(req) {
+  try { req.session.destroy(() => {}); } catch (e) { /* ignore */ }
 }
 
 // Health
@@ -161,6 +198,16 @@ app.post('/api/games/:id/moves', async (req, res) => {
     const isChallenger = tokenHash && tokenHash === challenge.player_token_hash;
     const isAdmin = isAdminAuthenticated(req);
     if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
+
+    // If this request is coming from an admin session, require CSRF token
+    if (isAdmin) {
+      try {
+        await runMiddleware(req, res, csurf());
+      } catch (e) {
+        console.error('admin csrf validation failed', e);
+        return res.status(403).json({ error: 'forbidden' });
+      }
+    }
 
     // server-side chess validation
     const chess = new Chess(game.fen_current);
@@ -328,6 +375,64 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
+// Analytics tracking (privacy-friendly)
+app.post('/api/analytics/track', async (req, res) => {
+  try {
+    const { path, referrer, device_category, browser_family, country } = req.body || {};
+    await db.query('INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country) VALUES ($1,$2,$3,$4,$5,$6)', [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, country || req.get('CF-IPCountry') || null]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('analytics track error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Admin overview: database-backed real stats
+app.get('/api/admin/overview', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const totalChallenges = await db.query("SELECT COUNT(*) FROM challenges WHERE game_type='chess'");
+    const gamesCompleted = await db.query("SELECT COUNT(*) FROM games WHERE status='finished'");
+    const jeremyWins = await db.query("SELECT COALESCE(SUM(jeremy_wins),0) AS v FROM challenges");
+    const playerWins = await db.query("SELECT COALESCE(SUM(player_wins),0) AS v FROM challenges");
+    const draws = await db.query("SELECT COALESCE(SUM(draws),0) AS v FROM challenges");
+    // current streak: look at most recent completed games and count consecutive same winner
+    const recent = await db.query("SELECT winner, ended_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
+    let streak = { who: null, count: 0 };
+    for (const r of recent.rows) {
+      if (!streak.who) { streak.who = r.winner; streak.count = 1; }
+      else if (r.winner === streak.who) streak.count += 1; else break;
+    }
+    // visits today
+    const visitsToday = await db.query("SELECT COUNT(*) FROM analytics_events WHERE created_at >= now()::date");
+    res.json({ overview: { total_challenges: Number(totalChallenges.rows[0].count), games_completed: Number(gamesCompleted.rows[0].count), jeremy_wins: Number(jeremyWins.rows[0].v), player_wins: Number(playerWins.rows[0].v), draws: Number(draws.rows[0].v), current_streak: streak, visits_today: Number(visitsToday.rows[0].count) } });
+  } catch (e) {
+    console.error('admin overview error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Public stats endpoint (reads from DB; no sensitive data)
+app.get('/api/stats', async (req, res) => {
+  try {
+    const totalChallenges = await db.query("SELECT COUNT(*) FROM challenges WHERE game_type='chess'");
+    const gamesCompleted = await db.query("SELECT COUNT(*) FROM games WHERE status='finished'");
+    const jeremyWins = await db.query("SELECT COALESCE(SUM(jeremy_wins),0) AS v FROM challenges");
+    const playerWins = await db.query("SELECT COALESCE(SUM(player_wins),0) AS v FROM challenges");
+    const draws = await db.query("SELECT COALESCE(SUM(draws),0) AS v FROM challenges");
+    const recent = await db.query("SELECT winner, updated_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
+    let streak = { who: null, count: 0 };
+    for (const r of recent.rows) {
+      if (!streak.who) { streak.who = r.winner; streak.count = 1; }
+      else if (r.winner === streak.who) streak.count += 1; else break;
+    }
+    res.json({ total_challenges: Number(totalChallenges.rows[0].count), games_completed: Number(gamesCompleted.rows[0].count), jeremy_wins: Number(jeremyWins.rows[0].v), challenger_wins: Number(playerWins.rows[0].v), draws: Number(draws.rows[0].v), current_streak: streak });
+  } catch (e) {
+    console.error('public stats error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
 // Get game details and move history
 app.get('/api/games/:id', async (req, res) => {
   try {
@@ -377,50 +482,111 @@ app.get('/admin/challenges', async (req, res) => {
   }
 });
 
-// Admin login/logout for setting httpOnly session cookie
-app.post('/admin/login', (req, res) => {
-  const { secret } = req.body || {};
-  if (!secret || secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'forbidden' });
-  setAdminSession(res);
-  res.json({ ok: true });
+// Admin login/logout using username + bcrypt password hash
+const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6 });
+app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'missing credentials' });
+    const expectedUser = process.env.ADMIN_USERNAME;
+    const expectedHash = process.env.ADMIN_PASSWORD_HASH;
+    if (!expectedUser || !expectedHash) return res.status(500).json({ error: 'admin not configured' });
+    if (username !== expectedUser) return res.status(403).json({ error: 'forbidden' });
+    const ok = await bcrypt.compare(password, expectedHash);
+    if (!ok) return res.status(403).json({ error: 'forbidden' });
+    // regenerate session to prevent fixation, then mark as admin
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('session regen failed', err);
+        return res.status(500).json({ error: 'server error' });
+      }
+      setAdminSession(req);
+      // attach a CSRF token for subsequent admin requests
+      try {
+        runMiddleware(req, res, csurf())
+          .then(() => {
+            const token = req.csrfToken ? req.csrfToken() : null;
+            res.json({ ok: true, csrfToken: token });
+          })
+          .catch((e) => {
+            // csurf may still work on future requests; return success
+            res.json({ ok: true });
+          });
+      } catch (e) {
+        res.json({ ok: true });
+      }
+    });
+  } catch (e) {
+    console.error('admin login error', e);
+    res.status(500).json({ error: 'server error' });
+  }
 });
 
-app.post('/admin/logout', (req, res) => {
-  clearAdminSession(res);
-  res.json({ ok: true });
-});
-
-// Serve a minimal admin dashboard page
 app.get('/admin', (req, res) => {
   if (!isAdminAuthenticated(req)) {
-    // simple login form
     return res.send(`
-      <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Arial;padding:2rem;">
-        <h2>Admin Login</h2>
-        <form method="POST" action="/admin/login" id="login">
-          <input name="secret" placeholder="ADMIN_SECRET" />
-          <button type="submit">Login</button>
+      <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
+        <h2 style="font-family:monospace;color:#d3a75a">SYSTEM / ADMIN</h2>
+        <form id="login" style="display:flex;flex-direction:column;gap:8px;max-width:360px;margin-top:1rem;">
+          <input name="username" id="username" placeholder="Username" />
+          <input name="password" id="password" type="password" placeholder="Password" />
+          <button id="loginBtn" class="btn">Login</button>
         </form>
+        <div id="msg" style="color:#f78a8a;margin-top:8px"></div>
+        <script>
+          document.getElementById('login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ username: u, password: p }) });
+            if (r.ok) { location.reload(); } else { const j = await r.json().catch(()=>null); document.getElementById('msg').textContent = j?.error || 'Login failed'; }
+          });
+        </script>
       </body></html>
     `);
   }
 
-  // simple dashboard UI that fetches /admin/challenges
+  // authenticated admin dashboard
+  try {
+    await runMiddleware(req, res, csurf());
+  } catch (e) {
+    // if csrf cannot be initialized, continue without token (future requests may obtain it)
+  }
+  const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
-    <html><head><title>Admin</title></head><body style="background:#070809;color:#f4f1ec;font-family:Arial;padding:1rem;">
-      <h2>Admin Dashboard</h2>
-      <div id="list">Loading...</div>
+    <html><head><title>Admin</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:1rem;">
+      <h2 style="font-family:monospace;color:#d3a75a">ADMIN DASHBOARD</h2>
+      <div id="overview">Loading...</div>
+      <div id="myturn">Loading...</div>
+      <div id="waiting">Loading...</div>
+      <div id="completed">Loading...</div>
+      <div style="margin-top:12px"><button id="logout">Logout</button></div>
+      <script>window.CSRF_TOKEN='${csrfToken}';</script>
       <script>
-        async function load() {
-          const r = await fetch('/admin/challenges');
-          const j = await r.json();
-          const list = document.getElementById('list');
-          list.innerHTML = '<ul>' + j.challenges.map(function(c){ return '<li>' + c.gamertag + ' — ' + (c.player_wins||0) + '-' + (c.jeremy_wins||0) + ' — ' + c.status + ' — <a href="/admin/open/' + c.id + '">Open</a></li>'; }).join('') + '</ul>';
-        }
-        load();
+        async function api(path){ const r = await fetch(path); return r.json(); }
+        async function loadOverview(){ const j = await api('/api/admin/overview'); const o = j.overview; document.getElementById('overview').innerHTML = '<div class="mono">VISITS TODAY: '+o.visits_today+'</div><div class="mono">Challenges: '+o.total_challenges+'</div><div class="mono">Games completed: '+o.games_completed+'</div><div class="mono">Jeremy wins: '+o.jeremy_wins+'</div><div class="mono">Player wins: '+o.player_wins+'</div><div class="mono">Draws: '+o.draws+'</div><div class="mono">Current streak: '+(o.current_streak.count||0)+' by '+(o.current_streak.who||'n/a')+'</div>'; }
+        async function loadLists(){ const j = await api('/admin/challenges'); const my = j.challenges.filter(c=>c.admin_turn); const wait = j.challenges.filter(c=>!c.admin_turn && c.status!=='completed'); const comp = j.challenges.filter(c=>c.status==='completed'); document.getElementById('myturn').innerHTML = '<h3 class="mono">MY TURN</h3>'+ (my.length?('<ul>'+my.map(c=>'<li>'+c.gamertag+' — Game '+(c.current_game?.game_number||'?')+' — <a href="/admin/open/'+c.id+'">OPEN MATCH</a></li>').join('')+'</ul>'):'<div class="mono">None</div>'); document.getElementById('waiting').innerHTML = '<h3 class="mono">WAITING</h3>' + (wait.length?('<ul>'+wait.map(c=>'<li>'+c.gamertag+' — Game '+(c.current_game?.game_number||'?')+' — <a href="/admin/open/'+c.id+'">OPEN MATCH</a></li>').join('')+'</ul>'):'<div class="mono">None</div>'); document.getElementById('completed').innerHTML = '<h3 class="mono">COMPLETED</h3>' + (comp.length?('<ul>'+comp.map(c=>'<li>'+c.gamertag+' — '+(c.player_wins||0)+'-'+(c.jeremy_wins||0)+' — '+(c.winner||'n/a')+'</li>').join('')+'</ul>'):'<div class="mono">None</div>'); }
+        document.getElementById('logout').addEventListener('click', async ()=>{ await fetch('/admin/logout',{method:'POST', headers: {'x-csrf-token': window.CSRF_TOKEN}}); location.reload(); });
+        loadOverview(); loadLists(); setInterval(loadOverview, 30*1000); setInterval(loadLists, 30*1000);
       </script>
     </body></html>
   `);
+
+});
+
+// Logout endpoint
+app.post('/admin/logout', async (req, res) => {
+  try {
+    // require CSRF for admin logout
+    if (isAdminAuthenticated(req)) {
+      await runMiddleware(req, res, csurf());
+    }
+  } catch (e) {
+    console.error('csrf logout failed', e);
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  clearAdminSession(req);
+  res.json({ ok: true });
 });
 
 // Admin open a challenge (redirect to challenge page on frontend but as admin session)
@@ -429,6 +595,11 @@ app.get('/admin/open/:id', async (req, res) => {
   const id = req.params.id;
   // redirect admin to public frontend with challenge id (no token) — admin cookie authenticates moves
   // Serve a minimal admin match UI that allows Jeremy to view and play the match without exposing secrets.
+  // initialize csurf and expose token to admin UI
+  try {
+    await runMiddleware(req, res, csurf());
+  } catch (e) {}
+  const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
     <html><head><title>Admin Match ${id}</title>
       <script src="https://cdn.jsdelivr.net/npm/chess.js@1.1.0/chess.min.js"></script>
@@ -438,11 +609,9 @@ app.get('/admin/open/:id', async (req, res) => {
       <div id="meta" class="mono">Loading...</div>
       <div id="board"></div>
       <div id="history"></div>
+      <script>window.CSRF_TOKEN='${csrfToken}';</script>
       <script>
-        async function api(path, opts) {
-          const res = await fetch(path, opts);
-          return res.json();
-        }
+        async function api(path, opts) { const res = await fetch(path, opts); return res.json(); }
         async function load() {
           const ch = await api('/api/challenges/${id}');
           const cg = await api('/api/challenges/${id}/games/current');
@@ -455,7 +624,7 @@ app.get('/admin/open/:id', async (req, res) => {
           const board = document.getElementById('board'); board.innerHTML='';
           const chess = new Chess(game.fen_current);
           const grid = document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(8,48px)'; grid.style.gap='4px';
-          for(let r=7;r>=0;r--){for(let f=0;f<8;f++){const file='abcdefgh'[f];const rank=r+1;const coord=file+rank;const sq=chess.get(coord);const btn=document.createElement('button');btn.style.width='48px';btn.style.height='48px';btn.style.fontSize='20px';btn.dataset.square=coord;btn.textContent=sq?pieceToUnicode(sq.type,sq.color):'';btn.addEventListener('click',async()=>{if(!window.sel){window.sel=coord;btn.style.outline='2px solid #d3a75a';} else if(window.sel===coord){window.sel=null;btn.style.outline='';} else {const from=window.sel;const to=coord;window.sel=null;document.querySelectorAll('#board button').forEach(b=>b.style.outline='');const resp=await api('/api/games/'+game.id+'/moves',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from,to})});if(resp.error)alert(resp.error);else await load();}});grid.appendChild(btn);}}
+          for(let r=7;r>=0;r--){for(let f=0;f<8;f++){const file='abcdefgh'[f];const rank=r+1;const coord=file+rank;const sq=chess.get(coord);const btn=document.createElement('button');btn.style.width='48px';btn.style.height='48px';btn.style.fontSize='20px';btn.dataset.square=coord;btn.textContent=sq?pieceToUnicode(sq.type,sq.color):'';btn.addEventListener('click',async()=>{if(!window.sel){window.sel=coord;btn.style.outline='2px solid #d3a75a';} else if(window.sel===coord){window.sel=null;btn.style.outline='';} else {const from=window.sel;const to=coord;window.sel=null;document.querySelectorAll('#board button').forEach(b=>b.style.outline='');const resp=await api('/api/games/'+game.id+'/moves',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token': window.CSRF_TOKEN},body:JSON.stringify({from,to})});if(resp.error)alert(resp.error);else await load();}});grid.appendChild(btn);}}
           board.appendChild(grid);
           const mh = document.getElementById('history'); const mv = await api('/api/games/'+game.id); mh.innerHTML = '<ol>'+ (mv.moves||[]).map(m=>'<li>'+ (m.san||m.uci) +'</li>').join('') +'</ol>';
         }
