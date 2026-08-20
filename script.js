@@ -914,6 +914,9 @@ function initMatchUI() {
     }
   }
 
+  // Expose canonical loader to outer scope so other flows can call it
+  try { window.loadMatch = loadMatch; } catch (e) { /* ignore in non-browser env */ }
+
   if (challengeId) {
     if (tokenFromUrl) localStorage.setItem(`challenge_token_${challengeId}`, tokenFromUrl);
     const token = tokenFromUrl || localStorage.getItem(`challenge_token_${challengeId}`);
