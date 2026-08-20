@@ -1,4 +1,4 @@
-const dotenvResult = require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -9,6 +9,7 @@ const PgSession = require('connect-pg-simple')(session);
 const csurf = require('csurf');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
 const db = require('./db');
@@ -46,20 +47,6 @@ function runMiddleware(req, res, fn) {
   return new Promise((resolve, reject) => {
     fn(req, res, (err) => err ? reject(err) : resolve());
   });
-}
-
-// Startup diagnostics for admin config (safe, do NOT log secrets)
-try {
-  const fs = require('fs');
-  const hasDotenvFile = fs.existsSync('.env');
-  const bpkg = (() => { try { return require('bcrypt/package.json').version; } catch (e) { return null } })();
-  const adminHashConfigured = Boolean(process.env.ADMIN_PASSWORD_HASH);
-  console.info('ADMIN CONFIG: username configured:', Boolean(process.env.ADMIN_USERNAME));
-  console.info('ADMIN CONFIG: password hash configured:', adminHashConfigured);
-  console.info('ADMIN CONFIG: bcrypt package version:', bpkg || 'unknown');
-  console.info('ADMIN CONFIG: dotenv file present:', hasDotenvFile, 'dotenv parsed:', Boolean(dotenvResult && dotenvResult.parsed));
-} catch (e) {
-  console.error('admin config diagnostics failed', e);
 }
 
 const PORT = process.env.PORT || 4000;
@@ -102,6 +89,7 @@ app.use('/api', apiCors, apiLimiter);
 
 // Retention: remove analytics older than 90 days on startup, and run daily.
 (async () => {
+  if (process.env.NODE_ENV === 'test') return;
   try {
     await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
   } catch (e) {
@@ -140,6 +128,17 @@ function setAdminSession(req) {
 function clearAdminSession(req) {
   try { req.session.destroy(() => {}); } catch (e) { /* ignore */ }
 }
+
+function requireAdmin(req, res, next) {
+  if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+// Admin assets are session-protected and external so Helmet's CSP can remain strict.
+app.use('/admin/assets', requireAdmin, express.static(path.join(__dirname, '..', 'admin'), {
+  fallthrough: false,
+  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
+}));
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -309,21 +308,18 @@ app.post('/api/games/:id/moves', async (req, res) => {
             await client.query('UPDATE challenges SET jeremy_wins = jeremy_wins + 1, updated_at = now() WHERE id = $1', [challenge.id]);
           }
 
-          // check victory condition
-          const c2 = await client.query('SELECT player_wins, jeremy_wins FROM challenges WHERE id = $1 FOR UPDATE', [challenge.id]);
-          const counts = c2.rows[0];
-          if (counts.player_wins >= 2 || counts.jeremy_wins >= 2) {
-            const winner = counts.player_wins >= 2 ? 'player' : 'jeremy';
-            await client.query('UPDATE challenges SET status = $1, winner = $2 WHERE id = $3', ['completed', winner, challenge.id]);
-          } else {
-            // create next game with swapped challenger_color
-            const nextNumber = game.game_number + 1;
-            const nextChallengerColor = game.challenger_color === 'white' ? 'black' : 'white';
-            const chessNew = new Chess();
-            const fen = chessNew.fen();
-            const newG = await client.query('INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1,$2,$3,$4,$5) RETURNING *', [challenge.id, nextNumber, fen, fen, nextChallengerColor]);
-            await client.query('UPDATE challenges SET current_game_id = $1 WHERE id = $2', [newG.rows[0].id, challenge.id]);
-          }
+        }
+        const c2 = await client.query('SELECT player_wins, jeremy_wins FROM challenges WHERE id = $1 FOR UPDATE', [challenge.id]);
+        const counts = c2.rows[0];
+        if (counts.player_wins >= 2 || counts.jeremy_wins >= 2) {
+          const winner = counts.player_wins >= 2 ? 'player' : 'jeremy';
+          await client.query('UPDATE challenges SET status = $1, winner = $2, updated_at = now() WHERE id = $3', ['completed', winner, challenge.id]);
+        } else {
+          const nextNumber = game.game_number + 1;
+          const nextChallengerColor = game.challenger_color === 'white' ? 'black' : 'white';
+          const fen = new Chess().fen();
+          const newG = await client.query('INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1,$2,$3,$4,$5) RETURNING *', [challenge.id, nextNumber, fen, fen, nextChallengerColor]);
+          await client.query('UPDATE challenges SET current_game_id = $1, updated_at = now() WHERE id = $2', [newG.rows[0].id, challenge.id]);
         }
       }
 
@@ -448,9 +444,20 @@ app.post('/api/analytics/track', async (req, res) => {
 app.get('/api/admin/visitors', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const q = await db.query(`SELECT ip, country, device_category, COUNT(*) AS visits, MAX(created_at) AS last_seen FROM analytics_events GROUP BY ip, country, device_category ORDER BY last_seen DESC LIMIT 200`);
-    const out = q.rows.map(r => ({ ip: r.ip, country: r.country, device_category: r.device_category, visits: Number(r.visits), last_seen: r.last_seen }));
-    res.json({ visitors: out });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const count = await db.query('SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL');
+    const q = await db.query(`
+      SELECT ip,
+        (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+        (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
+        (array_agg(browser_family ORDER BY created_at DESC) FILTER (WHERE browser_family IS NOT NULL))[1] AS browser_family,
+        COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+      FROM analytics_events WHERE ip IS NOT NULL
+      GROUP BY ip ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
+    const out = q.rows.map(r => ({ ...r, visits: Number(r.visits) }));
+    res.json({ visitors: out, pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
     console.error('admin visitors error', e);
     res.status(500).json({ error: 'server error' });
@@ -461,8 +468,16 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
     const ip = req.params.ip;
+    const summary = await db.query(`SELECT COUNT(*) AS total_visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
+      (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+      (array_agg(browser_family ORDER BY created_at DESC) FILTER (WHERE browser_family IS NOT NULL))[1] AS browser_family,
+      (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
+      (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
+      FROM analytics_events WHERE ip = $1`, [ip]);
     const q = await db.query('SELECT path, referrer, user_agent, device_category, browser_family, country, created_at FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200', [ip]);
-    res.json({ visits: q.rows });
+    if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
+    const s = summary.rows[0];
+    res.json({ visitor: { ip, country: s.country, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
@@ -473,21 +488,26 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
 app.get('/api/admin/overview', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const totalChallenges = await db.query("SELECT COUNT(*) FROM challenges WHERE game_type='chess'");
-    const gamesCompleted = await db.query("SELECT COUNT(*) FROM games WHERE status='finished'");
-    const jeremyWins = await db.query("SELECT COALESCE(SUM(jeremy_wins),0) AS v FROM challenges");
-    const playerWins = await db.query("SELECT COALESCE(SUM(player_wins),0) AS v FROM challenges");
-    const draws = await db.query("SELECT COALESCE(SUM(draws),0) AS v FROM challenges");
+    const totals = await db.query(`SELECT
+      (SELECT COUNT(*) FROM analytics_events) AS total_visits,
+      (SELECT COUNT(*) FROM analytics_events WHERE created_at >= CURRENT_DATE) AS visits_today,
+      (SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL) AS unique_visitors,
+      (SELECT COUNT(*) FROM challenges WHERE game_type='chess') AS total_challenges,
+      (SELECT COUNT(*) FROM challenges WHERE game_type='chess' AND status <> 'completed') AS active_matches,
+      (SELECT COUNT(*) FROM games WHERE status='finished') AS games_completed,
+      (SELECT COALESCE(SUM(jeremy_wins),0) FROM challenges) AS jeremy_wins,
+      (SELECT COALESCE(SUM(player_wins),0) FROM challenges) AS player_wins`);
     // current streak: look at most recent completed games and count consecutive same winner
-    const recent = await db.query("SELECT winner, ended_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
+    const recent = await db.query("SELECT winner, updated_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
     let streak = { who: null, count: 0 };
     for (const r of recent.rows) {
       if (!streak.who) { streak.who = r.winner; streak.count = 1; }
       else if (r.winner === streak.who) streak.count += 1; else break;
     }
-    // visits today
-    const visitsToday = await db.query("SELECT COUNT(*) FROM analytics_events WHERE created_at >= now()::date");
-    res.json({ overview: { total_challenges: Number(totalChallenges.rows[0].count), games_completed: Number(gamesCompleted.rows[0].count), jeremy_wins: Number(jeremyWins.rows[0].v), player_wins: Number(playerWins.rows[0].v), draws: Number(draws.rows[0].v), current_streak: streak, visits_today: Number(visitsToday.rows[0].count) } });
+    const myTurn = await db.query(`SELECT COUNT(*) FROM challenges c JOIN games g ON g.id = c.current_game_id
+      WHERE c.status <> 'completed' AND (CASE WHEN split_part(g.fen_current, ' ', 2) = 'w' THEN 'white' ELSE 'black' END) <> g.challenger_color`);
+    const t = totals.rows[0];
+    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), unique_visitors: Number(t.unique_visitors), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: Number(myTurn.rows[0].count) } });
   } catch (e) {
     console.error('admin overview error', e);
     res.status(500).json({ error: 'server error' });
@@ -530,36 +550,42 @@ app.get('/api/games/:id', async (req, res) => {
   }
 });
 
-// Admin minimal endpoint
-app.get('/admin/challenges', async (req, res) => {
+// Admin challenge list. No private challenger tokens are selected or returned.
+app.get('/api/admin/challenges', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const q = await db.query('SELECT id, gamertag, status, player_wins, jeremy_wins, draws, current_game_id, winner, created_at, updated_at, game_type FROM challenges ORDER BY created_at DESC LIMIT 200');
-    const out = [];
-    for (const c of q.rows) {
-      let game = null;
-      let lastMoveAt = null;
-      let adminTurn = false;
-      if (c.current_game_id) {
-        const gq = await db.query('SELECT * FROM games WHERE id = $1', [c.current_game_id]);
-        if (gq.rows.length) {
-          game = gq.rows[0];
-          const mv = await db.query('SELECT max(created_at) as last_at FROM moves WHERE game_id = $1', [game.id]);
-          lastMoveAt = mv.rows[0].last_at;
-          try {
-            const chess = new Chess(game.fen_current);
-            const sideToMove = chess.turn() === 'w' ? 'white' : 'black';
-            adminTurn = sideToMove !== game.challenger_color;
-          } catch (e) {
-            adminTurn = false;
-          }
-        }
-      }
-      out.push({ id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, current_game: game ? { id: game.id, game_number: game.game_number, challenger_color: game.challenger_color } : null, last_move_at: lastMoveAt, admin_turn: adminTurn });
-    }
+    const q = await db.query(`SELECT c.id, c.gamertag, c.status, c.player_wins, c.jeremy_wins, c.draws, c.winner, c.created_at, c.updated_at, c.game_type,
+      g.id AS game_id, g.game_number, g.challenger_color, g.status AS game_status,
+      COALESCE((SELECT MAX(m.created_at) FROM moves m WHERE m.game_id = g.id), g.created_at, c.updated_at) AS last_move_at,
+      CASE WHEN c.status <> 'completed' AND g.id IS NOT NULL THEN
+        (CASE WHEN split_part(g.fen_current, ' ', 2) = 'w' THEN 'white' ELSE 'black' END) <> g.challenger_color ELSE false END AS admin_turn
+      FROM challenges c LEFT JOIN games g ON g.id = c.current_game_id ORDER BY c.updated_at DESC LIMIT 200`);
+    const out = q.rows.map(c => ({ id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, winner: c.winner, created_at: c.created_at, updated_at: c.updated_at, last_move_at: c.last_move_at, admin_turn: c.admin_turn, current_game: c.game_id ? { id: c.game_id, game_number: c.game_number, challenger_color: c.challenger_color, status: c.game_status } : null }));
     res.json({ challenges: out });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.get('/api/admin/challenges/:id/match', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const ch = await db.query(`SELECT id, gamertag, status, player_wins, jeremy_wins, draws, winner, current_game_id
+      FROM challenges WHERE id = $1`, [req.params.id]);
+    if (!ch.rows.length) return res.status(404).json({ error: 'challenge not found' });
+    const challenge = ch.rows[0];
+    if (!challenge.current_game_id) return res.status(404).json({ error: 'no active game' });
+    const g = await db.query(`SELECT id, game_number, fen_current, challenger_color, status, result, created_at, ended_at
+      FROM games WHERE id = $1`, [challenge.current_game_id]);
+    if (!g.rows.length) return res.status(404).json({ error: 'game not found' });
+    const game = g.rows[0];
+    const moves = await db.query(`SELECT move_number, uci, san, from_sq, to_sq, player_side, created_at
+      FROM moves WHERE game_id = $1 ORDER BY move_number`, [game.id]);
+    const sideToMove = new Chess(game.fen_current).turn() === 'w' ? 'white' : 'black';
+    res.json({ challenge: { id: challenge.id, gamertag: challenge.gamertag, status: challenge.status, player_wins: challenge.player_wins, jeremy_wins: challenge.jeremy_wins, draws: challenge.draws, winner: challenge.winner }, game: { ...game, side_to_move: sideToMove, admin_turn: challenge.status !== 'completed' && sideToMove !== game.challenger_color }, moves: moves.rows });
+  } catch (err) {
+    console.error('admin match error', err);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -568,18 +594,14 @@ app.get('/admin/challenges', async (req, res) => {
 const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 6 });
 app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), async (req, res) => {
   try {
-    console.info('POST /admin/login reached');
     const { username, password } = req.body || {};
     if (!username || !password) {
-      console.info('ADMIN LOGIN REJECTED');
       return res.status(400).json({ error: 'missing credentials' });
     }
     const expectedUser = process.env.ADMIN_USERNAME;
     const expectedHash = process.env.ADMIN_PASSWORD_HASH;
     if (!expectedUser || !expectedHash) return res.status(500).json({ error: 'admin not configured' });
-    if (username !== expectedUser) return res.status(403).json({ error: 'forbidden' });
     if (username !== expectedUser) {
-      console.info('ADMIN LOGIN REJECTED: invalid username');
       return res.status(403).json({ error: 'forbidden' });
     }
     // Normalize accidental surrounding whitespace in stored hash only
@@ -592,7 +614,6 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
       ok = await bcrypt.compare(password, adminPasswordHash);
     }
     if (!ok) {
-      console.info('ADMIN LOGIN REJECTED');
       return res.status(403).json({ error: 'forbidden' });
     }
     // regenerate session to prevent fixation, then mark as admin
@@ -602,7 +623,6 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
         return res.status(500).json({ error: 'server error' });
       }
       setAdminSession(req);
-      console.info('ADMIN LOGIN SUCCESS');
       // attach a CSRF token for subsequent admin requests
       try {
         runMiddleware(req, res, csurf())
@@ -625,7 +645,6 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
 });
 
 app.get('/admin', async (req, res) => {
-  console.info('GET /admin reached');
   if (!isAdminAuthenticated(req)) {
     return res.send(`
       <html><head><title>Admin Login</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:2rem;">
@@ -637,12 +656,10 @@ app.get('/admin', async (req, res) => {
         </form>
         <div id="msg" style="color:#f78a8a;margin-top:8px"></div>
         <script>
-          // Diagnostic-friendly submit handler: surface network errors and do a fetch if JS runs.
           (function(){
             const form = document.getElementById('login');
             const msg = document.getElementById('msg');
             if (!form) return;
-            console.log('Admin login form initialized');
             // Clear any autofilled value on load (defensive) then handle submit
             try { const pwd = document.getElementById('password'); if (pwd) { pwd.value = ''; } } catch (e) {}
             form.addEventListener('submit', async (e) => {
@@ -651,19 +668,15 @@ app.get('/admin', async (req, res) => {
               const u = document.getElementById('username').value;
               const p = document.getElementById('password').value;
               try {
-                console.log('Admin login: submitting request');
-                const r = await fetch('/admin/login', { method: 'POST', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ username: u, password: p }) });
+                const r = await fetch('/admin/login', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({ username: u, password: p }) });
                 if (r.ok) {
-                  console.log('Admin login: success response received');
                   location.reload();
                 } else {
-                  console.warn('Admin login: non-OK response');
                   const j = await r.json().catch(()=>null);
                   msg.textContent = j?.error || 'Login failed';
                 }
               } catch (err) {
-                console.error('Admin login: fetch failed', err);
-                msg.textContent = 'Network error during login. See console.';
+                msg.textContent = 'Network error during login.';
               }
             });
           })();
@@ -680,22 +693,16 @@ app.get('/admin', async (req, res) => {
   }
   const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
-    <html><head><title>Admin</title></head><body style="background:#070809;color:#f4f1ec;font-family:Inter,monospace;padding:1rem;">
-      <h2 style="font-family:monospace;color:#d3a75a">ADMIN DASHBOARD</h2>
-      <div id="overview">Loading...</div>
-      <div id="myturn">Loading...</div>
-      <div id="waiting">Loading...</div>
-      <div id="completed">Loading...</div>
-      <div style="margin-top:12px"><button id="logout">Logout</button></div>
-      <script>window.CSRF_TOKEN='${csrfToken}';</script>
-      <script>
-        async function api(path){ const r = await fetch(path); return r.json(); }
-        async function loadOverview(){ const j = await api('/api/admin/overview'); const o = j.overview; document.getElementById('overview').innerHTML = '<div class="mono">VISITS TODAY: '+o.visits_today+'</div><div class="mono">Challenges: '+o.total_challenges+'</div><div class="mono">Games completed: '+o.games_completed+'</div><div class="mono">Jeremy wins: '+o.jeremy_wins+'</div><div class="mono">Player wins: '+o.player_wins+'</div><div class="mono">Draws: '+o.draws+'</div><div class="mono">Current streak: '+(o.current_streak.count||0)+' by '+(o.current_streak.who||'n/a')+'</div>'; }
-        async function loadLists(){ const j = await api('/admin/challenges'); const my = j.challenges.filter(c=>c.admin_turn); const wait = j.challenges.filter(c=>!c.admin_turn && c.status!=='completed'); const comp = j.challenges.filter(c=>c.status==='completed'); document.getElementById('myturn').innerHTML = '<h3 class="mono">MY TURN</h3>'+ (my.length?('<ul>'+my.map(c=>'<li>'+c.gamertag+' — Game '+(c.current_game?.game_number||'?')+' — <a href="/admin/open/'+c.id+'">OPEN MATCH</a></li>').join('')+'</ul>'):'<div class="mono">None</div>'); document.getElementById('waiting').innerHTML = '<h3 class="mono">WAITING</h3>' + (wait.length?('<ul>'+wait.map(c=>'<li>'+c.gamertag+' — Game '+(c.current_game?.game_number||'?')+' — <a href="/admin/open/'+c.id+'">OPEN MATCH</a></li>').join('')+'</ul>'):'<div class="mono">None</div>'); document.getElementById('completed').innerHTML = '<h3 class="mono">COMPLETED</h3>' + (comp.length?('<ul>'+comp.map(c=>'<li>'+c.gamertag+' — '+(c.player_wins||0)+'-'+(c.jeremy_wins||0)+' — '+(c.winner||'n/a')+'</li>').join('')+'</ul>'):'<div class="mono">None</div>'); }
-        document.getElementById('logout').addEventListener('click', async ()=>{ await fetch('/admin/logout',{method:'POST', headers: {'x-csrf-token': window.CSRF_TOKEN}}); location.reload(); });
-        loadOverview(); loadLists(); setInterval(loadOverview, 30*1000); setInterval(loadLists, 30*1000);
-      </script>
-    </body></html>
+    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><title>Admin / Jeremy Avalos</title><link rel="stylesheet" href="/admin/assets/admin.css"><script src="/admin/assets/dashboard.js" defer></script></head>
+    <body><div class="shell"><header><div><div class="eyebrow">JEREMYAVALOS.XYZ / PRIVATE</div><h1>ADMIN DASHBOARD</h1></div><div class="actions"><button id="refresh">REFRESH</button><button id="logout">LOGOUT</button></div></header>
+    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#completed">COMPLETED</a></nav><main>
+    <section id="overview"><div class="section-head"><div><span>01</span><h2>OVERVIEW</h2></div><p id="updated">Loading dashboard…</p></div><div id="overview-content" class="metric-grid"><div class="state">Loading overview…</div></div></section>
+    <section id="my-turn"><div class="section-head"><div><span>02</span><h2>MY TURN</h2></div></div><div id="myturn-content"><div class="state">Loading challenges…</div></div></section>
+    <section id="waiting"><div class="section-head"><div><span>03</span><h2>WAITING</h2></div></div><div id="waiting-content"><div class="state">Loading challenges…</div></div></section>
+    <section id="challenges"><div class="section-head"><div><span>04</span><h2>CHALLENGES</h2></div></div><div id="challenges-content"><div class="state">Loading challenges…</div></div></section>
+    <section id="visitors"><div class="section-head"><div><span>05</span><h2>VISITORS</h2></div></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
+    <section id="completed"><div class="section-head"><div><span>06</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
+    </main></div></body></html>
   `);
 
 });
@@ -719,6 +726,7 @@ app.post('/admin/logout', async (req, res) => {
 app.get('/admin/open/:id', async (req, res) => {
   if (!isAdminAuthenticated(req)) return res.status(403).send('forbidden');
   const id = req.params.id;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).send('invalid challenge');
   // redirect admin to public frontend with challenge id (no token) — admin cookie authenticates moves
   // Serve a minimal admin match UI that allows Jeremy to view and play the match without exposing secrets.
   // initialize csurf and expose token to admin UI
@@ -727,36 +735,8 @@ app.get('/admin/open/:id', async (req, res) => {
   } catch (e) {}
   const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
-    <html><head><title>Admin Match ${id}</title>
-      <script src="https://cdn.jsdelivr.net/npm/chess.js@1.1.0/chess.min.js"></script>
-      <style>body{background:#070809;color:#f4f1ec;font-family:Inter,Arial;padding:1rem} .mono{font-family:monospace;color:#d3a75a}</style>
-    </head><body>
-      <h2>Admin Match: ${id}</h2>
-      <div id="meta" class="mono">Loading...</div>
-      <div id="board"></div>
-      <div id="history"></div>
-      <script>window.CSRF_TOKEN='${csrfToken}';</script>
-      <script>
-        async function api(path, opts) { const res = await fetch(path, opts); return res.json(); }
-        async function load() {
-          const ch = await api('/api/challenges/${id}');
-          const cg = await api('/api/challenges/${id}/games/current');
-          const game = cg.game;
-          document.getElementById('meta').textContent = ch.challenge.gamertag + ' — ' + (ch.challenge.player_wins||0) + '-' + (ch.challenge.jeremy_wins||0) + ' — Game ' + game.game_number;
-          await render(game);
-        }
-        function pieceToUnicode(t,c){const m={p:{w:'♙',b:'♟'},r:{w:'♖',b:'♜'},n:{w:'♘',b:'♞'},b:{w:'♗',b:'♝'},q:{w:'♕',b:'♛'},k:{w:'♔',b:'♚'}};return m[t]?.[c]||''}
-        async function render(game){
-          const board = document.getElementById('board'); board.innerHTML='';
-          const chess = new Chess(game.fen_current);
-          const grid = document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(8,48px)'; grid.style.gap='4px';
-          for(let r=7;r>=0;r--){for(let f=0;f<8;f++){const file='abcdefgh'[f];const rank=r+1;const coord=file+rank;const sq=chess.get(coord);const btn=document.createElement('button');btn.style.width='48px';btn.style.height='48px';btn.style.fontSize='20px';btn.dataset.square=coord;btn.textContent=sq?pieceToUnicode(sq.type,sq.color):'';btn.addEventListener('click',async()=>{if(!window.sel){window.sel=coord;btn.style.outline='2px solid #d3a75a';} else if(window.sel===coord){window.sel=null;btn.style.outline='';} else {const from=window.sel;const to=coord;window.sel=null;document.querySelectorAll('#board button').forEach(b=>b.style.outline='');const resp=await api('/api/games/'+game.id+'/moves',{method:'POST',headers:{'Content-Type':'application/json','x-csrf-token': window.CSRF_TOKEN},body:JSON.stringify({from,to})});if(resp.error)alert(resp.error);else await load();}});grid.appendChild(btn);}}
-          board.appendChild(grid);
-          const mh = document.getElementById('history'); const mv = await api('/api/games/'+game.id); mh.innerHTML = '<ol>'+ (mv.moves||[]).map(m=>'<li>'+ (m.san||m.uci) +'</li>').join('') +'</ol>';
-        }
-        load();
-      </script>
-    </body></html>
+    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><meta name="challenge-id" content="${id}"><title>Admin Match</title><link rel="stylesheet" href="/admin/assets/admin.css"><script src="/admin/assets/match.js" defer></script></head>
+    <body><div class="shell match-shell"><header><div><div class="eyebrow">PRIVATE / MATCH CONTROL</div><h1>ADMIN MATCH</h1></div><a class="button" href="/admin">← DASHBOARD</a></header><main><section><div id="match-meta" class="state">Loading match…</div><div id="match-error" class="error" hidden></div><div class="match-layout"><div><div id="board" class="board"></div><p id="move-status" class="state">Select a piece to move.</p></div><div><h2>MOVE HISTORY</h2><ol id="history" class="history"></ol></div></div></section></main></div></body></html>
   `);
 });
 
