@@ -56,23 +56,15 @@ const allowedOrigins = [
   'http://localhost:8000'
 ].filter(Boolean);
 
-// Skip CORS checks for top-level HTML navigations (serving pages like /admin).
-// Browsers may send Origin: "null" or omit Origin for certain navigations;
-// it's acceptable to serve HTML pages without enforcing CORS.
-app.use((req, res, next) => {
-  const accept = req.headers.accept || '';
-  if (req.method === 'GET' && accept.includes('text/html')) {
-    return next();
-  }
-  return next();
-});
+// Apply CORS only to API routes. Server-rendered HTML routes (e.g. /admin)
+// should not be blocked by CORS checks and rely on session/CSRF instead.
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 
-app.use(cors({
+const apiCors = cors({
   origin: (origin, cb) => {
-    // Allow requests with no Origin (same-origin or server-side requests)
+    // Allow requests with no Origin (server-to-server or curl)
     if (!origin) return cb(null, true);
-    // Explicitly reject the literal string "null" unless the request is a
-    // top-level HTML navigation (those are skipped above). Log it for debug.
+    // Reject literal 'null' Origins for API requests
     if (origin === 'null') {
       try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
       return cb(new Error('Not allowed by CORS'));
@@ -81,13 +73,13 @@ app.use(cors({
     try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
     return cb(new Error('Not allowed by CORS'));
   },
-  // Credentials (cookies) are required for admin session flows. Only
-  // allowed origins will be accepted by the origin check above.
   credentials: true
-}));
+});
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
-app.use('/api/', apiLimiter);
+// Mount CORS and rate limiting only for /api routes
+app.use('/api', apiCors, apiLimiter);
+
+// (apiLimiter and /api mount moved above with apiCors)
 
 // Retention: remove analytics older than 90 days on startup, and run daily.
 (async () => {
@@ -559,13 +551,24 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
   try {
     console.info('POST /admin/login reached');
     const { username, password } = req.body || {};
+    if (!username || !password) {
+      console.info('ADMIN LOGIN REJECTED: missing credentials');
+      return res.status(400).json({ error: 'missing credentials' });
+    }
     if (!username || !password) return res.status(400).json({ error: 'missing credentials' });
     const expectedUser = process.env.ADMIN_USERNAME;
     const expectedHash = process.env.ADMIN_PASSWORD_HASH;
     if (!expectedUser || !expectedHash) return res.status(500).json({ error: 'admin not configured' });
     if (username !== expectedUser) return res.status(403).json({ error: 'forbidden' });
+    if (username !== expectedUser) {
+      console.info('ADMIN LOGIN REJECTED: invalid username');
+      return res.status(403).json({ error: 'forbidden' });
+    }
     const ok = await bcrypt.compare(password, expectedHash);
-    if (!ok) return res.status(403).json({ error: 'forbidden' });
+    if (!ok) {
+      console.info('ADMIN LOGIN REJECTED: invalid password');
+      return res.status(403).json({ error: 'forbidden' });
+    }
     // regenerate session to prevent fixation, then mark as admin
     req.session.regenerate((err) => {
       if (err) {
@@ -573,7 +576,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
         return res.status(500).json({ error: 'server error' });
       }
       setAdminSession(req);
-      console.info('admin login success (session established)');
+      console.info('ADMIN LOGIN SUCCESS');
       // attach a CSRF token for subsequent admin requests
       try {
         runMiddleware(req, res, csurf())
