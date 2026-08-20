@@ -327,6 +327,18 @@ p {
   color: #14100d;
 }
 
+.btn.challenge-cta {
+  border-color: rgba(211, 167, 90, 0.48);
+  color: var(--gold-strong);
+  background: rgba(211, 167, 90, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(211, 167, 90, 0.04);
+}
+
+.btn.challenge-cta:hover {
+  background: rgba(211, 167, 90, 0.1);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(211, 167, 90, 0.1);
+}
+
 .btn:hover,
 .project-link:hover,
 .contact-actions a:hover,

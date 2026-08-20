@@ -28,9 +28,9 @@
       <nav id="site-nav" class="nav-links" aria-label="Primary navigation">
         <a href="#work">01 WORK</a>
         <a href="#capabilities">02 CAPABILITIES</a>
-        <a href="#challenge">CHALLENGE</a>
-        <a href="#about">03 ABOUT</a>
-        <a href="#contact">04 CONTACT</a>
+        <a href="#challenge">03 CHALLENGE</a>
+        <a href="#about">04 ABOUT</a>
+        <a href="#contact">05 CONTACT</a>
       </nav>
     </header>
 
@@ -60,6 +60,7 @@
           <div class="primary-actions" aria-label="Primary contact links">
             <a class="btn primary" href="#contact">START A PROJECT</a>
             <a class="btn" href="#work">VIEW WORK</a>
+            <a class="btn challenge-cta" href="#challenge">CHALLENGE ME</a>
           </div>
 
           <div class="social-links" aria-label="Social media links">
@@ -84,13 +85,13 @@
 
       <section id="challenge" class="challenge">
         <div class="section-header reveal">
-          <p class="eyebrow mono">CHALLENGE / 01</p>
+          <p class="eyebrow mono">03 / CHALLENGE</p>
           <h2>Play me. Chess or Backgammon.</h2>
         </div>
 
         <div class="challenge-grid">
           <div class="challenge-panel reveal">
-            <p class="mono">CHALLENGE / 01</p>
+            <p class="mono">CHALLENGE / 03</p>
             <h3>Beat me in a best-of-3 and win a free one-page website.</h3>
             <p class="muted">This is a developer experiment — lightweight, minimal and polished. No accounts required. Create a challenge and I'll respond.</p>
 
@@ -140,7 +141,7 @@
 
             <div class="boards">
               <div class="board-preview">
-                <p class="mono">Chess (preview)</p>
+                <p class="mono">Chess / Live</p>
                 <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
                   <defs>
                     <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
@@ -221,7 +222,7 @@
 
       <section id="work" class="work">
         <div class="section-header reveal">
-          <p class="eyebrow mono">03 / WORK</p>
+          <p class="eyebrow mono">01 / WORK</p>
           <h2>Selected product work.</h2>
         </div>
 
@@ -393,7 +394,7 @@
     <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
     <script src="script.js"></script>
 
-    <!-- Load local chess module if available; fall back to static renderer otherwise -->
+    <!-- Load the optional local chess module; the server-backed FEN renderer remains available. -->
     <script type="module">
       (async () => {
         try {

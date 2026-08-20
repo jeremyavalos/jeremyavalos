@@ -304,7 +304,9 @@ updateParallax();
         // persist token in localStorage
         try { localStorage.setItem(`challenge_token_${data.challenge.id}`, data.token); } catch (e) {}
         // add to activeChallenges list
-        addActiveChallenge({ challengeId: data.challenge.id, token: data.token, gamertag: data.challenge.gamertag, game: data.challenge.game_type || game, lastOpened: Date.now() });
+        const emailEnabled = Boolean(email);
+        addActiveChallenge({ challengeId: data.challenge.id, token: data.token, gamertag: data.challenge.gamertag, game: data.challenge.game_type || game, emailEnabled, lastOpened: Date.now() });
+        try { localStorage.setItem(`challenge_email_enabled_${data.challenge.id}`, String(emailEnabled)); } catch (e) {}
         // update URL and auto-open match
         history.replaceState({}, '', `/?challenge=${data.challenge.id}&token=${data.token}`);
         renderLinkArea(data.match_url);
@@ -714,7 +716,7 @@ function initMatchUI() {
     });
   }
 
-  // Attach handlers that query the server for legal moves when local chess.js is unavailable.
+  // Attach handlers that query the server for legal moves in the resilient FEN renderer.
   function attachServerLegalMoveHandlers(container, gameId, token, challengerColor = 'white', isPlayerTurn = false, onMove) {
     if (!gameId) return;
     let selected = null;
@@ -913,7 +915,7 @@ function initMatchUI() {
       const copyArea = document.createElement('div');
       copyArea.style.marginTop = '8px';
       const linkInput = document.createElement('input');
-      linkInput.value = `${window.location.origin}/?challenge=${matchId}`;
+      linkInput.value = `${window.location.origin}/?challenge=${matchId}&token=${encodeURIComponent(token)}`;
       linkInput.readOnly = true;
       linkInput.style.padding = '0.5rem';
       linkInput.style.marginRight = '8px';
@@ -929,6 +931,15 @@ function initMatchUI() {
       copyArea.appendChild(linkInput);
       copyArea.appendChild(copyBtn);
       container.appendChild(copyArea);
+
+      try {
+        if (localStorage.getItem(`challenge_email_enabled_${matchId}`) === 'false') {
+          const emailNote = document.createElement('p');
+          emailNote.className = 'muted mono';
+          emailNote.textContent = 'No email notifications enabled. Save your private match link to continue from another device.';
+          container.appendChild(emailNote);
+        }
+      } catch (e) { /* storage is optional */ }
 
     } catch (err) {
       console.error('Match restore error:', err);
@@ -948,15 +959,15 @@ function initMatchUI() {
   }
 }
 
-// Initialize immediately if Chess already available, otherwise wait for chess-ready event.
+// Initialize immediately; the FEN renderer remains available as a resilient fallback.
 if (typeof window !== 'undefined') {
-  // Always initialize match UI immediately (it will fall back to a static FEN renderer if Chess is unavailable)
+  // Always initialize match UI immediately.
   try { initMatchUI(); } catch (e) { console.error('Match UI init failed', e); }
 
   // Show continue cards when returning to homepage
   try { renderContinueCards(); } catch (e) { /* ignore */ }
 
-  // Still listen for chess-ready to allow upgrading the static board to interactive later
+  // Upgrade the renderer if the optional local chess module becomes ready later.
   window.addEventListener('chess-ready', () => {
     try {
       // Re-initialize match UI to enable interactive features if a match is active
@@ -964,17 +975,6 @@ if (typeof window !== 'undefined') {
     } catch (e) {
       console.error('Match UI upgrade failed', e);
     }
-  }, { once: true });
-
-  // If chess fails to load, show a muted notice (non-fatal)
-  window.addEventListener('chess-failed', () => {
-    const panel = document.querySelector('.challenge-panel');
-    if (!panel) return;
-    const note = document.createElement('div');
-    note.style.color = 'var(--muted)';
-    note.style.marginTop = '0.6rem';
-    note.textContent = 'Challenge (Chess) is currently unavailable. Board will be displayed in a static view.';
-    panel.appendChild(note);
   }, { once: true });
 }
 
@@ -990,4 +990,3 @@ try {
     } catch (e) { /* ignore */ }
   })();
 } catch (e) { /* ignore */ }
-

@@ -9,6 +9,7 @@ process.env.SESSION_SECRET = 'session-test-secret';
 process.env.PLAYER_TOKEN_SECRET = 'player-test-secret';
 process.env.RESEND_API_KEY = 'resend-test-key';
 process.env.CHALLENGE_FROM_EMAIL = 'matches@example.test';
+process.env.JEREMY_NOTIFICATION_EMAIL = 'jeremy@example.test';
 process.env.PUBLIC_URL = 'https://jeremyavalos.xyz';
 
 const challengeId = '11111111-1111-4111-8111-111111111111';
@@ -55,8 +56,9 @@ db.query = query;
 db.transaction = transaction;
 const realFetch = global.fetch;
 const sentEmails = [];
+let resendResponseStatus = 200;
 global.fetch = async (url, options) => {
-  if (String(url) === 'https://api.resend.com/emails') { sentEmails.push(JSON.parse(options.body)); return { ok: true, status: 200 }; }
+  if (String(url) === 'https://api.resend.com/emails') { sentEmails.push(JSON.parse(options.body)); return { ok: resendResponseStatus >= 200 && resendResponseStatus < 300, status: resendResponseStatus, json: async () => resendResponseStatus < 300 ? { id:'email-test-id' } : { message:'rejected' } }; }
   return realFetch(url, options);
 };
 const app = require(path.join(__dirname, '..', 'src', 'index'));
@@ -100,7 +102,7 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     if ((await response.json()).overview.my_turn !== 0) throw new Error('Jeremy move count did not decrease');
 
     await new Promise(resolve => setTimeout(resolve, 10));
-    if (sentEmails.length !== 1 || !sentEmails[0].subject.includes(challenge.gamertag)) throw new Error('Challenger email was not sent with match identity');
+    if (sentEmails.length !== 1 || sentEmails[0].subject !== 'Jeremy made his move — your turn' || !sentEmails[0].html.includes(challenge.gamertag) || sentEmails[0].from !== 'Jeremy Challenge <matches@example.test>') throw new Error('Challenger email was not sent with the required content');
     const href = sentEmails[0].html.match(/href="([^"]+)"/)?.[1];
     const resumeUrl = new URL(href);
     if (!resumeUrl.searchParams.get('token')) throw new Error('Continue Match link omitted private credentials');
@@ -119,6 +121,18 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     if (!response.ok || challenge.status !== 'completed' || challenge.winner !== 'jeremy' || challenge.jeremy_wins !== 2 || game.status !== 'finished') throw new Error('Best-of-three completion failed');
     await new Promise(resolve => setTimeout(resolve, 10));
     if (sentEmails.length !== 1) throw new Error('Email attempted for challenge without email');
+
+    challenge.current_game_id=gameId; challenge.status='open'; challenge.winner=null; challenge.email='challenger@example.test'; challenge.player_wins=0; challenge.jeremy_wins=0; game.game_number=1; game.status='ongoing'; game.result=null; game.fen_current=new Chess().fen(); game.challenger_color='white'; moves.length=0;
+    response = await request(`/api/games/${gameId}/moves`, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${privateToken}`}, body:JSON.stringify({from:'e2',to:'e4'}) });
+    if (!response.ok) throw new Error(`Challenger move failed: ${await response.text()}`);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    if (sentEmails.length !== 2 || sentEmails[1].subject !== `New move from ${challenge.gamertag}` || !sentEmails[1].html.includes(`/admin/open/${challengeId}`) || sentEmails[1].html.includes('token=')) throw new Error('Jeremy notification was not sent safely');
+
+    resendResponseStatus=422;
+    response = await request(`/api/games/${gameId}/moves`, { method:'POST', headers:{...headers,'Content-Type':'application/json','x-csrf-token':csrfToken}, body:JSON.stringify({from:'e7',to:'e5'}) });
+    if (!response.ok || moves.length !== 2) throw new Error('Resend rejection blocked a valid move');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    if (sentEmails.length !== 3) throw new Error('Rejected Resend request was not attempted');
     console.log('Admin gameplay, CSRF, persistence, transition, email, and best-of-three regressions passed');
   } finally { global.fetch=realFetch; await new Promise(resolve=>server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode=1; });
