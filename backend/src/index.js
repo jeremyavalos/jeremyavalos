@@ -47,8 +47,11 @@ const PORT = process.env.PORT || 4000;
 
 // CORS allowlist: prefer explicit origins only. Do NOT use '*'.
 const allowedOrigins = [
-  process.env.CORS_ORIGIN, // public frontend (e.g. https://www.jeremyavalos.xyz)
-  process.env.BACKEND_PUBLIC_URL, // backend's own public URL (Railway)
+  // Prefer explicit production origins first
+  process.env.CORS_ORIGIN || 'https://www.jeremyavalos.xyz',
+  'https://jeremyavalos.xyz',
+  process.env.BACKEND_PUBLIC_URL || 'https://jeremyavalos-production.up.railway.app',
+  // local dev
   'http://localhost:3000',
   'http://localhost:8000'
 ].filter(Boolean);
@@ -58,6 +61,8 @@ app.use(cors({
     // Allow requests with no Origin (same-origin or server-side requests)
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    // Log rejected origin for debugging in production (temporary)
+    try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
     return cb(new Error('Not allowed by CORS'));
   },
   // Credentials (cookies) are required for admin session flows. Only
