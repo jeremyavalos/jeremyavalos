@@ -15,39 +15,51 @@ process.env.PUBLIC_URL = 'https://jeremyavalos.xyz';
 const challengeId = '11111111-1111-4111-8111-111111111111';
 const gameId = '22222222-2222-4222-8222-222222222222';
 const privateToken = 'existing-private-token';
+const visitorId = 'a82f9100-1111-4111-8111-111111111111';
+const secondVisitorId = 'b73e8200-2222-4222-8222-222222222222';
 const tokenHash = crypto.createHmac('sha256', process.env.PLAYER_TOKEN_SECRET).update(privateToken).digest('hex');
 const challenge = { id: challengeId, gamertag: 'Test Challenger', game_type: 'chess', status: 'open', player_wins: 0, jeremy_wins: 0, draws: 0, winner: null, current_game_id: gameId, player_token_hash: tokenHash, email: 'challenger@example.test', updated_at: new Date() };
 const game = { id: gameId, challenge_id: challengeId, game_number: 1, fen_current: new Chess().fen(), fen_start: new Chess().fen(), challenger_color: 'black', status: 'ongoing', result: null, created_at: new Date(), ended_at: null };
 const moves = [];
 let nextGameCreated = null;
 let capturedCreatedIp = null;
+let capturedChallengeVisitorId = null;
+let capturedAnalytics = null;
 
 function rows(value) { return { rows: value }; }
 function sideToMove() { return new Chess(game.fen_current).turn() === 'w' ? 'white' : 'black'; }
-async function query(sql) {
+async function query(sql, params = []) {
   const normalized = sql.replace(/\s+/g, ' ').trim();
   if (normalized.includes('FROM games WHERE id = $1')) return rows([game]);
   if (normalized.includes('FROM challenges WHERE id = $1')) return rows([challenge]);
   if (normalized.includes('FROM moves WHERE game_id = $1 ORDER BY move_number')) return rows(moves);
-  if (normalized.startsWith('SELECT COUNT(DISTINCT ip) FROM analytics_events')) return rows([{ count:'1' }]);
-  if (normalized.includes('FROM analytics_events ae WHERE ae.ip IS NOT NULL')) {
-    if (!normalized.includes('c.created_ip = ae.ip')) throw new Error('Visitor list is missing challenge IP association');
-    if (!normalized.includes('array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL)')) throw new Error('Visitor list does not select the latest non-null network');
-    return rows([{ ip:'203.0.113.42', associated_gamertags:['Alias One','Alias Two'], country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', device_category:'desktop', browser_family:'chrome', visits:'2', first_seen:new Date(), last_seen:new Date() }]);
+  if (normalized.startsWith('INSERT INTO analytics_events')) { capturedAnalytics={ ip:params[6], visitor_id:params[7] }; return rows([{ id:99 }]); }
+  if (normalized.startsWith('SELECT COUNT(DISTINCT visitor_id)')) return rows([{ count:'2' }]);
+  if (normalized.startsWith('SELECT COUNT(DISTINCT ip)')) return rows([{ count:'2' }]);
+  if (normalized.includes('FROM analytics_events ae WHERE ae.visitor_id IS NOT NULL')) {
+    if (!normalized.includes('c.visitor_id = ae.visitor_id') || normalized.includes('c.created_ip = ae.ip')) throw new Error('Visitor gamertags are not exclusively associated by visitor ID');
+    return rows([
+      { visitor_id:visitorId, associated_gamertags:['fito'], ip_count:'2', most_recent_ip:'79.127.178.82', country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', device_category:'desktop', browser_family:'chrome', visits:'2', first_seen:new Date(), last_seen:new Date() },
+      { visitor_id:secondVisitorId, associated_gamertags:[], ip_count:'1', most_recent_ip:'79.127.178.82', country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', device_category:'mobile', browser_family:'safari', visits:'1', first_seen:new Date(), last_seen:new Date() }
+    ]);
   }
+  if (normalized.includes('FROM analytics_events ae WHERE ae.ip IS NOT NULL GROUP BY ae.ip')) return rows([{ ip:'79.127.178.82', ip_associated_gamertags:['Legacy Alias'], country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', visits:'3', first_seen:new Date(), last_seen:new Date() }]);
   if (normalized.startsWith('SELECT COUNT(*) AS total_visits')) return rows([{ total_visits:'2', first_seen:new Date(), last_seen:new Date(), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP', browser_family:'chrome', device_category:'desktop', user_agent:'test' }]);
-  if (normalized.startsWith('SELECT path, referrer')) return rows([{ path:'/challenge', referrer:null, created_at:new Date() }]);
-  if (normalized.includes('FROM challenges WHERE created_ip = $1')) return rows([{ gamertag:'Alias One', status:'completed', created_at:new Date(), winner:'jeremy', player_wins:0, jeremy_wins:2, draws:0 }]);
+  if (normalized.startsWith('SELECT path, referrer') && normalized.includes('visitor_id = $1')) return rows([{ path:'/challenge', referrer:null, ip:'79.127.178.82', country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', browser_family:'chrome', device_category:'desktop', created_at:new Date() }]);
+  if (normalized.startsWith('SELECT path, referrer') && normalized.includes('ip = $1')) return rows([{ path:'/challenge', referrer:null, visitor_id:visitorId, country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', created_at:new Date() }]);
+  if (normalized.includes('FROM challenges WHERE visitor_id = $1')) return rows([{ gamertag:'fito', status:'completed', created_at:new Date(), winner:'jeremy', player_wins:0, jeremy_wins:2, draws:0 }]);
+  if (normalized.includes('FROM challenges WHERE created_ip = $1')) return rows([{ gamertag:'Legacy Alias', status:'completed', created_at:new Date() }]);
+  if (normalized.startsWith('SELECT ip, COUNT(*) AS visits')) return rows([{ ip:'79.127.178.82', visits:'1', first_seen:new Date(), last_seen:new Date(), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP' }, { ip:'79.127.178.81', visits:'1', first_seen:new Date(), last_seen:new Date(), country:'DE', region:'Hesse', city:'Frankfurt', timezone:'Europe/Berlin', asn_org:'AS212238 Datacamp Limited' }]);
   if (normalized.includes('FROM challenges c LEFT JOIN games g')) return rows([{ ...challenge, game_id: game.id, game_number: game.game_number, fen_current: game.fen_current, challenger_color: game.challenger_color, game_status: game.status, last_move_at: moves.at(-1)?.created_at || game.created_at }]);
   if (normalized.startsWith('SELECT g.fen_current, g.challenger_color FROM challenges c')) return rows(challenge.status === 'completed' ? [] : [{ fen_current: game.fen_current, challenger_color: game.challenger_color }]);
   if (normalized.startsWith('SELECT winner, updated_at FROM challenges')) return rows([]);
-  if (normalized.startsWith('SELECT (SELECT COUNT(*) FROM analytics_events)')) return rows([{ total_visits: '1', visits_today: '1', unique_visitors: '0', total_challenges: '1', active_matches: challenge.status === 'completed' ? '0' : '1', games_completed: game.status === 'finished' ? '1' : '0', jeremy_wins: String(challenge.jeremy_wins), player_wins: String(challenge.player_wins) }]);
+  if (normalized.startsWith('SELECT (SELECT COUNT(*) FROM analytics_events)')) return rows([{ total_visits:'6', visits_today:'1', visitors:'2', ips_observed:'2', unidentified_visits:'3', total_challenges:'1', active_matches:challenge.status === 'completed' ? '0' : '1', games_completed:game.status === 'finished' ? '1' : '0', jeremy_wins:String(challenge.jeremy_wins), player_wins:String(challenge.player_wins) }]);
   throw new Error(`Unexpected query: ${normalized}`);
 }
 async function transaction(callback) {
   return callback({ query: async (sql, params = []) => {
     const normalized = sql.replace(/\s+/g, ' ').trim();
-    if (normalized.startsWith('INSERT INTO challenges')) { capturedCreatedIp=params[4]; return rows([{ id:'44444444-4444-4444-8444-444444444444', gamertag:params[0], game_type:'chess' }]); }
+    if (normalized.startsWith('INSERT INTO challenges')) { capturedCreatedIp=params[4]; capturedChallengeVisitorId=params[5]; return rows([{ id:'44444444-4444-4444-8444-444444444444', gamertag:params[0], game_type:'chess' }]); }
     if (normalized.startsWith('SELECT COUNT(*) FROM moves')) return rows([{ count: String(moves.length) }]);
     if (normalized.startsWith('INSERT INTO moves')) { moves.push({ move_number: params[1], uci: params[2], san: params[3], from_sq: params[4], to_sq: params[5], player_side: params[8], created_at: new Date() }); return rows([]); }
     if (normalized.startsWith('UPDATE games SET fen_current')) { game.fen_current=params[0]; game.status=params[1]; game.result=params[2]; if (game.status === 'finished') game.ended_at=new Date(); return rows([]); }
@@ -85,6 +97,14 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     await response.json();
     const headers = { Cookie: cookie };
 
+    response = await request('/admin', { headers });
+    const dashboardHtml = await response.text();
+    const dashboardAsset = dashboardHtml.match(/<script src="([^"]*dashboard\.js[^"]*)"/)?.[1];
+    if (!response.ok || !dashboardAsset || !dashboardAsset.includes('?v=')) throw new Error('Admin dashboard assets are not deployment-versioned');
+    response = await request(dashboardAsset, { headers });
+    const dashboardJs = await response.text();
+    if (!response.ok || !dashboardJs.includes("'NETWORK'") || !dashboardJs.includes('v.asn_org') || response.headers.get('cache-control') !== 'private, no-cache, no-store, must-revalidate') throw new Error('Admin dashboard asset is stale or cacheable');
+
     response = await request(`/admin/open/${challengeId}`, { headers });
     const matchHtml = await response.text();
     const csrfToken = matchHtml.match(/name="csrf-token" content="([^"]+)"/)?.[1];
@@ -110,7 +130,8 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     response = await request('/api/admin/challenges', { headers });
     if ((await response.json()).challenges[0].admin_turn !== false) throw new Error('Challenge did not transition to WAITING');
     response = await request('/api/admin/overview', { headers });
-    if ((await response.json()).overview.my_turn !== 0) throw new Error('Jeremy move count did not decrease');
+    const overview = (await response.json()).overview;
+    if (overview.my_turn !== 0 || overview.visitors !== 2 || overview.ips_observed !== 2 || overview.unidentified_visits !== 3 || overview.total_visits !== 6) throw new Error('Admin visitor, visit, IP, or legacy counting semantics changed');
 
     await new Promise(resolve => setTimeout(resolve, 10));
     if (sentEmails.length !== 1 || sentEmails[0].subject !== `Jeremy moved against ${challenge.gamertag} — your turn` || !sentEmails[0].html.includes(challenge.gamertag) || sentEmails[0].from !== 'matches@example.test') throw new Error('Challenger email flow changed unexpectedly');
@@ -145,16 +166,35 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     await new Promise(resolve => setTimeout(resolve, 10));
     if (sentEmails.length !== 3) throw new Error('Rejected Resend request was not attempted');
 
-    response = await request('/api/challenges', { method:'POST', headers:{'Content-Type':'application/json','X-Forwarded-For':'203.0.113.42'}, body:JSON.stringify({gamertag:'IP Test',email:''}) });
+    response = await request('/api/challenges', { method:'POST', headers:{'Content-Type':'application/json','X-Forwarded-For':'203.0.113.42'}, body:JSON.stringify({gamertag:'IP Test',email:'',visitor_id:visitorId}) });
     const created = await response.json();
-    if (!response.ok || capturedCreatedIp !== '203.0.113.42' || JSON.stringify(created).includes('created_ip')) throw new Error('Trusted challenge creation IP was not stored privately');
+    if (!response.ok || capturedCreatedIp !== '203.0.113.42' || capturedChallengeVisitorId !== visitorId || JSON.stringify(created).includes('created_ip') || JSON.stringify(created).includes('visitor_id')) throw new Error('Challenge identity association is missing or publicly exposed');
+
+    response = await request('/api/analytics/track', { method:'POST', headers:{'Content-Type':'application/json','X-Forwarded-For':'203.0.113.43'}, body:JSON.stringify({path:'/',visitor_id:visitorId}) });
+    if (!response.ok || capturedAnalytics?.ip !== '203.0.113.43' || capturedAnalytics?.visitor_id !== visitorId) throw new Error('Analytics did not retain trusted IP and first-party visitor ID');
+    response = await request('/api/analytics/track', { method:'POST', headers:{'Content-Type':'application/json','X-Forwarded-For':'203.0.113.44'}, body:JSON.stringify({path:'/legacy-compatible'}) });
+    if (!response.ok || capturedAnalytics?.visitor_id !== null) throw new Error('Analytics without a visitor ID no longer work as legacy/unidentified events');
+    response = await request('/api/analytics/track', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path:'/',visitor_id:'not-a-uuid'}) });
+    if (response.status !== 400) throw new Error('Malformed visitor ID was accepted');
 
     response = await request('/api/admin/visitors?page=1&page_size=25', { headers });
     const visitors = await response.json();
-    if (!response.ok || visitors.visitors[0].associated_gamertags.length !== 2 || visitors.visitors[0].city !== 'Cancun' || visitors.visitors[0].asn_org !== 'AS64500 Example ISP') throw new Error('Visitor gamertag, location, or network fields missing');
-    response = await request('/api/admin/visitors/203.0.113.42', { headers });
+    if (!response.ok || visitors.visitors.length !== 2 || visitors.visitors[0].ip_count !== 2 || visitors.visitors[0].associated_gamertags[0] !== 'fito' || visitors.visitors[0].visitor_id !== visitorId || visitors.visitors[1].most_recent_ip !== visitors.visitors[0].most_recent_ip) throw new Error('Visitor grouping failed for same-ID/different-IP or different-ID/same-IP cases');
+    response = await request(`/api/admin/visitors/${visitorId}`, { headers });
     const visitor = await response.json();
-    if (!response.ok || visitor.visitor.associated_challenges[0].result !== 'Jeremy won' || visitor.visitor.timezone !== 'America/Cancun' || visitor.visitor.asn_org !== 'AS64500 Example ISP' || JSON.stringify(visitor).includes('player_token_hash') || JSON.stringify(visitor).includes('email') || JSON.stringify(visitor).includes('loc')) throw new Error('Private visitor challenge/location details are incorrect or unsafe');
+    if (!response.ok || visitor.visitor.observed_ips.length !== 2 || visitor.visitor.associated_gamertags[0] !== 'fito' || visitor.visitor.timezone !== 'America/Cancun' || JSON.stringify(visitor).includes('player_token_hash') || JSON.stringify(visitor).includes('email') || JSON.stringify(visitor).includes('loc')) throw new Error('Private visitor challenge/location details are incorrect or unsafe');
+
+    response = await request('/api/admin/ips?page=1&page_size=25', { headers });
+    const ips = await response.json();
+    if (!response.ok || ips.ips[0].ip !== '79.127.178.82' || ips.ips[0].asn_org !== 'AS64500 Example ISP' || ips.ips[0].ip_associated_gamertags[0] !== 'Legacy Alias') throw new Error('Raw IP analytics view is missing');
+    response = await request('/api/admin/ips/79.127.178.82', { headers });
+    const ipDetail = (await response.json()).ip;
+    if (!response.ok || ipDetail.recent_visits[0].visitor_id !== visitorId || ipDetail.ip_associated_gamertags[0] !== 'Legacy Alias') throw new Error('Raw IP detail is missing visitor or legacy gamertag context');
+
+    response = await request('/api/admin/visitors');
+    if (response.status !== 403) throw new Error('Private visitor analytics are publicly accessible');
+    response = await request('/api/admin/ips');
+    if (response.status !== 403) throw new Error('Private IP analytics are publicly accessible');
     console.log('Admin gameplay, CSRF, persistence, transition, email, and best-of-three regressions passed');
   } finally { global.fetch=realFetch; await new Promise(resolve=>server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode=1; });

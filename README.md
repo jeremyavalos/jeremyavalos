@@ -122,7 +122,7 @@ Technology services website developed for a client.
 
 ## Privacy
 
-This site collects minimal technical information to operate and protect the service. We store analytics and technical data including page path, referrer, browser/device category, and the visitor IP address. IP addresses are collected for security, abuse prevention, and operational diagnostics and are only visible in the private admin analytics dashboard accessible to the site administrator.
+This site collects minimal technical information to operate and protect the service. We store analytics and technical data including page path, referrer, browser/device category, a random first-party browser identifier, and the visitor IP address. The random identifier contains no personal information and is not derived from device or network characteristics. IP addresses are collected for security, abuse prevention, and operational diagnostics and are only visible in the private admin analytics dashboard accessible to the site administrator.
 
 We retain analytics data for a limited period (90 days) after which it is removed. We do not sell or share IP addresses or analytics data publicly. Public APIs and pages do not expose visitor IP addresses.
 

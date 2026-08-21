@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS challenges (
   draws INT NOT NULL DEFAULT 0,
   current_game_id UUID,
   created_ip INET,
+  visitor_id UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
@@ -56,9 +57,11 @@ CREATE TABLE IF NOT EXISTS moves (
 
 -- add winner column to challenges
 ALTER TABLE IF EXISTS challenges ADD COLUMN IF NOT EXISTS winner TEXT;
+ALTER TABLE IF EXISTS challenges ADD COLUMN IF NOT EXISTS visitor_id UUID;
 
 CREATE INDEX IF NOT EXISTS idx_challenges_status ON challenges(status);
 CREATE INDEX IF NOT EXISTS challenges_created_ip_idx ON challenges(created_ip) WHERE created_ip IS NOT NULL;
+CREATE INDEX IF NOT EXISTS challenges_visitor_id_idx ON challenges(visitor_id) WHERE visitor_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_games_challenge ON games(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_moves_game ON moves(game_id);
 
@@ -66,7 +69,10 @@ ALTER TABLE IF EXISTS analytics_events
   ADD COLUMN IF NOT EXISTS region TEXT,
   ADD COLUMN IF NOT EXISTS city TEXT,
   ADD COLUMN IF NOT EXISTS timezone TEXT,
-  ADD COLUMN IF NOT EXISTS asn_org TEXT;
+  ADD COLUMN IF NOT EXISTS asn_org TEXT,
+  ADD COLUMN IF NOT EXISTS visitor_id UUID;
+
+CREATE INDEX IF NOT EXISTS analytics_events_visitor_id_idx ON analytics_events(visitor_id) WHERE visitor_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS ip_geolocation_cache (
   ip INET PRIMARY KEY,

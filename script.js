@@ -3,6 +3,23 @@ if (year) {
   year.textContent = new Date().getFullYear();
 }
 
+// Random first-party browser installation ID for private analytics association.
+// It contains no user attributes and is never derived from device or network data.
+function getOrCreateVisitorId() {
+  try {
+    const existing = document.cookie.split('; ').find(part => part.startsWith('visitor_id='))?.split('=')[1];
+    const decoded = existing ? decodeURIComponent(existing) : '';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded)) return decoded;
+    if (typeof window.crypto?.randomUUID !== 'function') return null;
+    const visitorId = window.crypto.randomUUID();
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `visitor_id=${encodeURIComponent(visitorId)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+    return visitorId;
+  } catch (e) {
+    return null;
+  }
+}
+
 const navToggle = document.querySelector(".nav-toggle");
 const navLinks = document.querySelector(".nav-links");
 
@@ -178,10 +195,11 @@ updateParallax();
   }
 
   async function apiCreateChallenge(gamertag, game, email) {
+    const visitor_id = getOrCreateVisitorId();
     const resp = await fetch(`${API_BASE}/api/challenges`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gamertag, game, email })
+      body: JSON.stringify({ gamertag, game, email, visitor_id })
     });
     if (!resp.ok) throw new Error('create failed');
     return resp.json();
@@ -975,7 +993,8 @@ try {
       const ua = navigator.userAgent || '';
       const device = /Mobi|Android|iPhone/.test(ua) ? 'mobile' : /iPad|Tablet/.test(ua) ? 'tablet' : 'desktop';
       const browser = /Chrome\//.test(ua) ? 'chrome' : /Firefox\//.test(ua) ? 'firefox' : /Safari\//.test(ua) ? 'safari' : 'other';
-      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser }) }).catch(()=>{});
+      const visitor_id = getOrCreateVisitorId();
+      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser, visitor_id }) }).catch(()=>{});
     } catch (e) { /* ignore */ }
   })();
 } catch (e) { /* ignore */ }

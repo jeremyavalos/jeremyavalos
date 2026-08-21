@@ -11,5 +11,6 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   city text,
   timezone text,
   asn_org text,
+  visitor_id uuid,
   created_at timestamptz DEFAULT now()
 );

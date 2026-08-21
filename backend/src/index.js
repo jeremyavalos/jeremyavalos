@@ -54,6 +54,7 @@ function runMiddleware(req, res, fn) {
 }
 
 const PORT = process.env.PORT || 4000;
+const adminAssetVersion = encodeURIComponent(process.env.RAILWAY_GIT_COMMIT_SHA || 'admin-assets-v2');
 
 // CORS allowlist: prefer explicit origins only. Do NOT use '*'.
 const allowedOrigins = [
@@ -94,6 +95,8 @@ app.use('/api', apiCors, apiLimiter);
 // Retention: remove analytics older than 90 days on startup, and run daily.
 async function cleanExpiredAnalytics() {
   await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
+  await db.query(`UPDATE challenges c SET visitor_id = NULL WHERE c.visitor_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM analytics_events ae WHERE ae.visitor_id = c.visitor_id)`);
   await db.query('DELETE FROM ip_geolocation_cache c WHERE NOT EXISTS (SELECT 1 FROM analytics_events ae WHERE ae.ip = c.ip)');
 }
 
@@ -121,6 +124,12 @@ function hashToken(token) {
 
 function generateToken() {
   return crypto.randomBytes(28).toString('hex');
+}
+
+function parseVisitorId(value) {
+  if (value == null || value === '') return null;
+  const visitorId = String(value).trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(visitorId) ? visitorId : false;
 }
 
 function generateResumeToken(challenge) {
@@ -166,7 +175,9 @@ function requireAdmin(req, res, next) {
 // Admin assets are session-protected and external so Helmet's CSP can remain strict.
 app.use('/admin/assets', requireAdmin, express.static(path.join(__dirname, '..', 'admin'), {
   fallthrough: false,
-  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
+  etag: true,
+  maxAge: 0,
+  setHeaders: (res) => res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate')
 }));
 
 // Turn classifications must never be served from a stale browser cache.
@@ -182,7 +193,9 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.post('/api/challenges', async (req, res) => {
   try {
     const { gamertag, email } = req.body;
+    const visitorId = parseVisitorId(req.body?.visitor_id);
     if (!gamertag) return res.status(400).json({ error: 'gamertag required' });
+    if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
     const gameType = 'chess';
 
     const token = generateToken();
@@ -192,7 +205,7 @@ app.post('/api/challenges', async (req, res) => {
     // create challenge row
     // transactional creation: challenge + first game (if chess)
     const result = await db.transaction(async (client) => {
-      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email, created_ip) VALUES ($1,$2,$3,$4,$5) RETURNING *`, [gamertag, tokenHash, gameType, email || null, createdIp]);
+      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email, created_ip, visitor_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [gamertag, tokenHash, gameType, email || null, createdIp, visitorId]);
       const challenge = r.rows[0];
       let gameRow = null;
       if (gameType === 'chess') {
@@ -487,13 +500,15 @@ app.get('/api/leaderboard', async (req, res) => {
 app.post('/api/analytics/track', async (req, res) => {
   try {
     const { path, referrer, device_category, browser_family } = req.body || {};
+    const visitorId = parseVisitorId(req.body?.visitor_id);
+    if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
     // Determine client IP using Express's req.ip with trust proxy set. This
     // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
     // headers from clients.
     const ip = req.ip || null;
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip]
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip, visitorId]
     );
     res.json({ ok: true });
     geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
@@ -503,18 +518,20 @@ app.post('/api/analytics/track', async (req, res) => {
   }
 });
 
-// Admin-only visitors list (IP addresses and recent activity)
+// Admin-only identified visitors. Legacy events with no visitor_id remain in the raw IP view.
 app.get('/api/admin/visitors', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
     const offset = (page - 1) * pageSize;
-    const count = await db.query('SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL');
+    const count = await db.query('SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE visitor_id IS NOT NULL');
     const q = await db.query(`
-      SELECT ae.ip,
+      SELECT ae.visitor_id,
         COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
-          (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.created_ip = ae.ip) a), ARRAY[]::text[]) AS associated_gamertags,
+          (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) a), ARRAY[]::text[]) AS associated_gamertags,
+        COUNT(DISTINCT ae.ip) FILTER (WHERE ae.ip IS NOT NULL) AS ip_count,
+        (array_agg(ae.ip ORDER BY ae.created_at DESC) FILTER (WHERE ae.ip IS NOT NULL))[1] AS most_recent_ip,
         (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
         (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
         (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
@@ -522,9 +539,9 @@ app.get('/api/admin/visitors', async (req, res) => {
         (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
         (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
         COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
-      FROM analytics_events ae WHERE ae.ip IS NOT NULL
-      GROUP BY ae.ip ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
-    const out = q.rows.map(r => ({ ...r, visits: Number(r.visits) }));
+      FROM analytics_events ae WHERE ae.visitor_id IS NOT NULL
+      GROUP BY ae.visitor_id ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
+    const out = q.rows.map(r => ({ ...r, ip_count: Number(r.ip_count), visits: Number(r.visits) }));
     res.json({ visitors: out, pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
     console.error('admin visitors error', e);
@@ -532,10 +549,11 @@ app.get('/api/admin/visitors', async (req, res) => {
   }
 });
 
-app.get('/api/admin/visitors/:ip', async (req, res) => {
+app.get('/api/admin/visitors/:visitorId', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const ip = req.params.ip;
+    const visitorId = parseVisitorId(req.params.visitorId);
+    if (!visitorId) return res.status(400).json({ error: 'invalid visitor id' });
     const summary = await db.query(`SELECT COUNT(*) AS total_visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
       (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
       (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
@@ -545,16 +563,65 @@ app.get('/api/admin/visitors/:ip', async (req, res) => {
       (array_agg(browser_family ORDER BY created_at DESC) FILTER (WHERE browser_family IS NOT NULL))[1] AS browser_family,
       (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
-      FROM analytics_events WHERE ip = $1`, [ip]);
-    const q = await db.query('SELECT path, referrer, user_agent, device_category, browser_family, country, created_at FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200', [ip]);
+      FROM analytics_events WHERE visitor_id = $1`, [visitorId]);
+    const q = await db.query(`SELECT path, referrer, user_agent, device_category, browser_family, ip, country, region, city, timezone, asn_org, created_at
+      FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC LIMIT 200`, [visitorId]);
     if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
     const associated = await db.query(`SELECT gamertag, status, created_at, winner, player_wins, jeremy_wins, draws
-      FROM challenges WHERE created_ip = $1 ORDER BY created_at DESC`, [ip]);
+      FROM challenges WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
+    const observed = await db.query(`SELECT ip, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
+      (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+      (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
+      (array_agg(city ORDER BY created_at DESC) FILTER (WHERE city IS NOT NULL))[1] AS city,
+      (array_agg(timezone ORDER BY created_at DESC) FILTER (WHERE timezone IS NOT NULL))[1] AS timezone,
+      (array_agg(asn_org ORDER BY created_at DESC) FILTER (WHERE asn_org IS NOT NULL))[1] AS asn_org
+      FROM analytics_events WHERE visitor_id = $1 AND ip IS NOT NULL GROUP BY ip ORDER BY last_seen DESC`, [visitorId]);
     const s = summary.rows[0];
     const associatedChallenges = associated.rows.map(c => ({ gamertag: c.gamertag, status: c.status, created_at: c.created_at, result: c.status === 'completed' ? (c.winner === 'jeremy' ? 'Jeremy won' : c.winner === 'player' ? 'Challenger won' : 'Completed') : null, score: { jeremy: Number(c.jeremy_wins), challenger: Number(c.player_wins), draws: Number(c.draws) } }));
-    res.json({ visitor: { ip, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), recent_visits: q.rows.map(({ path, referrer, created_at }) => ({ path, referrer, created_at })) } });
+    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits: q.rows } });
   } catch (e) {
     console.error('admin visitor detail error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Raw IP analytics remain available independently of first-party visitor identity.
+app.get('/api/admin/ips', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const count = await db.query('SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL');
+    const q = await db.query(`SELECT ae.ip,
+      COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
+        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.created_ip = ae.ip) a), ARRAY[]::text[]) AS ip_associated_gamertags,
+      (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
+      (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
+      (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
+      (array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL))[1] AS asn_org,
+      COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
+      FROM analytics_events ae WHERE ae.ip IS NOT NULL GROUP BY ae.ip
+      ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
+    res.json({ ips: q.rows.map(r => ({ ...r, visits: Number(r.visits) })), pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
+  } catch (e) {
+    console.error('admin ips error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.get('/api/admin/ips/:ip', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const ip = req.params.ip;
+    const q = await db.query(`SELECT path, referrer, user_agent, device_category, browser_family, country, region, city, timezone, asn_org, visitor_id, created_at
+      FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200`, [ip]);
+    if (!q.rows.length) return res.status(404).json({ error: 'ip not found' });
+    const associated = await db.query(`SELECT gamertag, status, created_at FROM challenges
+      WHERE created_ip = $1 ORDER BY created_at DESC`, [ip]);
+    res.json({ ip: { address: ip, ip_associated_gamertags: [...new Set(associated.rows.map(c => c.gamertag))].sort(), associated_challenges: associated.rows, recent_visits: q.rows } });
+  } catch (e) {
+    console.error('admin ip detail error', e);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -566,7 +633,9 @@ app.get('/api/admin/overview', async (req, res) => {
     const totals = await db.query(`SELECT
       (SELECT COUNT(*) FROM analytics_events) AS total_visits,
       (SELECT COUNT(*) FROM analytics_events WHERE created_at >= CURRENT_DATE) AS visits_today,
-      (SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL) AS unique_visitors,
+      (SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE visitor_id IS NOT NULL) AS visitors,
+      (SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL) AS ips_observed,
+      (SELECT COUNT(*) FROM analytics_events WHERE visitor_id IS NULL) AS unidentified_visits,
       (SELECT COUNT(*) FROM challenges WHERE game_type='chess') AS total_challenges,
       (SELECT COUNT(*) FROM challenges WHERE game_type='chess' AND status <> 'completed') AS active_matches,
       (SELECT COUNT(*) FROM games WHERE status='finished') AS games_completed,
@@ -583,7 +652,7 @@ app.get('/api/admin/overview', async (req, res) => {
       JOIN games g ON g.id = c.current_game_id WHERE c.status <> 'completed'`);
     const myTurnCount = activeTurns.rows.reduce((count, game) => count + (getTurnState(game.fen_current, game.challenger_color).isJeremyTurn ? 1 : 0), 0);
     const t = totals.rows[0];
-    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), unique_visitors: Number(t.unique_visitors), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: myTurnCount } });
+    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), visitors: Number(t.visitors), ips_observed: Number(t.ips_observed), unidentified_visits: Number(t.unidentified_visits), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: myTurnCount } });
   } catch (e) {
     console.error('admin overview error', e);
     res.status(500).json({ error: 'server error' });
@@ -772,15 +841,16 @@ app.get('/admin', async (req, res) => {
   }
   const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
-    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><title>Admin / Jeremy Avalos</title><link rel="stylesheet" href="/admin/assets/admin.css"><script src="/admin/assets/dashboard.js" defer></script></head>
+    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><title>Admin / Jeremy Avalos</title><link rel="stylesheet" href="/admin/assets/admin.css?v=${adminAssetVersion}"><script src="/admin/assets/dashboard.js?v=${adminAssetVersion}" defer></script></head>
     <body><div class="shell"><header><div><div class="eyebrow">JEREMYAVALOS.XYZ / PRIVATE</div><h1>ADMIN DASHBOARD</h1></div><div class="actions"><button id="refresh">REFRESH</button><button id="logout">LOGOUT</button></div></header>
-    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#completed">COMPLETED</a></nav><main>
+    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#ips">IPS</a><a href="#completed">COMPLETED</a></nav><main>
     <section id="overview"><div class="section-head"><div><span>01</span><h2>OVERVIEW</h2></div><p id="updated">Loading dashboard…</p></div><div id="overview-content" class="metric-grid"><div class="state">Loading overview…</div></div></section>
     <section id="my-turn"><div class="section-head"><div><span>02</span><h2>MY TURN</h2></div></div><div id="myturn-content"><div class="state">Loading challenges…</div></div></section>
     <section id="waiting"><div class="section-head"><div><span>03</span><h2>WAITING</h2></div></div><div id="waiting-content"><div class="state">Loading challenges…</div></div></section>
     <section id="challenges"><div class="section-head"><div><span>04</span><h2>CHALLENGES</h2></div></div><div id="challenges-content"><div class="state">Loading challenges…</div></div></section>
-    <section id="visitors"><div class="section-head"><div><span>05</span><h2>VISITORS</h2></div></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
-    <section id="completed"><div class="section-head"><div><span>06</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
+    <section id="visitors"><div class="section-head"><div><span>05</span><h2>VISITORS</h2></div><p>First-party browser IDs · location is approximate</p></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
+    <section id="ips"><div class="section-head"><div><span>06</span><h2>IPS OBSERVED</h2></div><p>Raw network analytics · location is approximate</p></div><div id="ips-content"><div class="state">Loading IPs…</div></div><div id="ip-detail" hidden></div><div id="ip-pagination" class="pagination"></div></section>
+    <section id="completed"><div class="section-head"><div><span>07</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
     </main></div></body></html>
   `);
 
@@ -814,7 +884,7 @@ app.get('/admin/open/:id', async (req, res) => {
   } catch (e) {}
   const csrfToken = req.csrfToken ? req.csrfToken() : '';
   return res.send(`
-    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><meta name="challenge-id" content="${id}"><title>Admin Match</title><link rel="stylesheet" href="/admin/assets/admin.css"><script src="/admin/assets/match.js" defer></script></head>
+    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><meta name="challenge-id" content="${id}"><title>Admin Match</title><link rel="stylesheet" href="/admin/assets/admin.css?v=${adminAssetVersion}"><script src="/admin/assets/match.js?v=${adminAssetVersion}" defer></script></head>
     <body><div class="shell match-shell"><header><div><div class="eyebrow">PRIVATE / MATCH CONTROL</div><h1>ADMIN MATCH</h1></div><a class="button" href="/admin">← DASHBOARD</a></header><main><section><div id="match-meta" class="state">Loading match…</div><div id="match-error" class="error" hidden></div><div class="match-layout"><div><div id="board" class="board"></div><p id="move-status" class="state">Select a piece to move.</p></div><div><h2>MOVE HISTORY</h2><ol id="history" class="history"></ol></div></div></section></main></div></body></html>
   `);
 });
