@@ -32,7 +32,8 @@ async function query(sql) {
   if (normalized.startsWith('SELECT COUNT(DISTINCT ip) FROM analytics_events')) return rows([{ count:'1' }]);
   if (normalized.includes('FROM analytics_events ae WHERE ae.ip IS NOT NULL')) {
     if (!normalized.includes('c.created_ip = ae.ip')) throw new Error('Visitor list is missing challenge IP association');
-    return rows([{ ip:'203.0.113.42', associated_gamertags:['Alias One','Alias Two'], country:'MX', region:'Quintana Roo', city:'Cancun', device_category:'desktop', browser_family:'chrome', visits:'2', first_seen:new Date(), last_seen:new Date() }]);
+    if (!normalized.includes('array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL)')) throw new Error('Visitor list does not select the latest non-null network');
+    return rows([{ ip:'203.0.113.42', associated_gamertags:['Alias One','Alias Two'], country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', device_category:'desktop', browser_family:'chrome', visits:'2', first_seen:new Date(), last_seen:new Date() }]);
   }
   if (normalized.startsWith('SELECT COUNT(*) AS total_visits')) return rows([{ total_visits:'2', first_seen:new Date(), last_seen:new Date(), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP', browser_family:'chrome', device_category:'desktop', user_agent:'test' }]);
   if (normalized.startsWith('SELECT path, referrer')) return rows([{ path:'/challenge', referrer:null, created_at:new Date() }]);
@@ -150,7 +151,7 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
 
     response = await request('/api/admin/visitors?page=1&page_size=25', { headers });
     const visitors = await response.json();
-    if (!response.ok || visitors.visitors[0].associated_gamertags.length !== 2 || visitors.visitors[0].city !== 'Cancun') throw new Error('Visitor gamertag or approximate location fields missing');
+    if (!response.ok || visitors.visitors[0].associated_gamertags.length !== 2 || visitors.visitors[0].city !== 'Cancun' || visitors.visitors[0].asn_org !== 'AS64500 Example ISP') throw new Error('Visitor gamertag, location, or network fields missing');
     response = await request('/api/admin/visitors/203.0.113.42', { headers });
     const visitor = await response.json();
     if (!response.ok || visitor.visitor.associated_challenges[0].result !== 'Jeremy won' || visitor.visitor.timezone !== 'America/Cancun' || visitor.visitor.asn_org !== 'AS64500 Example ISP' || JSON.stringify(visitor).includes('player_token_hash') || JSON.stringify(visitor).includes('email') || JSON.stringify(visitor).includes('loc')) throw new Error('Private visitor challenge/location details are incorrect or unsafe');
