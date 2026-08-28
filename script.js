@@ -994,7 +994,10 @@ try {
       const device = /Mobi|Android|iPhone/.test(ua) ? 'mobile' : /iPad|Tablet/.test(ua) ? 'tablet' : 'desktop';
       const browser = /Chrome\//.test(ua) ? 'chrome' : /Firefox\//.test(ua) ? 'firefox' : /Safari\//.test(ua) ? 'safari' : 'other';
       const visitor_id = getOrCreateVisitorId();
-      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser, visitor_id }) }).catch(()=>{});
+      const params = new URLSearchParams(location.search);
+      const tracking = {};
+      ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
+      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser, visitor_id, ...tracking }) }).catch(()=>{});
     } catch (e) { /* ignore */ }
   })();
 } catch (e) { /* ignore */ }

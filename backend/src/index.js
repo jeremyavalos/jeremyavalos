@@ -132,6 +132,29 @@ function parseVisitorId(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(visitorId) ? visitorId : false;
 }
 
+const TRACKING_FIELDS = ['ref', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+function parseTracking(req) {
+  const tracking = {};
+  for (const field of TRACKING_FIELDS) {
+    const value = req.body?.[field];
+    if (value == null || value === '') { tracking[field] = null; continue; }
+    if (typeof value !== 'string' || value.length > 200 || /[\u0000-\u001f\u007f]/.test(value)) return false;
+    tracking[field] = value;
+  }
+  return tracking;
+}
+
+function readableReferrer(raw) {
+  if (!raw) return 'Direct';
+  let host;
+  try { host = new URL(raw).hostname.toLowerCase().replace(/^www\./, ''); } catch { return raw; }
+  if (host === 'l.instagram.com' || host === 'instagram.com') return 'Instagram';
+  if (host === 't.co' || host === 'twitter.com' || host === 'x.com') return 'X / Twitter';
+  if (host === 'linkedin.com' || host.endsWith('.linkedin.com')) return 'LinkedIn';
+  if (host === 'facebook.com' || host === 'l.facebook.com') return 'Facebook';
+  return host;
+}
+
 function generateResumeToken(challenge) {
   const secret = process.env.PLAYER_TOKEN_SECRET || 'dev_secret';
   return crypto.createHmac('sha256', secret)
@@ -502,13 +525,15 @@ app.post('/api/analytics/track', async (req, res) => {
     const { path, referrer, device_category, browser_family } = req.body || {};
     const visitorId = parseVisitorId(req.body?.visitor_id);
     if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
+    const tracking = parseTracking(req);
+    if (tracking === false) return res.status(400).json({ error: 'invalid tracking parameters' });
     // Determine client IP using Express's req.ip with trust proxy set. This
     // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
     // headers from clients.
     const ip = req.ip || null;
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip, visitorId]
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id',
+      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term]
     );
     res.json({ ok: true });
     geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
@@ -564,9 +589,14 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
       FROM analytics_events WHERE visitor_id = $1`, [visitorId]);
-    const q = await db.query(`SELECT path, referrer, user_agent, device_category, browser_family, ip, country, region, city, timezone, asn_org, created_at
+    const q = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+      user_agent, device_category, browser_family, ip, country, region, city, timezone, asn_org, created_at
       FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC LIMIT 200`, [visitorId]);
     if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
+    const acquisition = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, created_at
+      FROM analytics_events WHERE visitor_id = $1
+      ORDER BY (ref IS NOT NULL OR utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL
+        OR utm_content IS NOT NULL OR utm_term IS NOT NULL OR referrer IS NOT NULL) DESC, created_at ASC LIMIT 1`, [visitorId]);
     const associated = await db.query(`SELECT gamertag, status, created_at, winner, player_wins, jeremy_wins, draws
       FROM challenges WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
     const observed = await db.query(`SELECT ip, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
@@ -578,7 +608,8 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       FROM analytics_events WHERE visitor_id = $1 AND ip IS NOT NULL GROUP BY ip ORDER BY last_seen DESC`, [visitorId]);
     const s = summary.rows[0];
     const associatedChallenges = associated.rows.map(c => ({ gamertag: c.gamertag, status: c.status, created_at: c.created_at, result: c.status === 'completed' ? (c.winner === 'jeremy' ? 'Jeremy won' : c.winner === 'player' ? 'Challenger won' : 'Completed') : null, score: { jeremy: Number(c.jeremy_wins), challenger: Number(c.player_wins), draws: Number(c.draws) } }));
-    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits: q.rows } });
+    const firstTouch = acquisition.rows[0];
+    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits: q.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })) } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
@@ -638,7 +669,8 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
         (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
       FROM analytics_events ae WHERE ae.ip = $1 AND ae.visitor_id IS NOT NULL
       GROUP BY ae.visitor_id ORDER BY last_seen DESC`, [ip]);
-    const events = await db.query(`SELECT ae.path, ae.referrer, ae.device_category, ae.browser_family, ae.country, ae.region, ae.city,
+    const events = await db.query(`SELECT ae.path, ae.referrer, ae.ref, ae.utm_source, ae.utm_medium, ae.utm_campaign, ae.utm_content, ae.utm_term,
+      ae.device_category, ae.browser_family, ae.country, ae.region, ae.city,
       ae.asn_org, ae.visitor_id, ae.created_at,
       COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
         (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
@@ -649,10 +681,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       WHERE ip = $1 GROUP BY referrer ORDER BY count DESC`, [ip]);
     const referrerCounts = new Map();
     for (const row of referrers.rows) {
-      let source = 'direct / no referrer';
-      if (row.referrer) {
-        try { source = new URL(row.referrer).hostname || row.referrer; } catch { source = row.referrer; }
-      }
+      const source = readableReferrer(row.referrer);
       referrerCounts.set(source, (referrerCounts.get(source) || 0) + Number(row.count));
     }
     const associatedGamertags = [...new Set(visitors.rows.flatMap(v => v.associated_gamertags || []))].sort();
@@ -663,12 +692,61 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       associated_gamertags: associatedGamertags, device_categories: s.device_categories, browsers: s.browsers,
       country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org,
       visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })),
-      events: events.rows,
+      events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })),
       paths: paths.rows.map(row => ({ path: row.path, count: Number(row.count) })),
       referrers: [...referrerCounts].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source))
     }, pagination: { page, page_size: pageSize, total: Number(s.total_visits), pages: Math.ceil(Number(s.total_visits) / pageSize) } });
   } catch (e) {
     console.error('admin ip detail error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Admin-only campaign/referral reporting over the existing retained events.
+app.get('/api/admin/tracking', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const count = await db.query(`SELECT COUNT(*) FROM (SELECT 1 FROM analytics_events
+      WHERE ref IS NOT NULL OR utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL
+        OR utm_content IS NOT NULL OR utm_term IS NOT NULL
+      GROUP BY ref, utm_source, utm_medium, utm_campaign) tracked_groups`);
+    const q = await db.query(`SELECT ref, utm_source AS source, utm_medium AS medium, utm_campaign AS campaign,
+      COUNT(*) AS visits, COUNT(DISTINCT visitor_id) FILTER (WHERE visitor_id IS NOT NULL) AS distinct_visitor_ids,
+      MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+      FROM analytics_events
+      WHERE ref IS NOT NULL OR utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL
+        OR utm_content IS NOT NULL OR utm_term IS NOT NULL
+      GROUP BY ref, utm_source, utm_medium, utm_campaign
+      ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
+    const total = Number(count.rows[0].count);
+    res.json({ tracking: q.rows.map(row => ({ ...row, visits: Number(row.visits), distinct_visitor_ids: Number(row.distinct_visitor_ids) })), pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
+  } catch (e) {
+    console.error('admin tracking error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.get('/api/admin/tracking/:ref', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const ref = req.params.ref;
+    if (!ref || ref.length > 200 || /[\u0000-\u001f\u007f]/.test(ref)) return res.status(400).json({ error: 'invalid ref' });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const count = await db.query('SELECT COUNT(*) FROM analytics_events WHERE ref = $1', [ref]);
+    const total = Number(count.rows[0].count);
+    if (!total) return res.status(404).json({ error: 'ref not found' });
+    const visitors = await db.query(`SELECT visitor_id, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+      FROM analytics_events WHERE ref = $1 AND visitor_id IS NOT NULL GROUP BY visitor_id ORDER BY last_seen DESC`, [ref]);
+    const events = await db.query(`SELECT created_at, visitor_id, ip, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term
+      FROM analytics_events WHERE ref = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [ref, pageSize, offset]);
+    res.json({ referral: { ref, visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })), events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })) }, pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
+  } catch (e) {
+    console.error('admin tracking detail error', e);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -890,14 +968,15 @@ app.get('/admin', async (req, res) => {
   return res.send(`
     <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><title>Admin / Jeremy Avalos</title><link rel="stylesheet" href="/admin/assets/admin.css?v=${adminAssetVersion}"><script src="/admin/assets/dashboard.js?v=${adminAssetVersion}" defer></script></head>
     <body><div class="shell"><header><div><div class="eyebrow">JEREMYAVALOS.XYZ / PRIVATE</div><h1>ADMIN DASHBOARD</h1></div><div class="actions"><button id="refresh">REFRESH</button><button id="logout">LOGOUT</button></div></header>
-    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#ips">IPS</a><a href="#completed">COMPLETED</a></nav><main>
+    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#ips">IPS</a><a href="#tracking">TRACKING</a><a href="#completed">COMPLETED</a></nav><main>
     <section id="overview"><div class="section-head"><div><span>01</span><h2>OVERVIEW</h2></div><p id="updated">Loading dashboard…</p></div><div id="overview-content" class="metric-grid"><div class="state">Loading overview…</div></div></section>
     <section id="my-turn"><div class="section-head"><div><span>02</span><h2>MY TURN</h2></div></div><div id="myturn-content"><div class="state">Loading challenges…</div></div></section>
     <section id="waiting"><div class="section-head"><div><span>03</span><h2>WAITING</h2></div></div><div id="waiting-content"><div class="state">Loading challenges…</div></div></section>
     <section id="challenges"><div class="section-head"><div><span>04</span><h2>CHALLENGES</h2></div></div><div id="challenges-content"><div class="state">Loading challenges…</div></div></section>
     <section id="visitors"><div class="section-head"><div><span>05</span><h2>VISITORS</h2></div><p>First-party browser IDs · location is approximate</p></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
     <section id="ips"><div class="section-head"><div><span>06</span><h2>IPS OBSERVED</h2></div><p>Raw network analytics · location is approximate</p></div><div id="ips-content"><div class="state">Loading IPs…</div></div><div id="ip-detail" hidden></div><div id="ip-pagination" class="pagination"></div></section>
-    <section id="completed"><div class="section-head"><div><span>07</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
+    <section id="tracking"><div class="section-head"><div><span>07</span><h2>TRACKING / REFERRALS</h2></div><p>First-party link attribution · not human identity</p></div><div id="tracking-content"><div class="state">Loading tracking…</div></div><div id="tracking-detail" hidden></div><div id="tracking-pagination" class="pagination"></div></section>
+    <section id="completed"><div class="section-head"><div><span>08</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
     </main></div></body></html>
   `);
 
