@@ -614,12 +614,59 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
   try {
     if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
     const ip = req.params.ip;
-    const q = await db.query(`SELECT path, referrer, user_agent, device_category, browser_family, country, region, city, timezone, asn_org, visitor_id, created_at
-      FROM analytics_events WHERE ip = $1 ORDER BY created_at DESC LIMIT 200`, [ip]);
-    if (!q.rows.length) return res.status(404).json({ error: 'ip not found' });
-    const associated = await db.query(`SELECT gamertag, status, created_at FROM challenges
-      WHERE created_ip = $1 ORDER BY created_at DESC`, [ip]);
-    res.json({ ip: { address: ip, ip_associated_gamertags: [...new Set(associated.rows.map(c => c.gamertag))].sort(), associated_challenges: associated.rows, recent_visits: q.rows } });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const summary = await db.query(`SELECT COUNT(*) AS total_visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
+      COUNT(DISTINCT visitor_id) FILTER (WHERE visitor_id IS NOT NULL) AS distinct_visitor_ids,
+      COUNT(*) FILTER (WHERE visitor_id IS NULL) AS legacy_events,
+      MIN(created_at) FILTER (WHERE visitor_id IS NULL) AS legacy_first_seen,
+      MAX(created_at) FILTER (WHERE visitor_id IS NULL) AS legacy_last_seen,
+      COALESCE(array_agg(DISTINCT device_category) FILTER (WHERE device_category IS NOT NULL), ARRAY[]::text[]) AS device_categories,
+      COALESCE(array_agg(DISTINCT browser_family) FILTER (WHERE browser_family IS NOT NULL), ARRAY[]::text[]) AS browsers,
+      (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
+      (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
+      (array_agg(city ORDER BY created_at DESC) FILTER (WHERE city IS NOT NULL))[1] AS city,
+      (array_agg(timezone ORDER BY created_at DESC) FILTER (WHERE timezone IS NOT NULL))[1] AS timezone,
+      (array_agg(asn_org ORDER BY created_at DESC) FILTER (WHERE asn_org IS NOT NULL))[1] AS asn_org
+      FROM analytics_events WHERE ip = $1`, [ip]);
+    const s = summary.rows[0];
+    if (!s || Number(s.total_visits) === 0) return res.status(404).json({ error: 'ip not found' });
+    const visitors = await db.query(`SELECT ae.visitor_id, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen,
+      COUNT(*) AS visits,
+      COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
+        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
+      FROM analytics_events ae WHERE ae.ip = $1 AND ae.visitor_id IS NOT NULL
+      GROUP BY ae.visitor_id ORDER BY last_seen DESC`, [ip]);
+    const events = await db.query(`SELECT ae.path, ae.referrer, ae.device_category, ae.browser_family, ae.country, ae.region, ae.city,
+      ae.asn_org, ae.visitor_id, ae.created_at,
+      COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
+        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
+      FROM analytics_events ae WHERE ae.ip = $1 ORDER BY ae.created_at DESC LIMIT $2 OFFSET $3`, [ip, pageSize, offset]);
+    const paths = await db.query(`SELECT COALESCE(NULLIF(path, ''), '/') AS path, COUNT(*) AS count
+      FROM analytics_events WHERE ip = $1 GROUP BY COALESCE(NULLIF(path, ''), '/') ORDER BY count DESC, path`, [ip]);
+    const referrers = await db.query(`SELECT referrer, COUNT(*) AS count FROM analytics_events
+      WHERE ip = $1 GROUP BY referrer ORDER BY count DESC`, [ip]);
+    const referrerCounts = new Map();
+    for (const row of referrers.rows) {
+      let source = 'direct / no referrer';
+      if (row.referrer) {
+        try { source = new URL(row.referrer).hostname || row.referrer; } catch { source = row.referrer; }
+      }
+      referrerCounts.set(source, (referrerCounts.get(source) || 0) + Number(row.count));
+    }
+    const associatedGamertags = [...new Set(visitors.rows.flatMap(v => v.associated_gamertags || []))].sort();
+    res.json({ ip: {
+      address: ip, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits),
+      distinct_visitor_ids: Number(s.distinct_visitor_ids), legacy_events: Number(s.legacy_events),
+      legacy_first_seen: s.legacy_first_seen, legacy_last_seen: s.legacy_last_seen,
+      associated_gamertags: associatedGamertags, device_categories: s.device_categories, browsers: s.browsers,
+      country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org,
+      visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })),
+      events: events.rows,
+      paths: paths.rows.map(row => ({ path: row.path, count: Number(row.count) })),
+      referrers: [...referrerCounts].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source))
+    }, pagination: { page, page_size: pageSize, total: Number(s.total_visits), pages: Math.ceil(Number(s.total_visits) / pageSize) } });
   } catch (e) {
     console.error('admin ip detail error', e);
     res.status(500).json({ error: 'server error' });

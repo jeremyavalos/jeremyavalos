@@ -44,9 +44,19 @@ async function query(sql, params = []) {
     ]);
   }
   if (normalized.includes('FROM analytics_events ae WHERE ae.ip IS NOT NULL GROUP BY ae.ip')) return rows([{ ip:'79.127.178.82', ip_associated_gamertags:['Legacy Alias'], country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', visits:'3', first_seen:new Date(), last_seen:new Date() }]);
+  if (normalized.startsWith('SELECT COUNT(*) AS total_visits') && normalized.includes('WHERE ip = $1')) return rows([params[0] === '79.127.178.81' ? { total_visits:'1', distinct_visitor_ids:'1', legacy_events:'0', legacy_first_seen:null, legacy_last_seen:null, first_seen:new Date('2026-08-01T00:00:00Z'), last_seen:new Date('2026-08-01T00:00:00Z'), country:'DE', region:'Hesse', city:'Frankfurt', timezone:'Europe/Berlin', asn_org:'AS212238 Datacamp Limited', device_categories:['desktop'], browsers:['chrome'] } : { total_visits:'3', distinct_visitor_ids:'2', legacy_events:'1', legacy_first_seen:new Date('2026-08-01T00:00:00Z'), legacy_last_seen:new Date('2026-08-01T00:00:00Z'), first_seen:new Date('2026-08-01T00:00:00Z'), last_seen:new Date('2026-08-03T00:00:00Z'), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP', device_categories:['desktop','mobile'], browsers:['chrome','safari'] }]);
   if (normalized.startsWith('SELECT COUNT(*) AS total_visits')) return rows([{ total_visits:'2', first_seen:new Date(), last_seen:new Date(), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP', browser_family:'chrome', device_category:'desktop', user_agent:'test' }]);
   if (normalized.startsWith('SELECT path, referrer') && normalized.includes('visitor_id = $1')) return rows([{ path:'/challenge', referrer:null, ip:'79.127.178.82', country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', browser_family:'chrome', device_category:'desktop', created_at:new Date() }]);
-  if (normalized.startsWith('SELECT path, referrer') && normalized.includes('ip = $1')) return rows([{ path:'/challenge', referrer:null, visitor_id:visitorId, country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', created_at:new Date() }]);
+  if (normalized.startsWith('SELECT ae.visitor_id, MIN(ae.created_at)')) {
+    if (!normalized.includes('c.visitor_id = ae.visitor_id') || normalized.includes('created_ip')) throw new Error('IP visitor gamertags were inferred without Visitor ID');
+    return rows(params[0] === '79.127.178.81' ? [{ visitor_id:visitorId, first_seen:new Date('2026-08-01T00:00:00Z'), last_seen:new Date('2026-08-01T00:00:00Z'), visits:'1', associated_gamertags:['fito'] }] : [{ visitor_id:visitorId, first_seen:new Date('2026-08-01T00:00:00Z'), last_seen:new Date('2026-08-03T00:00:00Z'), visits:'1', associated_gamertags:['fito'] }, { visitor_id:secondVisitorId, first_seen:new Date('2026-08-02T00:00:00Z'), last_seen:new Date('2026-08-02T00:00:00Z'), visits:'1', associated_gamertags:[] }]);
+  }
+  if (normalized.startsWith('SELECT ae.path, ae.referrer')) {
+    if (![[10,10],[25,0]].some(([limit,offset]) => params[1] === limit && params[2] === offset) || !normalized.includes('ORDER BY ae.created_at DESC LIMIT $2 OFFSET $3') || !normalized.includes('c.visitor_id = ae.visitor_id')) throw new Error('IP history pagination or identity association is incorrect');
+    return rows([{ path:'/challenge', referrer:'https://google.com/search', visitor_id:visitorId, associated_gamertags:['fito'], device_category:'desktop', browser_family:'chrome', country:'MX', region:'Quintana Roo', city:'Cancun', asn_org:'AS64500 Example ISP', created_at:new Date('2026-08-03T00:00:00Z') }]);
+  }
+  if (normalized.startsWith("SELECT COALESCE(NULLIF(path, ''), '/')")) return rows([{ path:'/', count:'2' }, { path:'/challenge', count:'1' }]);
+  if (normalized.startsWith('SELECT referrer, COUNT(*) AS count')) return rows([{ referrer:null, count:'1' }, { referrer:'https://google.com/search', count:'2' }]);
   if (normalized.includes('FROM challenges WHERE visitor_id = $1')) return rows([{ gamertag:'fito', status:'completed', created_at:new Date(), winner:'jeremy', player_wins:0, jeremy_wins:2, draws:0 }]);
   if (normalized.includes('FROM challenges WHERE created_ip = $1')) return rows([{ gamertag:'Legacy Alias', status:'completed', created_at:new Date() }]);
   if (normalized.startsWith('SELECT ip, COUNT(*) AS visits')) return rows([{ ip:'79.127.178.82', visits:'1', first_seen:new Date(), last_seen:new Date(), country:'MX', region:'Quintana Roo', city:'Cancun', timezone:'America/Cancun', asn_org:'AS64500 Example ISP' }, { ip:'79.127.178.81', visits:'1', first_seen:new Date(), last_seen:new Date(), country:'DE', region:'Hesse', city:'Frankfurt', timezone:'Europe/Berlin', asn_org:'AS212238 Datacamp Limited' }]);
@@ -187,14 +197,19 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     response = await request('/api/admin/ips?page=1&page_size=25', { headers });
     const ips = await response.json();
     if (!response.ok || ips.ips[0].ip !== '79.127.178.82' || ips.ips[0].asn_org !== 'AS64500 Example ISP' || ips.ips[0].ip_associated_gamertags[0] !== 'Legacy Alias') throw new Error('Raw IP analytics view is missing');
-    response = await request('/api/admin/ips/79.127.178.82', { headers });
-    const ipDetail = (await response.json()).ip;
-    if (!response.ok || ipDetail.recent_visits[0].visitor_id !== visitorId || ipDetail.ip_associated_gamertags[0] !== 'Legacy Alias') throw new Error('Raw IP detail is missing visitor or legacy gamertag context');
+    response = await request('/api/admin/ips/79.127.178.82?page=2&page_size=10', { headers });
+    const ipPayload = await response.json(); const ipDetail = ipPayload.ip;
+    if (!response.ok || ipDetail.events[0].visitor_id !== visitorId || ipDetail.visitors.length !== 2 || ipDetail.legacy_events !== 1 || ipDetail.distinct_visitor_ids !== 2 || ipDetail.total_visits !== 3 || ipDetail.associated_gamertags[0] !== 'fito' || ipDetail.paths[0].path !== '/' || ipDetail.referrers.some(r => r.source === 'direct / no referrer' && r.count !== 1) || ipPayload.pagination.page !== 2 || ipPayload.pagination.page_size !== 10) throw new Error('Detailed IP history identity, counts, aggregations, or pagination are incorrect');
+    response = await request('/api/admin/ips/79.127.178.81', { headers });
+    const singleVisitorIp = (await response.json()).ip;
+    if (!response.ok || singleVisitorIp.visitors.length !== 1 || singleVisitorIp.distinct_visitor_ids !== 1 || singleVisitorIp.legacy_events !== 0) throw new Error('Single-Visitor IP history is incorrect');
 
     response = await request('/api/admin/visitors');
     if (response.status !== 403) throw new Error('Private visitor analytics are publicly accessible');
     response = await request('/api/admin/ips');
     if (response.status !== 403) throw new Error('Private IP analytics are publicly accessible');
+    response = await request('/api/admin/ips/79.127.178.82');
+    if (response.status !== 403) throw new Error('Private IP history is publicly accessible');
     console.log('Admin gameplay, CSRF, persistence, transition, email, and best-of-three regressions passed');
   } finally { global.fetch=realFetch; await new Promise(resolve=>server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode=1; });
