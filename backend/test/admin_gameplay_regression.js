@@ -119,7 +119,7 @@ const app = require(path.join(__dirname, '..', 'src', 'index'));
     if (!response.ok || !dashboardAsset || !dashboardAsset.includes('?v=')) throw new Error('Admin dashboard assets are not deployment-versioned');
     response = await request(dashboardAsset, { headers });
     const dashboardJs = await response.text();
-    if (!response.ok || !dashboardJs.includes("'NETWORK'") || !dashboardJs.includes('v.asn_org') || !dashboardJs.includes('ACQUISITION') || !dashboardJs.includes('/api/admin/tracking') || response.headers.get('cache-control') !== 'private, no-cache, no-store, must-revalidate') throw new Error('Admin dashboard asset is stale or cacheable');
+    if (!response.ok || !dashboardJs.includes("'NETWORK'") || !dashboardJs.includes('v.asn_org') || !dashboardJs.includes('ACQUISITION') || !dashboardJs.includes('/api/admin/tracking') || !dashboardJs.includes('normalizedPaths') || !dashboardJs.includes('eventDetails') || !dashboardJs.includes('FULL URL / PATH') || response.headers.get('cache-control') !== 'private, no-cache, no-store, must-revalidate') throw new Error('Admin dashboard asset is stale, missing compact analytics presentation, or cacheable');
 
     response = await request(`/admin/open/${challengeId}`, { headers });
     const matchHtml = await response.text();
