@@ -76,10 +76,13 @@ ALTER TABLE IF EXISTS analytics_events
   ADD COLUMN IF NOT EXISTS utm_medium TEXT,
   ADD COLUMN IF NOT EXISTS utm_campaign TEXT,
   ADD COLUMN IF NOT EXISTS utm_content TEXT,
-  ADD COLUMN IF NOT EXISTS utm_term TEXT;
+  ADD COLUMN IF NOT EXISTS utm_term TEXT,
+  ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT 'page_view',
+  ADD COLUMN IF NOT EXISTS section_name TEXT;
 
 CREATE INDEX IF NOT EXISTS analytics_events_visitor_id_idx ON analytics_events(visitor_id) WHERE visitor_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS analytics_events_ref_idx ON analytics_events(ref) WHERE ref IS NOT NULL;
+CREATE INDEX IF NOT EXISTS analytics_events_visitor_created_idx ON analytics_events(visitor_id, created_at) WHERE visitor_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS ip_geolocation_cache (
   ip INET PRIMARY KEY,

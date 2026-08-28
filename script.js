@@ -997,7 +997,26 @@ try {
       const params = new URLSearchParams(location.search);
       const tracking = {};
       ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
-      fetch(`${API}/api/analytics/track`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: location.pathname + location.search, referrer: document.referrer || null, device_category: device, browser_family: browser, visitor_id, ...tracking }) }).catch(()=>{});
+      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, device_category:device, browser_family:browser, visitor_id, ...payload }) }).catch(()=>{});
+      sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking });
+      document.getElementById('start-challenge')?.addEventListener('click',()=>sendEvent({event_type:'challenge_opened',path:`${location.pathname}#challenge`}),{once:true});
+      document.querySelector('#contact a')?.addEventListener('click',()=>sendEvent({event_type:'contact_opened',path:`${location.pathname}#contact`}),{once:true});
+      if ('IntersectionObserver' in window) {
+        const seen=new Set(); const dwellTimers=new Map();
+        const targets=[['HOME',document.querySelector('main#home > .hero')],['CHALLENGE',document.getElementById('challenge')],['CAPABILITIES',document.getElementById('capabilities')],['WORK',document.getElementById('work')],['ABOUT',document.getElementById('about')],['CONTACT',document.getElementById('contact')]].filter(([,node])=>node);
+        const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
+          const name=entry.target.dataset.analyticsSection;
+          if(entry.isIntersecting&&entry.intersectionRatio>=0.55&&!seen.has(name)&&!dwellTimers.has(name)){
+            dwellTimers.set(name,setTimeout(()=>{
+              dwellTimers.delete(name);if(seen.has(name))return;seen.add(name);
+              sendEvent({event_type:'section_view',section_name:name,path:`${location.pathname}#${name.toLowerCase()}`});
+            },1000));
+          }else if((!entry.isIntersecting||entry.intersectionRatio<0.55)&&dwellTimers.has(name)){
+            clearTimeout(dwellTimers.get(name));dwellTimers.delete(name);
+          }
+        }),{threshold:[0.55]});
+        targets.forEach(([name,node])=>{node.dataset.analyticsSection=name;observer.observe(node);});
+      }
     } catch (e) { /* ignore */ }
   })();
 } catch (e) { /* ignore */ }
