@@ -16,7 +16,7 @@ I combine software development, business administration, customer service, hardw
   <a href="https://instagram.com/jeremyavalos">
     <img src="https://img.shields.io/badge/Instagram-@jeremyavalos-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram" />
   </a>
-  <a href="mailto:jeremy.avalos@protonmail.com">
+  <a href="mailto:contact@jeremyavalos.xyz">
     <img src="https://img.shields.io/badge/Email-Contact-6D4AFF?style=for-the-badge&logo=protonmail&logoColor=white" alt="Email" />
   </a>
 </p>
@@ -114,7 +114,7 @@ Technology services website developed for a client.
 - LinkedIn: [linkedin.com/in/jeremy-avalos](https://www.linkedin.com/in/jeremy-avalos/)
 - Instagram: [@jeremyavalos](https://instagram.com/jeremyavalos)
 - GitHub: [github.com/jeremyavalos](https://github.com/jeremyavalos)
-- Email: [jeremy.avalos@protonmail.com](mailto:jeremy.avalos@protonmail.com)
+- Email: [contact@jeremyavalos.xyz](mailto:contact@jeremyavalos.xyz)
 
 ---
 
