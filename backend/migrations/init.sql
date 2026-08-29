@@ -78,7 +78,13 @@ ALTER TABLE IF EXISTS analytics_events
   ADD COLUMN IF NOT EXISTS utm_content TEXT,
   ADD COLUMN IF NOT EXISTS utm_term TEXT,
   ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT 'page_view',
-  ADD COLUMN IF NOT EXISTS section_name TEXT;
+  ADD COLUMN IF NOT EXISTS section_name TEXT,
+  ADD COLUMN IF NOT EXISTS device_name TEXT,
+  ADD COLUMN IF NOT EXISTS device_type TEXT,
+  ADD COLUMN IF NOT EXISTS operating_system TEXT,
+  ADD COLUMN IF NOT EXISTS operating_system_version TEXT,
+  ADD COLUMN IF NOT EXISTS browser TEXT,
+  ADD COLUMN IF NOT EXISTS browser_version TEXT;
 
 CREATE INDEX IF NOT EXISTS analytics_events_visitor_id_idx ON analytics_events(visitor_id) WHERE visitor_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS analytics_events_ref_idx ON analytics_events(ref) WHERE ref IS NOT NULL;

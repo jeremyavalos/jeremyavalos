@@ -990,14 +990,11 @@ try {
   (function sendAnalytics(){
     try {
       const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
-      const ua = navigator.userAgent || '';
-      const device = /Mobi|Android|iPhone/.test(ua) ? 'mobile' : /iPad|Tablet/.test(ua) ? 'tablet' : 'desktop';
-      const browser = /Chrome\//.test(ua) ? 'chrome' : /Firefox\//.test(ua) ? 'firefox' : /Safari\//.test(ua) ? 'safari' : 'other';
       const visitor_id = getOrCreateVisitorId();
       const params = new URLSearchParams(location.search);
       const tracking = {};
       ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
-      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, device_category:device, browser_family:browser, visitor_id, ...payload }) }).catch(()=>{});
+      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, ...payload }) }).catch(()=>{});
       sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking });
       document.getElementById('start-challenge')?.addEventListener('click',()=>sendEvent({event_type:'challenge_opened',path:`${location.pathname}#challenge`}),{once:true});
       document.querySelector('#contact a')?.addEventListener('click',()=>sendEvent({event_type:'contact_opened',path:`${location.pathname}#contact`}),{once:true});

@@ -15,6 +15,7 @@ const { Chess } = require('chess.js');
 const db = require('./db');
 const { getTurnState } = require('./turn');
 const { createGeolocationService } = require('./geolocation');
+const { parseUserAgent } = require('./userAgent');
 
 const geolocation = createGeolocationService({ db, token: process.env.IPINFO_TOKEN });
 
@@ -550,7 +551,7 @@ app.get('/api/leaderboard', async (req, res) => {
 // Analytics tracking (privacy-friendly)
 app.post('/api/analytics/track', async (req, res) => {
   try {
-    const { path, referrer, device_category, browser_family } = req.body || {};
+    const { path, referrer } = req.body || {};
     const visitorId = parseVisitorId(req.body?.visitor_id);
     if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
     const tracking = parseTracking(req);
@@ -563,9 +564,11 @@ app.post('/api/analytics/track', async (req, res) => {
     // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
     // headers from clients.
     const ip = req.ip || null;
+    const rawUserAgent = req.get('User-Agent') || null;
+    const ua = parseUserAgent(rawUserAgent);
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id',
-      [path || req.path, referrer || req.get('Referer') || null, req.get('User-Agent') || null, device_category || null, browser_family || null, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName]
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id',
+      [path || req.path, referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
     );
     res.json({ ok: true });
     geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
@@ -595,6 +598,9 @@ app.get('/api/admin/visitors', async (req, res) => {
         (array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL))[1] AS asn_org,
         (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
         (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
+        (array_agg(ae.device_name ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_name IS NOT NULL))[1] AS device_name,
+        (array_agg(ae.operating_system ORDER BY ae.created_at DESC) FILTER (WHERE ae.operating_system IS NOT NULL))[1] AS operating_system,
+        (array_agg(ae.browser ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser IS NOT NULL))[1] AS browser,
         COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
       FROM analytics_events ae WHERE ae.visitor_id IS NOT NULL
       GROUP BY ae.visitor_id ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
@@ -622,7 +628,8 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
       FROM analytics_events WHERE visitor_id = $1`, [visitorId]);
     const q = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name,
-      user_agent, device_category, browser_family, ip, country, region, city, timezone, asn_org, created_at
+      user_agent, device_category, browser_family, device_name, device_type, operating_system,
+      operating_system_version, browser, browser_version, ip, country, region, city, timezone, asn_org, created_at
       FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
     if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
     const acquisition = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, created_at
@@ -648,7 +655,8 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
     const recentSource = events.find(event=>event.utm_source||event.referrer);
     const activeDays = new Set(events.map(event=>new Date(event.created_at).toISOString().slice(0,10))).size;
     const challengeStats = { challenges_created:associatedChallenges.length, games_completed:associatedChallenges.reduce((n,c)=>n+c.score.jeremy+c.score.challenger+c.score.draws,0), current_active:associatedChallenges.some(c=>c.status!=='completed'), last_activity:associated.rows.map(c=>c.updated_at||c.created_at).sort((a,b)=>new Date(b)-new Date(a))[0]||null, jeremy_wins:associatedChallenges.reduce((n,c)=>n+c.score.jeremy,0), challenger_wins:associatedChallenges.reduce((n,c)=>n+c.score.challenger,0) };
-    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, challenge_visits:sectionCounts.get('CHALLENGE')||0, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, challenge_activity:challengeStats, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
+    const latest = events[0];
+    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device:latest ? { device_name:latest.device_name, device_type:latest.device_type, operating_system:latest.operating_system, operating_system_version:latest.operating_system_version, browser:latest.browser, browser_version:latest.browser_version, ip:latest.ip, country:latest.country, region:latest.region, city:latest.city, asn_org:latest.asn_org } : null, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name')||mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser')||mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, challenge_visits:sectionCounts.get('CHALLENGE')||0, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, challenge_activity:challengeStats, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
@@ -694,6 +702,8 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       MAX(created_at) FILTER (WHERE visitor_id IS NULL) AS legacy_last_seen,
       COALESCE(array_agg(DISTINCT device_category) FILTER (WHERE device_category IS NOT NULL), ARRAY[]::text[]) AS device_categories,
       COALESCE(array_agg(DISTINCT browser_family) FILTER (WHERE browser_family IS NOT NULL), ARRAY[]::text[]) AS browsers,
+      COALESCE(array_agg(DISTINCT device_name) FILTER (WHERE device_name IS NOT NULL), ARRAY[]::text[]) AS device_names,
+      COALESCE(array_agg(DISTINCT operating_system) FILTER (WHERE operating_system IS NOT NULL), ARRAY[]::text[]) AS operating_systems,
       (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
       (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
       (array_agg(city ORDER BY created_at DESC) FILTER (WHERE city IS NOT NULL))[1] AS city,
@@ -709,7 +719,8 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       FROM analytics_events ae WHERE ae.ip = $1 AND ae.visitor_id IS NOT NULL
       GROUP BY ae.visitor_id ORDER BY last_seen DESC`, [ip]);
     const events = await db.query(`SELECT ae.path, ae.referrer, ae.ref, ae.utm_source, ae.utm_medium, ae.utm_campaign, ae.utm_content, ae.utm_term,
-      ae.device_category, ae.browser_family, ae.country, ae.region, ae.city,
+      ae.user_agent, ae.device_category, ae.browser_family, ae.device_name, ae.device_type,
+      ae.operating_system, ae.operating_system_version, ae.browser, ae.browser_version, ae.country, ae.region, ae.city,
       ae.asn_org, ae.visitor_id, ae.created_at,
       COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
         (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
@@ -729,6 +740,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       distinct_visitor_ids: Number(s.distinct_visitor_ids), legacy_events: Number(s.legacy_events),
       legacy_first_seen: s.legacy_first_seen, legacy_last_seen: s.legacy_last_seen,
       associated_gamertags: associatedGamertags, device_categories: s.device_categories, browsers: s.browsers,
+      device_names: s.device_names, operating_systems: s.operating_systems,
       country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org,
       visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })),
       events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })),
@@ -781,7 +793,9 @@ app.get('/api/admin/tracking/:ref', async (req, res) => {
     if (!total) return res.status(404).json({ error: 'ref not found' });
     const visitors = await db.query(`SELECT visitor_id, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
       FROM analytics_events WHERE ref = $1 AND visitor_id IS NOT NULL GROUP BY visitor_id ORDER BY last_seen DESC`, [ref]);
-    const events = await db.query(`SELECT created_at, visitor_id, ip, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term
+    const events = await db.query(`SELECT created_at, visitor_id, ip, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+      user_agent, device_name, device_type, operating_system, operating_system_version, browser, browser_version,
+      device_category, browser_family, country, region, city, asn_org
       FROM analytics_events WHERE ref = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [ref, pageSize, offset]);
     res.json({ referral: { ref, visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })), events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })) }, pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
   } catch (e) {
