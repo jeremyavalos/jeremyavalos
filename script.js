@@ -152,15 +152,56 @@ updateParallax();
 
 /* Challenge Me UI interactions (frontend only) */
 (function () {
+  // Public-only launch presentation. PostgreSQL values replace this display at the threshold.
+  const challengeLaunchStats = {
+    liveThresholdGames: 10,
+    games: 39,
+    wins: 21,
+    losses: 14,
+    draws: 4,
+  };
+
   const startBtn = document.getElementById("start-challenge");
   const rulesBtn = document.getElementById("view-rules");
   const leaderboardBtn = document.getElementById("view-leaderboard");
   const form = document.getElementById("challenge-form");
   const createBtn = document.getElementById("create-challenge");
   const cancelBtn = document.getElementById("cancel-challenge");
+  const statsPanel = document.getElementById('challenge-activity');
   const openMatchesEl = document.getElementById("open-matches");
 
   let openMatches = 0;
+
+  function animateStat(element, value, suffix = '') {
+    if (!element) return;
+    const target = Math.max(0, Number(value) || 0);
+    if (prefersReducedMotion.matches) {
+      element.textContent = `${target}${suffix}`;
+      return;
+    }
+    const startedAt = performance.now();
+    const duration = 520;
+    const tick = (now) => {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = `${Math.round(target * eased)}${suffix}`;
+      if (progress < 1) window.requestAnimationFrame(tick);
+    };
+    window.requestAnimationFrame(tick);
+  }
+
+  function renderPublicStats(stats, isLive) {
+    statsPanel?.classList.toggle('is-live', isLive);
+    statsPanel?.classList.toggle('is-preview', !isLive);
+    document.getElementById('stats-mode').textContent = isLive ? 'LIVE DATA' : 'COMMUNITY PREVIEW';
+    document.getElementById('stats-note').hidden = isLive;
+    animateStat(document.getElementById('games-completed'), stats.games, isLive ? '' : '+');
+    animateStat(document.getElementById('wins'), stats.wins);
+    animateStat(document.getElementById('losses'), stats.losses);
+    animateStat(document.getElementById('draws'), stats.draws);
+  }
+
+  renderPublicStats(challengeLaunchStats, false);
 
   const showForm = () => {
     form?.setAttribute("aria-hidden", "false");
@@ -187,10 +228,15 @@ updateParallax();
       const resp = await fetch(`${API_BASE}/api/stats`);
       if (!resp.ok) return;
       const j = await resp.json();
-      document.getElementById('open-matches').textContent = String(j.total_challenges || 0);
-      document.getElementById('wins').textContent = String(j.jeremy_wins || 0);
-      document.getElementById('losses').textContent = String(j.challenger_wins || 0);
-      document.getElementById('streak').textContent = String((j.current_streak && j.current_streak.count) || 0);
+      const realStats = {
+        games: Number(j.games_completed) || 0,
+        wins: Number(j.jeremy_wins) || 0,
+        losses: Number(j.challenger_wins) || 0,
+        draws: Number(j.draws) || 0,
+      };
+      if (realStats.games >= challengeLaunchStats.liveThresholdGames) {
+        renderPublicStats(realStats, true);
+      }
     } catch (e) { /* ignore */ }
   }
 

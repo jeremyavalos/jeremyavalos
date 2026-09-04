@@ -127,11 +127,16 @@
           </div>
 
           <aside class="challenge-side reveal">
-            <div class="status-panel">
-              <div class="status-row"><span class="mono">OPEN MATCHES</span><strong id="open-matches">0</strong></div>
-              <div class="status-row"><span class="mono">WINS</span><strong id="wins">0</strong></div>
-              <div class="status-row"><span class="mono">LOSSES</span><strong id="losses">0</strong></div>
-              <div class="status-row"><span class="mono">CURRENT STREAK</span><strong id="streak">0</strong></div>
+            <div class="status-panel" id="challenge-activity">
+              <div class="status-heading">
+                <span class="mono">CHALLENGE ACTIVITY</span>
+                <span class="stats-mode mono" id="stats-mode">COMMUNITY PREVIEW</span>
+              </div>
+              <div class="status-row"><span class="mono">COMMUNITY GAMES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="games-completed">—</strong></div>
+              <div class="status-row"><span class="mono">WINS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="wins">—</strong></div>
+              <div class="status-row"><span class="mono">LOSSES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="losses">—</strong></div>
+              <div class="status-row"><span class="mono">DRAWS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="draws">—</strong></div>
+              <p class="stats-note mono" id="stats-note">*Preview / launch display. Live statistics replace these automatically as real activity grows.</p>
             </div>
 
             <div class="board-preview">
