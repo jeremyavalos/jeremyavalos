@@ -368,8 +368,14 @@
     <dialog class="returning-visitor" id="returning-visitor-dialog" aria-labelledby="returning-visitor-title">
       <button class="returning-visitor-close" type="button" aria-label="Keep exploring and close">×</button>
       <p class="returning-visitor-signal mono">FAMILIAR SIGNAL DETECTED</p>
-      <h2 id="returning-visitor-title">WELCOME BACK <span aria-hidden="true">👀</span></h2>
-      <p>Looks like you’ve been here before.<br />Still browsing? Maybe we should talk.</p>
+      <h2 id="returning-visitor-title">WELCOME BACK<span id="returning-visitor-ip"></span> <span aria-hidden="true">👀</span></h2>
+      <p class="returning-visitor-variant" id="returning-visitor-variant">Looks like curiosity won.</p>
+      <div class="returning-visitor-copy">
+        <p>Looks like you've been here before.</p>
+        <p id="returning-visitor-location">I don't know exactly where you're coming from —<br />but I do know you came back.</p>
+        <p id="returning-visitor-emphasis">Either way, the important part is:<br /><strong>you came back.</strong></p>
+        <p>Maybe there's something here worth building together.</p>
+      </div>
       <div class="returning-visitor-actions">
         <a class="btn primary" href="#contact" data-returning-action="project">START A PROJECT</a>
         <button class="btn" type="button" data-returning-action="email">LEAVE YOUR EMAIL</button>

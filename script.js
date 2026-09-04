@@ -1043,7 +1043,7 @@ try {
       const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, ...payload }) });
       sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking })
         .then(response => response.ok ? response.json() : null)
-        .then(result => { if (result?.returning_visitor) window.dispatchEvent(new CustomEvent('returning-visitor-eligible', { detail: { visitor_id } })); })
+        .then(result => { if (result?.returning_visitor) window.dispatchEvent(new CustomEvent('returning-visitor-eligible', { detail: { visitor_id, context:result.returning_context } })); })
         .catch(()=>{});
       document.getElementById('start-challenge')?.addEventListener('click',()=>sendEvent({event_type:'challenge_opened',path:`${location.pathname}#challenge`}).catch(()=>{}),{once:true});
       document.querySelector('#contact a')?.addEventListener('click',()=>sendEvent({event_type:'contact_opened',path:`${location.pathname}#contact`}).catch(()=>{}),{once:true});
@@ -1078,7 +1078,23 @@ try {
   const emailForm = document.getElementById('returning-email-form');
   const emailInput = document.getElementById('returning-email');
   const status = dialog?.querySelector('.returning-email-status');
+  const popupIp = document.getElementById('returning-visitor-ip');
+  const popupLocation = document.getElementById('returning-visitor-location');
+  const popupEmphasis = document.getElementById('returning-visitor-emphasis');
+  const popupVariant = document.getElementById('returning-visitor-variant');
   let eligibleVisitorId = null;
+  let emailOpened = false;
+
+  const copyVariants = [
+    'Back again? I respect the commitment.',
+    'Looks like curiosity won.',
+    "Second visit? Now we're getting somewhere.",
+  ];
+
+  function trackPopup(eventType) {
+    const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
+    return fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ visitor_id:eligibleVisitorId, event_type:eventType, path:location.pathname+location.search }) }).catch(()=>{});
+  }
 
   function onCooldown() {
     try {
@@ -1093,25 +1109,50 @@ try {
     return Boolean(params.get('challenge') || params.get('match') || challengeFormOpen || document.querySelector('dialog[open]') || document.getElementById('challenge-modal') || document.getElementById('promo-modal'));
   }
 
-  function closePrompt() {
+  function closePrompt(trackDismissal = true) {
     try { localStorage.setItem(returningVisitorPopupConfig.cooldownStorageKey, String(Date.now())); } catch (e) { /* storage may be unavailable */ }
+    if (trackDismissal) trackPopup('returning_popup_dismissed');
     if (dialog?.open) dialog.close();
   }
 
   window.addEventListener('returning-visitor-eligible', event => {
     eligibleVisitorId = event.detail?.visitor_id || null;
     if (!dialog || !eligibleVisitorId || onCooldown() || activeInteraction()) return;
+    const context = event.detail?.context;
+    popupIp.textContent = context?.ip ? `, ${context.ip}` : '';
+    popupVariant.textContent = copyVariants[Math.floor(Math.random() * copyVariants.length)];
+    popupLocation.replaceChildren();
+    if (context?.city) {
+      popupLocation.append('Apparently your connection checks in near ');
+      const city = document.createElement('strong');
+      city.textContent = context.city;
+      popupLocation.append(city, '...', document.createElement('br'), "although IP location isn't a promise.");
+      popupEmphasis.hidden = false;
+    } else {
+      popupLocation.append("I don't know exactly where you're coming from —", document.createElement('br'), 'but I do know you came back.');
+      popupEmphasis.hidden = true;
+    }
     window.setTimeout(() => {
-      if (!onCooldown() && !activeInteraction() && !dialog.open) dialog.showModal();
+      if (!onCooldown() && !activeInteraction() && !dialog.open) {
+        dialog.showModal();
+        trackPopup('returning_popup_shown');
+      }
     }, returningVisitorPopupConfig.showDelayMs);
   });
 
   dialog?.querySelector('.returning-visitor-close')?.addEventListener('click', closePrompt);
   dialog?.querySelector('[data-returning-action="explore"]')?.addEventListener('click', closePrompt);
-  dialog?.querySelector('[data-returning-action="project"]')?.addEventListener('click', closePrompt);
+  dialog?.querySelector('[data-returning-action="project"]')?.addEventListener('click', () => {
+    trackPopup('returning_popup_start_project');
+    closePrompt(false);
+  });
   dialog?.querySelector('[data-returning-action="email"]')?.addEventListener('click', () => {
     emailForm.hidden = false;
     emailInput?.focus();
+    if (!emailOpened) {
+      emailOpened = true;
+      trackPopup('returning_popup_email_opened');
+    }
   });
   dialog?.addEventListener('cancel', event => { event.preventDefault(); closePrompt(); });
   dialog?.addEventListener('click', event => {
@@ -1128,8 +1169,9 @@ try {
       const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
       const response = await fetch(`${API}/api/leads`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, visitor_id:eligibleVisitorId }) });
       if (!response.ok) throw new Error('lead submission failed');
-      status.textContent = 'RECEIVED — I’LL BE IN TOUCH.';
-      window.setTimeout(closePrompt, 1100);
+      trackPopup('returning_popup_email_submitted');
+      status.textContent = "Got it. I'll be in touch.";
+      window.setTimeout(() => closePrompt(false), 1100);
     } catch (error) {
       status.textContent = 'SIGNAL LOST — PLEASE TRY AGAIN.';
       submit.disabled = false;
