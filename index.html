@@ -372,10 +372,28 @@
       <p class="returning-visitor-variant" id="returning-visitor-variant">Looks like curiosity won.</p>
       <div class="returning-visitor-copy">
         <p>Looks like you've been here before.</p>
-        <p id="returning-visitor-location">I don't know exactly where you're coming from —<br />but I do know you came back.</p>
+        <h3 id="returning-location-headline">WELCOME BACK.</h3>
+        <p id="returning-visitor-location">Your connection isn't giving me much of a location this time.</p>
+        <p id="returning-network-aside" hidden>Your network tells a more interesting story.</p>
         <p id="returning-visitor-emphasis">Either way, the important part is:<br /><strong>you came back.</strong></p>
         <p>Maybe there's something here worth building together.</p>
       </div>
+      <div class="returning-session-times" aria-label="Visit timing">
+        <div><span class="mono">LAST SEEN</span><strong id="returning-last-seen">—</strong></div>
+        <div><span class="mono">BACK ONLINE</span><strong id="returning-current-visit">—</strong></div>
+      </div>
+      <details class="returning-details" id="returning-details">
+        <summary class="mono">CONNECTION DETAILS</summary>
+        <dl>
+          <div data-detail="device"><dt>DEVICE</dt><dd id="returning-device"></dd></div>
+          <div data-detail="os"><dt>OS</dt><dd id="returning-os"></dd></div>
+          <div data-detail="browser"><dt>BROWSER</dt><dd id="returning-browser"></dd></div>
+          <div data-detail="network"><dt>NETWORK</dt><dd id="returning-network"></dd></div>
+          <div data-detail="location"><dt>LOCATION</dt><dd id="returning-location-detail"></dd></div>
+          <div data-detail="ip"><dt>IP</dt><dd id="returning-ip-detail"></dd></div>
+          <div data-detail="first-seen"><dt>FIRST SEEN</dt><dd id="returning-first-seen"></dd></div>
+        </dl>
+      </details>
       <div class="returning-visitor-actions">
         <a class="btn primary" href="#contact" data-returning-action="project">START A PROJECT</a>
         <button class="btn" type="button" data-returning-action="email">LEAVE YOUR EMAIL</button>
@@ -403,6 +421,7 @@
     </script>
 
     <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
+    <script src="returning-visitor-copy.js"></script>
     <script src="script.js"></script>
 
     <!-- Load the optional local chess module; the server-backed FEN renderer remains available. -->

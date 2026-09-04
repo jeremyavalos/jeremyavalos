@@ -138,7 +138,7 @@ const TRACKING_FIELDS = ['ref', 'utm_source', 'utm_medium', 'utm_campaign', 'utm
 const PUBLIC_EVENT_TYPES = new Set([
   'page_view', 'section_view', 'challenge_opened', 'contact_opened',
   'returning_popup_shown', 'returning_popup_email_opened', 'returning_popup_email_submitted',
-  'returning_popup_dismissed', 'returning_popup_start_project'
+  'returning_popup_dismissed', 'returning_popup_start_project', 'returning_popup_details_opened'
 ]);
 const SECTION_NAMES = new Set(['HOME', 'WORK', 'CAPABILITIES', 'CHALLENGE', 'ABOUT', 'CONTACT']);
 function parseTracking(req) {
@@ -573,19 +573,41 @@ app.post('/api/analytics/track', async (req, res) => {
     const ua = parseUserAgent(rawUserAgent);
     let returningVisitor = false;
     let returningContext = null;
+    let previousVisit = null;
+    let firstSeen = null;
     if (visitorId && eventType === 'page_view') {
-      const previous = await db.query("SELECT EXISTS (SELECT 1 FROM analytics_events WHERE visitor_id = $1 AND event_type = 'page_view') AS returning", [visitorId]);
-      returningVisitor = Boolean(previous.rows[0]?.returning);
+      const previous = await db.query(`SELECT created_at AS previous_visit, MIN(created_at) OVER () AS first_seen
+        FROM analytics_events WHERE visitor_id = $1 AND event_type = 'page_view'
+        ORDER BY created_at DESC LIMIT 1`, [visitorId]);
+      previousVisit = previous.rows[0]?.previous_visit || null;
+      firstSeen = previous.rows[0]?.first_seen || previousVisit;
+      returningVisitor = Boolean(previousVisit);
       const currentIp = normalizeIp(ip);
-      if (returningVisitor && isPublicIp(currentIp)) {
-        const cachedLocation = await db.query("SELECT city FROM ip_geolocation_cache WHERE ip = $1 AND status = 'resolved' AND expires_at > now()", [currentIp]);
-        returningContext = { ip: currentIp, city: cachedLocation.rows[0]?.city || null };
+      if (returningVisitor) {
+        let location = {};
+        if (isPublicIp(currentIp)) {
+          const cachedLocation = await db.query("SELECT city, region, country, asn_org FROM ip_geolocation_cache WHERE ip = $1 AND status = 'resolved' AND expires_at > now()", [currentIp]);
+          location = cachedLocation.rows[0] || {};
+        }
+        returningContext = {
+          ip: isPublicIp(currentIp) ? currentIp : null,
+          city: location.city || null,
+          region: location.region || null,
+          country: location.country || null,
+          network: location.asn_org || null,
+          device: ua.device_name || null,
+          os: [ua.operating_system, ua.operating_system_version].filter(Boolean).join(' ') || null,
+          browser: [ua.browser, ua.browser_version].filter(Boolean).join(' ') || null,
+          previous_visit: previousVisit,
+          first_seen: firstSeen
+        };
       }
     }
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id',
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id, created_at',
       [path || req.path, referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
     );
+    if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
     res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) });
     geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
   } catch (e) {

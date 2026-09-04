@@ -9,7 +9,7 @@
     "migrate": "psql $DATABASE_URL -f migrations/init.sql",
     "migrate:node": "node src/migrate.js",
     "test:flow": "node test/test_flow.js",
-    "test:admin": "node test/turn_regression.js && node test/geolocation_regression.js && node test/user_agent_regression.js && node test/admin_gameplay_regression.js"
+    "test:admin": "node test/turn_regression.js && node test/geolocation_regression.js && node test/user_agent_regression.js && node test/returning_popup_regression.js && node test/admin_gameplay_regression.js"
   },
   "engines": {
     "node": ">=18"

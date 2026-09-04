@@ -1082,14 +1082,12 @@ try {
   const popupLocation = document.getElementById('returning-visitor-location');
   const popupEmphasis = document.getElementById('returning-visitor-emphasis');
   const popupVariant = document.getElementById('returning-visitor-variant');
+  const popupLocationHeadline = document.getElementById('returning-location-headline');
+  const popupNetworkAside = document.getElementById('returning-network-aside');
+  const popupDetails = document.getElementById('returning-details');
   let eligibleVisitorId = null;
   let emailOpened = false;
-
-  const copyVariants = [
-    'Back again? I respect the commitment.',
-    'Looks like curiosity won.',
-    "Second visit? Now we're getting somewhere.",
-  ];
+  let detailsOpened = false;
 
   function trackPopup(eventType) {
     const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
@@ -1106,7 +1104,20 @@ try {
   function activeInteraction() {
     const params = new URLSearchParams(location.search);
     const challengeFormOpen = document.getElementById('challenge-form')?.getAttribute('aria-hidden') === 'false';
-    return Boolean(params.get('challenge') || params.get('match') || challengeFormOpen || document.querySelector('dialog[open]') || document.getElementById('challenge-modal') || document.getElementById('promo-modal'));
+    return Boolean(params.get('challenge') || params.get('match') || challengeFormOpen || document.querySelector('form:focus-within') || document.querySelector('dialog[open]') || document.getElementById('challenge-modal') || document.getElementById('promo-modal'));
+  }
+
+  function formatVisitTime(value) {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat(undefined, { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }).format(date);
+  }
+
+  function setDetail(name, value) {
+    const row = popupDetails?.querySelector(`[data-detail="${name}"]`);
+    if (!row) return;
+    row.hidden = !value;
+    if (value) row.querySelector('dd').textContent = value;
   }
 
   function closePrompt(trackDismissal = true) {
@@ -1119,19 +1130,24 @@ try {
     eligibleVisitorId = event.detail?.visitor_id || null;
     if (!dialog || !eligibleVisitorId || onCooldown() || activeInteraction()) return;
     const context = event.detail?.context;
+    if (!context?.previous_visit) return;
+    const copy = window.ReturningVisitorCopy?.build(context);
     popupIp.textContent = context?.ip ? `, ${context.ip}` : '';
-    popupVariant.textContent = copyVariants[Math.floor(Math.random() * copyVariants.length)];
-    popupLocation.replaceChildren();
-    if (context?.city) {
-      popupLocation.append('Apparently your connection checks in near ');
-      const city = document.createElement('strong');
-      city.textContent = context.city;
-      popupLocation.append(city, '...', document.createElement('br'), "although IP location isn't a promise.");
-      popupEmphasis.hidden = false;
-    } else {
-      popupLocation.append("I don't know exactly where you're coming from —", document.createElement('br'), 'but I do know you came back.');
-      popupEmphasis.hidden = true;
-    }
+    popupVariant.textContent = copy?.variant || 'Looks like curiosity won.';
+    popupLocationHeadline.textContent = copy?.locationHeadline || 'WELCOME BACK.';
+    popupLocation.replaceChildren(copy?.locationLead || "Your connection isn't giving me much of a location this time.", document.createElement('br'), copy?.locationQualifier || 'But the important part is: you came back.');
+    popupNetworkAside.textContent = copy?.networkAside || '';
+    popupNetworkAside.hidden = !copy?.networkAside;
+    popupEmphasis.hidden = !copy?.showEmphasis;
+    document.getElementById('returning-last-seen').textContent = formatVisitTime(context.previous_visit) || 'Unavailable';
+    document.getElementById('returning-current-visit').textContent = formatVisitTime(context.current_visit) || 'Current session';
+    setDetail('device', context.device);
+    setDetail('os', context.os);
+    setDetail('browser', context.browser);
+    setDetail('network', context.network);
+    setDetail('location', [context.city, context.region, context.country].filter(Boolean).join(', ') + (context.city || context.region || context.country ? ' · approximate' : ''));
+    setDetail('ip', context.ip);
+    setDetail('first-seen', formatVisitTime(context.first_seen));
     window.setTimeout(() => {
       if (!onCooldown() && !activeInteraction() && !dialog.open) {
         dialog.showModal();
@@ -1152,6 +1168,12 @@ try {
     if (!emailOpened) {
       emailOpened = true;
       trackPopup('returning_popup_email_opened');
+    }
+  });
+  popupDetails?.addEventListener('toggle', () => {
+    if (popupDetails.open && !detailsOpened) {
+      detailsOpened = true;
+      trackPopup('returning_popup_details_opened');
     }
   });
   dialog?.addEventListener('cancel', event => { event.preventDefault(); closePrompt(); });
