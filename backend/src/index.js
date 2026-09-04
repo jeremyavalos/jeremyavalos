@@ -71,6 +71,7 @@ const allowedOrigins = [
 // Apply CORS only to API routes. Server-rendered HTML routes (e.g. /admin)
 // should not be blocked by CORS checks and rely on session/CSRF instead.
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
+const leadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
 
 const apiCors = cors({
   origin: (origin, cb) => {
@@ -566,14 +567,55 @@ app.post('/api/analytics/track', async (req, res) => {
     const ip = req.ip || null;
     const rawUserAgent = req.get('User-Agent') || null;
     const ua = parseUserAgent(rawUserAgent);
+    let returningVisitor = false;
+    if (visitorId && eventType === 'page_view') {
+      const previous = await db.query("SELECT EXISTS (SELECT 1 FROM analytics_events WHERE visitor_id = $1 AND event_type = 'page_view') AS returning", [visitorId]);
+      returningVisitor = Boolean(previous.rows[0]?.returning);
+    }
     const inserted = await db.query(
       'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id',
       [path || req.path, referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor } : {}) });
     geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
   } catch (e) {
     console.error('analytics track error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Private voluntary lead capture for the returning-visitor prompt.
+app.post('/api/leads', leadLimiter, async (req, res) => {
+  try {
+    const visitorId = parseVisitorId(req.body?.visitor_id);
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    if (!visitorId) return res.status(400).json({ error: 'valid visitor id required' });
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'valid email required' });
+
+    await db.query('INSERT INTO visitor_leads (visitor_id, email, source) VALUES ($1,$2,$3)', [visitorId, email, 'returning_visitor_popup']);
+    res.status(201).json({ ok: true });
+
+    const resendKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.CHALLENGE_FROM_EMAIL;
+    const contactEmail = process.env.CONTACT_NOTIFICATION_EMAIL || 'contact@jeremyavalos.xyz';
+    if (resendKey && fromEmail) {
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [contactEmail],
+          subject: 'Returning visitor left their email',
+          html: `<p>A returning visitor asked to connect.</p><p>Email: ${escapeHtml(email)}</p><p>Visitor ID: ${escapeHtml(visitorId.slice(0, 8))}</p>`
+        })
+      }).then(response => {
+        if (!response.ok) console.error(`EMAIL: lead notification rejected status=${response.status}`);
+      }).catch(error => console.error(`EMAIL: lead notification failed ${error?.code || error?.name || 'request-error'}`));
+    } else {
+      console.warn('EMAIL: lead notification skipped — Resend configuration missing');
+    }
+  } catch (error) {
+    console.error('lead capture error', error);
     res.status(500).json({ error: 'server error' });
   }
 });

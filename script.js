@@ -1040,10 +1040,13 @@ try {
       const params = new URLSearchParams(location.search);
       const tracking = {};
       ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
-      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, ...payload }) }).catch(()=>{});
-      sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking });
-      document.getElementById('start-challenge')?.addEventListener('click',()=>sendEvent({event_type:'challenge_opened',path:`${location.pathname}#challenge`}),{once:true});
-      document.querySelector('#contact a')?.addEventListener('click',()=>sendEvent({event_type:'contact_opened',path:`${location.pathname}#contact`}),{once:true});
+      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, ...payload }) });
+      sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking })
+        .then(response => response.ok ? response.json() : null)
+        .then(result => { if (result?.returning_visitor) window.dispatchEvent(new CustomEvent('returning-visitor-eligible', { detail: { visitor_id } })); })
+        .catch(()=>{});
+      document.getElementById('start-challenge')?.addEventListener('click',()=>sendEvent({event_type:'challenge_opened',path:`${location.pathname}#challenge`}).catch(()=>{}),{once:true});
+      document.querySelector('#contact a')?.addEventListener('click',()=>sendEvent({event_type:'contact_opened',path:`${location.pathname}#contact`}).catch(()=>{}),{once:true});
       if ('IntersectionObserver' in window) {
         const seen=new Set(); const dwellTimers=new Map();
         const targets=[['HOME',document.querySelector('main#home > .hero')],['CHALLENGE',document.getElementById('challenge')],['CAPABILITIES',document.getElementById('capabilities')],['WORK',document.getElementById('work')],['ABOUT',document.getElementById('about')],['CONTACT',document.getElementById('contact')]].filter(([,node])=>node);
@@ -1052,7 +1055,7 @@ try {
           if(entry.isIntersecting&&entry.intersectionRatio>=0.55&&!seen.has(name)&&!dwellTimers.has(name)){
             dwellTimers.set(name,setTimeout(()=>{
               dwellTimers.delete(name);if(seen.has(name))return;seen.add(name);
-              sendEvent({event_type:'section_view',section_name:name,path:`${location.pathname}#${name.toLowerCase()}`});
+              sendEvent({event_type:'section_view',section_name:name,path:`${location.pathname}#${name.toLowerCase()}`}).catch(()=>{});
             },1000));
           }else if((!entry.isIntersecting||entry.intersectionRatio<0.55)&&dwellTimers.has(name)){
             clearTimeout(dwellTimers.get(name));dwellTimers.delete(name);
@@ -1063,3 +1066,73 @@ try {
     } catch (e) { /* ignore */ }
   })();
 } catch (e) { /* ignore */ }
+
+// Returning visitor prompt. Eligibility comes from prior first-party page-view activity.
+(function initReturningVisitorPrompt() {
+  const returningVisitorPopupConfig = {
+    cooldownMs: 7 * 24 * 60 * 60 * 1000,
+    showDelayMs: 1800,
+    cooldownStorageKey: 'returningVisitorPromptDismissedAt',
+  };
+  const dialog = document.getElementById('returning-visitor-dialog');
+  const emailForm = document.getElementById('returning-email-form');
+  const emailInput = document.getElementById('returning-email');
+  const status = dialog?.querySelector('.returning-email-status');
+  let eligibleVisitorId = null;
+
+  function onCooldown() {
+    try {
+      const dismissedAt = Number(localStorage.getItem(returningVisitorPopupConfig.cooldownStorageKey));
+      return Number.isFinite(dismissedAt) && Date.now() - dismissedAt < returningVisitorPopupConfig.cooldownMs;
+    } catch (e) { return true; }
+  }
+
+  function activeInteraction() {
+    const params = new URLSearchParams(location.search);
+    const challengeFormOpen = document.getElementById('challenge-form')?.getAttribute('aria-hidden') === 'false';
+    return Boolean(params.get('challenge') || params.get('match') || challengeFormOpen || document.querySelector('dialog[open]') || document.getElementById('challenge-modal') || document.getElementById('promo-modal'));
+  }
+
+  function closePrompt() {
+    try { localStorage.setItem(returningVisitorPopupConfig.cooldownStorageKey, String(Date.now())); } catch (e) { /* storage may be unavailable */ }
+    if (dialog?.open) dialog.close();
+  }
+
+  window.addEventListener('returning-visitor-eligible', event => {
+    eligibleVisitorId = event.detail?.visitor_id || null;
+    if (!dialog || !eligibleVisitorId || onCooldown() || activeInteraction()) return;
+    window.setTimeout(() => {
+      if (!onCooldown() && !activeInteraction() && !dialog.open) dialog.showModal();
+    }, returningVisitorPopupConfig.showDelayMs);
+  });
+
+  dialog?.querySelector('.returning-visitor-close')?.addEventListener('click', closePrompt);
+  dialog?.querySelector('[data-returning-action="explore"]')?.addEventListener('click', closePrompt);
+  dialog?.querySelector('[data-returning-action="project"]')?.addEventListener('click', closePrompt);
+  dialog?.querySelector('[data-returning-action="email"]')?.addEventListener('click', () => {
+    emailForm.hidden = false;
+    emailInput?.focus();
+  });
+  dialog?.addEventListener('cancel', event => { event.preventDefault(); closePrompt(); });
+  dialog?.addEventListener('click', event => {
+    if (event.target === dialog) closePrompt();
+  });
+  emailForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const email = emailInput?.value.trim();
+    if (!email || !eligibleVisitorId) return;
+    const submit = emailForm.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    status.textContent = 'SENDING…';
+    try {
+      const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
+      const response = await fetch(`${API}/api/leads`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, visitor_id:eligibleVisitorId }) });
+      if (!response.ok) throw new Error('lead submission failed');
+      status.textContent = 'RECEIVED — I’LL BE IN TOUCH.';
+      window.setTimeout(closePrompt, 1100);
+    } catch (error) {
+      status.textContent = 'SIGNAL LOST — PLEASE TRY AGAIN.';
+      submit.disabled = false;
+    }
+  });
+})();

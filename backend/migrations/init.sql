@@ -90,6 +90,17 @@ CREATE INDEX IF NOT EXISTS analytics_events_visitor_id_idx ON analytics_events(v
 CREATE INDEX IF NOT EXISTS analytics_events_ref_idx ON analytics_events(ref) WHERE ref IS NOT NULL;
 CREATE INDEX IF NOT EXISTS analytics_events_visitor_created_idx ON analytics_events(visitor_id, created_at) WHERE visitor_id IS NOT NULL;
 
+-- Voluntary contact details remain private and are associated only by first-party Visitor ID.
+CREATE TABLE IF NOT EXISTS visitor_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visitor_id UUID NOT NULL,
+  email TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'returning_visitor_popup',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS visitor_leads_visitor_id_idx ON visitor_leads(visitor_id);
+
 CREATE TABLE IF NOT EXISTS ip_geolocation_cache (
   ip INET PRIMARY KEY,
   country TEXT,
