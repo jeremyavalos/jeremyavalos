@@ -305,7 +305,97 @@
               <img src="assets/reparatech-01-home.png" alt="ReparaTech landing page preview" />
             </a>
           </article>
+          <article class="project-card reveal" style="--delay: 180ms">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 06</p>
+              <h3>Trading Bot</h3>
+              <p>Local quantitative trading system combining real-time market data, probability models, AI-assisted context, execution controls and continuous strategy evaluation.</p>
+              <p class="role mono">BACKEND · QUANT SYSTEMS · LOCAL AI</p>
+              <div class="chips" aria-label="Trading Bot technologies">
+                <span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Polymarket</span><span class="mono">Binance</span><span class="mono">Ollama / Qwen</span><span class="mono">Linux</span>
+              </div>
+              <a class="project-link" href="#trading-bot">VIEW PROJECT / CASE STUDY →</a>
+            </div>
+            <a class="project-visual trading-visual" href="#trading-bot" aria-label="Explore Trading Bot case study">
+              <img src="assets/trading-bot/terminal.webp" alt="Jeremy Avalos Trading Bot terminal: an illustrative high-score candidate is skipped because net edge is insufficient" width="1536" height="1024" loading="lazy" />
+            </a>
+          </article>
         </div>
+
+        <details id="trading-bot" class="trading-case">
+          <summary><span class="mono">06 / TRADING BOT</span><span>Inside the decision engine</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
+          <div class="trading-content">
+            <p class="eyebrow mono">EXPERIMENTAL · LOCAL-FIRST · REAL-TIME</p>
+            <h3>A quantitative decision system, from discovery to evaluation.</h3>
+            <p>Built by Jeremy Avalos. A modular TypeScript / Node.js architecture that interprets prediction markets, tests executable opportunities and evaluates its own decisions. Experimental models and controls do not guarantee returns or prevent every loss.</p>
+            <figure class="trading-figure">
+              <a href="assets/trading-bot/terminal.webp" target="_blank" rel="noreferrer" aria-label="Open full-size Trading Intelligence Terminal illustration"><img src="assets/trading-bot/terminal.webp" alt="Trading Intelligence Terminal with probability, executable ask, friction and a SKIP gate decision" width="1536" height="1024" loading="lazy" /></a>
+              <figcaption>Trading Intelligence Terminal · Original concept illustration; sample data, not live results. Open any illustration to inspect it at full size.</figcaption>
+            </figure>
+            <div class="trading-blocks">
+              <div class="trading-block">
+                <p class="eyebrow mono">01 / THE CHALLENGE</p><h4>Make every entry earn its place.</h4>
+                <p>A promising market is only a candidate. Discovery, parsing, liquidity, probability and risk are independent checks before an order can proceed. The engineering challenge is turning noisy real-time inputs into traceable, constrained decisions.</p>
+              </div>
+              <div class="trading-block">
+                <p class="eyebrow mono">02 / ARCHITECTURE</p><h4>Independent engines. One controlled flow.</h4>
+                <p>REST APIs connect Polymarket API / CLOB execution and Binance market data to modular analysis engines. Position monitoring feeds exit controls and durable evaluation datasets.</p>
+              </div>
+            </div>
+            <ol class="trading-pipeline" aria-label="Trading Bot decision pipeline">
+              <li>Market Discovery</li><li>Ranking / Score</li><li>Crypto Market Parser</li><li>Real Order Book</li><li>Liquidity Gate</li><li>Quant Probability</li><li>Net Edge</li><li>Risk Management</li><li>Execution</li><li>Position Monitoring</li><li>Profit Momentum</li><li>Exit Strategy</li><li>Evaluation / Calibration</li>
+            </ol>
+            <figure class="trading-figure">
+              <a href="assets/trading-bot/architecture.webp" target="_blank" rel="noreferrer" aria-label="Open full-size decision architecture illustration"><img src="assets/trading-bot/architecture.webp" alt="Decision pipeline connected to Binance, Polymarket, Ollama / Qwen and local data" width="1536" height="1024" loading="lazy" /></a>
+              <figcaption>Architecture / Decision Pipeline · AI adds context; quantitative and risk rules govern execution.</figcaption>
+            </figure>
+            <div class="trading-blocks">
+              <div class="trading-block">
+                <p class="eyebrow mono">03 / MARKET INTELLIGENCE</p><h4>Interpret the question. Verify the market.</h4>
+                <p>Discovery ranks markets approximately every five minutes. A high score alone never authorizes a buy.</p>
+                <p>The BTC / ETH parser extracts asset, target, UP / DOWN direction, deadline, exact-day windows and date ranges. For example, “Will Bitcoin reach $86,000 September 14–20?” becomes a bounded barrier event. For exact-day markets, Binance one-minute candles can verify whether the barrier was already reached within that window.</p>
+                <p>The real order book provides best bid, best ask, spread, depth, tick size and minimum order size. Entries use executable prices.</p>
+              </div>
+              <div class="trading-block">
+                <p class="eyebrow mono">04 / QUANT + NET EDGE</p><h4>Probability has to justify the price.</h4>
+                <p>The quant engine estimates barrier-hit probability from spot price, target distance, time remaining, volatility, historical behavior and estimated drift.</p>
+                <p class="trading-formula mono">Model probability − executable market price − estimated friction = net edge</p>
+                <p>The current experimental entry threshold is approximately <strong>+3 percentage points</strong>. A low price alone is insufficient.</p>
+                <p class="trading-callout mono">HIGH SCORE + LIQUID MARKET + INSUFFICIENT PROBABILITY → SKIP</p>
+              </div>
+              <div class="trading-block">
+                <p class="eyebrow mono">05 / AI INTEGRATION</p><h4>Local intelligence, deliberately an observer.</h4>
+                <p>Qwen runs locally through Ollama, using NVIDIA GPU / CUDA when available. It adds technical and market context for candidates and open positions: HOLD_SUPPORTS, WEAKENING, EXIT_RISK or UNKNOWN. It does not independently buy or sell.</p>
+                <p>A separate Profit Momentum engine combines 1m / 5m / 15m RSI, trend, relative volume, ATR and timeframe agreement into STRONG, STABLE, WEAKENING or REVERSING states, primarily for observation and calibration.</p>
+              </div>
+              <div class="trading-block">
+                <p class="eyebrow mono">06 / RISK &amp; EXECUTION</p><h4>Protect entry quality and bound exposure.</h4>
+                <p>The liquidity gate blocks entries when absolute spread exceeds approximately 1.5 percentage points or relative spread exceeds 20% of ask, limiting exposure to immediately adverse marks in wide books.</p>
+                <p>Available account capital is synchronized before sizing. An approximately $5 position target adapts to capital: $25 → 20%, $50 → 10%, $100 → 5%, subject to a maximum risk percentage.</p>
+                <p>Stop loss, profit lock, hard and trailing take profit, and time-based profit extension manage positions. Pending BUY limits, consecutive-loss pauses and exchange-error pauses constrain execution. An executed stop loss puts that market on an approximately one-hour cooldown, persisted across restarts, while other markets remain eligible.</p>
+              </div>
+            </div>
+            <figure class="trading-figure">
+              <a href="assets/trading-bot/monitoring.webp" target="_blank" rel="noreferrer" aria-label="Open full-size AI and quant monitoring illustration"><img src="assets/trading-bot/monitoring.webp" alt="Independent quant, net edge, momentum, AI observer and shadow exit engines evaluating one BTC market; illustrative values" width="1536" height="1024" loading="lazy" /></a>
+              <figcaption>AI + Quant Monitoring · Illustrative module states, not measured performance. Shadow decisions do not execute sales.</figcaption>
+            </figure>
+            <div class="trading-blocks">
+              <div class="trading-block">
+                <p class="eyebrow mono">07 / CONTINUOUS CALIBRATION</p><h4>Evaluate the decisions, including the skips.</h4>
+                <p>Entry Calibration records bought and rejected candidates, then checks outcomes after 5, 10 and 15 minutes to study whether different net-edge ranges identify better opportunities.</p>
+                <p>Exit Engine v2 runs in <strong>shadow mode</strong>: hypothetical HOLD / WATCH / EXIT decisions never execute a sale. It examines momentum, drawdown from peak, one- and five-minute bid velocity, spread and current P&amp;L. Later observations test whether an alternative exit would have protected capital or closed too early.</p>
+                <p class="trading-callout">The bot evaluates what happened after its decisions, building evidence for calibration rather than assuming its rules are correct.</p>
+              </div>
+              <div class="trading-block">
+                <p class="eyebrow mono">08 / LOCAL INFRASTRUCTURE</p><h4>Separate processes. Shared evidence.</h4>
+                <p>Linux / Kali and tmux keep Trading Engine, AI Evaluator, Entry Evaluator and Exit Shadow Evaluator running as independent processes. The CPU handles strategy, APIs and analysis; NVIDIA GPU inference supports local Qwen.</p>
+                <p>Local persistence and JSONL datasets retain decisions, cooldowns and evaluation outcomes. Storage is deployment-dependent, with PostgreSQL / local storage as applicable. AI context runs locally while market data and execution depend on exchange APIs.</p>
+                <div class="chips" aria-label="Architecture capabilities"><span class="mono">REST APIs</span><span class="mono">JSONL</span><span class="mono">tmux</span><span class="mono">CUDA</span><span class="mono">Quant</span><span class="mono">Local AI</span></div>
+              </div>
+            </div>
+            <p class="trading-note mono">Parameters shown are approximate experimental settings and may change. Illustrations communicate architecture, not investment performance.</p>
+          </div>
+        </details>
       </section>
 
       <section id="about" class="about">
@@ -388,7 +478,6 @@
           <div data-detail="device"><dt>DEVICE</dt><dd id="returning-device"></dd></div>
           <div data-detail="os"><dt>OS</dt><dd id="returning-os"></dd></div>
           <div data-detail="browser"><dt>BROWSER</dt><dd id="returning-browser"></dd></div>
-          <div data-detail="network"><dt>NETWORK</dt><dd id="returning-network"></dd></div>
           <div data-detail="location"><dt>LOCATION</dt><dd id="returning-location-detail"></dd></div>
           <div data-detail="ip"><dt>IP</dt><dd id="returning-ip-detail"></dd></div>
           <div data-detail="first-seen"><dt>FIRST SEEN</dt><dd id="returning-first-seen"></dd></div>
@@ -423,6 +512,7 @@
     <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
     <script src="returning-visitor-copy.js"></script>
     <script src="script.js"></script>
+    <script src="trading-bot.js"></script>
 
     <!-- Load the optional local chess module; the server-backed FEN renderer remains available. -->
     <script type="module">

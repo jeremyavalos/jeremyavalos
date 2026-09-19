@@ -1144,7 +1144,6 @@ try {
     setDetail('device', context.device);
     setDetail('os', context.os);
     setDetail('browser', context.browser);
-    setDetail('network', context.network);
     setDetail('location', [context.city, context.region, context.country].filter(Boolean).join(', ') + (context.city || context.region || context.country ? ' · approximate' : ''));
     setDetail('ip', context.ip);
     setDetail('first-seen', formatVisitTime(context.first_seen));
