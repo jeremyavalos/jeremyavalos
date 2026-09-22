@@ -2204,3 +2204,71 @@ footer p {
   .trading-case summary { flex-wrap: wrap; gap: .5rem; padding: 1rem; }
   .trading-case summary > .mono { flex-basis: 100%; }
 }
+
+/* Horizontal selected-work collection. */
+.project-carousel { min-width: 0; }
+.carousel-toolbar, .carousel-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.carousel-toolbar { justify-content: space-between; margin-bottom: 1rem; }
+.carousel-hint { margin: 0; color: var(--muted); font-size: 0.62rem; letter-spacing: 0.1em; }
+.carousel-hint span { margin-left: 0.6rem; color: var(--gold); }
+.carousel-controls[hidden] { display: none; }
+.carousel-status { min-width: 4rem; color: var(--gold-soft); font-size: 0.7rem; }
+.carousel-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel-elevated);
+  color: var(--gold-soft);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.carousel-button:hover:not(:disabled) { border-color: var(--gold); background: rgba(211, 167, 90, 0.12); }
+.carousel-button:disabled { opacity: 0.3; cursor: default; }
+.carousel-button:focus-visible, .project-track:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.project-carousel .project-track {
+  display: grid;
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: min(82%, 35rem);
+  gap: 1.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding: 0.5rem 0 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-deep) var(--panel);
+}
+.project-track .project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.3rem;
+  min-width: 0;
+  min-height: 0;
+  scroll-snap-align: start;
+  scroll-margin-inline: 0;
+}
+.project-track .project-card:hover { transform: none; }
+.project-track .project-visual {
+  order: -1;
+  flex: 0 0 auto;
+  height: clamp(14rem, 25vw, 21rem);
+  min-height: 0;
+}
+.project-track .project-visual img { height: 100%; min-height: 0; }
+.project-track .project-copy { flex: 1; align-content: start; padding: 0.25rem; }
+.project-track .project-copy .project-link { align-self: end; margin-top: 0.5rem; }
+@media (max-width: 600px) {
+  .project-carousel .project-track { grid-auto-columns: 90%; gap: 0.8rem; }
+  .carousel-hint { max-width: 9rem; line-height: 1.6; }
+  .carousel-status { min-width: 3.3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-track { scroll-behavior: auto; }
+  .project-track .project-visual img { transition: none; }
+}

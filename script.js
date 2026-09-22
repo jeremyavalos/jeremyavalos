@@ -1199,3 +1199,49 @@ try {
     }
   });
 })();
+
+// Native scrolling keeps the project collection usable with touch and trackpads.
+(() => {
+  const track = document.querySelector('#project-track');
+  if (!track) return;
+  const carousel = track.closest('.project-carousel');
+  const cards = [...track.querySelectorAll('.project-card')];
+  const prev = carousel.querySelector('[data-project-prev]');
+  const next = carousel.querySelector('[data-project-next]');
+  const status = carousel.querySelector('.carousel-status');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let current = 0;
+  let frame = 0;
+  const positions = () => {
+    const left = track.getBoundingClientRect().left;
+    const limit = track.scrollWidth - track.clientWidth;
+    return cards.map(card => Math.min(limit, card.getBoundingClientRect().left - left + track.scrollLeft));
+  };
+  const update = () => {
+    frame = 0;
+    const points = positions();
+    current = points.reduce((best, point, index) =>
+      Math.abs(point - track.scrollLeft) < Math.abs(points[best] - track.scrollLeft) ? index : best, 0);
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
+    status.textContent = `${String(current + 1).padStart(2, '0')} / ${String(cards.length).padStart(2, '0')}`;
+  };
+  const move = direction => {
+    current = Math.max(0, Math.min(cards.length - 1, current + direction));
+    track.scrollTo({ left: positions()[current], behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+  };
+  prev.addEventListener('click', () => move(-1));
+  next.addEventListener('click', () => move(1));
+  track.addEventListener('keydown', event => {
+    if (event.target !== track || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Home') current = 0;
+    if (event.key === 'End') current = cards.length - 1;
+    move(event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0);
+  });
+  const scheduleUpdate = () => { if (!frame) frame = requestAnimationFrame(update); };
+  track.addEventListener('scroll', scheduleUpdate, { passive: true });
+  window.addEventListener('resize', scheduleUpdate);
+  carousel.querySelector('.carousel-controls').hidden = false;
+  update();
+})();

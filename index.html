@@ -211,48 +211,35 @@
           <h2>Selected product work.</h2>
         </div>
 
-        <div class="project-grid">
-          <article class="project-card feature-project reveal">
+        <div class="project-carousel" role="region" aria-roledescription="carousel" aria-label="Selected projects">
+          <div class="carousel-toolbar">
+            <p class="carousel-hint mono">EXPLORE THE COLLECTION <span aria-hidden="true">↔</span></p>
+            <div class="carousel-controls" hidden>
+              <span class="carousel-status mono" aria-live="polite" aria-atomic="true">01 / 05</span>
+              <button class="carousel-button" type="button" data-project-prev aria-label="Previous project" aria-controls="project-track" disabled>←</button>
+              <button class="carousel-button" type="button" data-project-next aria-label="Next project" aria-controls="project-track">→</button>
+            </div>
+          </div>
+          <div class="project-grid project-track" id="project-track" tabindex="0" aria-label="Projects. Use left and right arrow keys to browse.">
+          <article class="project-card" role="group" aria-roledescription="slide" aria-label="1 of 5: Trading Bot">
             <div class="project-copy">
               <p class="project-number mono">PROJECT / 01</p>
-              <h3>Metanoia</h3>
-              <p>Support resources designed to reduce friction for people navigating legal, psychological, and employment challenges.</p>
-              <p class="role mono">CREATOR · PRODUCT DESIGN · DEVELOPMENT</p>
-              <div class="chips">
-                <span class="mono">React Native</span>
-                <span class="mono">Expo</span>
-                <span class="mono">Node.js</span>
-                <span class="mono">Vercel</span>
+              <h3>Trading Bot</h3>
+              <p>Local quantitative trading system combining real-time market data, probability models, AI-assisted context, execution controls and continuous strategy evaluation.</p>
+              <p class="role mono">BACKEND · QUANT SYSTEMS · LOCAL AI</p>
+              <div class="chips" aria-label="Trading Bot technologies">
+                <span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Polymarket</span><span class="mono">Binance</span><span class="mono">Ollama / Qwen</span><span class="mono">Linux</span>
               </div>
-              <a class="project-link" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+              <a class="project-link" href="#trading-bot">VIEW PROJECT / CASE STUDY →</a>
             </div>
-            <a class="project-visual small-visual" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open Metanoia website">
-              <img src="assets/metanoia-website.png" alt="Metanoia website preview" />
+            <a class="project-visual trading-visual" href="#trading-bot" aria-label="Explore Trading Bot case study">
+              <img src="assets/trading-bot/terminal.webp" alt="Jeremy Avalos Trading Bot terminal: an illustrative high-score candidate is skipped because net edge is insufficient" width="1536" height="1024" loading="lazy" />
             </a>
           </article>
 
-          <article class="project-card reveal" style="--delay: 60ms">
+          <article class="project-card" role="group" aria-roledescription="slide" aria-label="2 of 5: Ocean Majesty Cancún">
             <div class="project-copy">
               <p class="project-number mono">PROJECT / 02</p>
-              <h3>Covenant</h3>
-              <p>Discipline system designed to keep routines, accountability and personal growth consistent.</p>
-              <p class="role mono">FOUNDER · DESIGNER · DEVELOPER</p>
-              <div class="chips">
-                <span class="mono">React Native</span>
-                <span class="mono">Expo</span>
-                <span class="mono">TypeScript</span>
-                <span class="mono">RevenueCat</span>
-              </div>
-              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
-            </div>
-            <a class="project-visual small-visual" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer" aria-label="Open Covenant project preview">
-              <img src="assets/covenant-07-habits.png" alt="Covenant product screen" />
-            </a>
-          </article>
-
-          <article class="project-card reveal" style="--delay: 80ms">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 03</p>
               <h3>Ocean Majesty Cancún</h3>
               <p>Luxury yacht reservation platform connecting a mobile-first customer experience with a real reservation backend.</p>
               <p class="role mono">FULL STACK DEVELOPMENT</p>
@@ -269,9 +256,47 @@
             </a>
           </article>
 
-          <article class="project-card reveal" style="--delay: 110ms">
+          <article class="project-card" role="group" aria-roledescription="slide" aria-label="3 of 5: Covenant">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 03</p>
+              <h3>Covenant</h3>
+              <p>Discipline system designed to keep routines, accountability and personal growth consistent.</p>
+              <p class="role mono">FOUNDER · DESIGNER · DEVELOPER</p>
+              <div class="chips">
+                <span class="mono">React Native</span>
+                <span class="mono">Expo</span>
+                <span class="mono">TypeScript</span>
+                <span class="mono">RevenueCat</span>
+              </div>
+              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+            </div>
+            <a class="project-visual small-visual" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer" aria-label="Open Covenant project preview">
+              <img src="assets/covenant-07-habits.png" alt="Covenant product screen" />
+            </a>
+          </article>
+
+          <article class="project-card" role="group" aria-roledescription="slide" aria-label="4 of 5: Metanoia">
             <div class="project-copy">
               <p class="project-number mono">PROJECT / 04</p>
+              <h3>Metanoia</h3>
+              <p>Support resources designed to reduce friction for people navigating legal, psychological, and employment challenges.</p>
+              <p class="role mono">CREATOR · PRODUCT DESIGN · DEVELOPMENT</p>
+              <div class="chips">
+                <span class="mono">React Native</span>
+                <span class="mono">Expo</span>
+                <span class="mono">Node.js</span>
+                <span class="mono">Vercel</span>
+              </div>
+              <a class="project-link" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+            </div>
+            <a class="project-visual small-visual" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open Metanoia website">
+              <img src="assets/metanoia-website.png" alt="Metanoia website preview" />
+            </a>
+          </article>
+
+          <article class="project-card" role="group" aria-roledescription="slide" aria-label="5 of 5: VisorApp">
+            <div class="project-copy">
+              <p class="project-number mono">PROJECT / 05</p>
               <h3>VisorApp</h3>
               <p>Documentation-first service journey creating clarity around immigration support and next steps.</p>
               <p class="role mono">PRODUCT DESIGN · BUSINESS ANALYSIS</p>
@@ -286,44 +311,11 @@
               <span>VisorApp</span>
             </div>
           </article>
-
-          <article class="project-card reveal" style="--delay: 150ms">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 05</p>
-              <h3>ReparaTech</h3>
-              <p>Repair service site built to communicate trust, diagnostics and professional support.</p>
-              <p class="role mono">WEB DEVELOPER · DESIGNER · CONSULTANT</p>
-              <div class="chips">
-                <span class="mono">HTML</span>
-                <span class="mono">CSS</span>
-                <span class="mono">JavaScript</span>
-                <span class="mono">Vercel</span>
-              </div>
-              <a class="project-link" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
-            </div>
-            <a class="project-visual small-visual" href="assets/reparatech-01-home.png" target="_blank" rel="noreferrer" aria-label="Open ReparaTech project preview">
-              <img src="assets/reparatech-01-home.png" alt="ReparaTech landing page preview" />
-            </a>
-          </article>
-          <article class="project-card reveal" style="--delay: 180ms">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 06</p>
-              <h3>Trading Bot</h3>
-              <p>Local quantitative trading system combining real-time market data, probability models, AI-assisted context, execution controls and continuous strategy evaluation.</p>
-              <p class="role mono">BACKEND · QUANT SYSTEMS · LOCAL AI</p>
-              <div class="chips" aria-label="Trading Bot technologies">
-                <span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Polymarket</span><span class="mono">Binance</span><span class="mono">Ollama / Qwen</span><span class="mono">Linux</span>
-              </div>
-              <a class="project-link" href="#trading-bot">VIEW PROJECT / CASE STUDY →</a>
-            </div>
-            <a class="project-visual trading-visual" href="#trading-bot" aria-label="Explore Trading Bot case study">
-              <img src="assets/trading-bot/terminal.webp" alt="Jeremy Avalos Trading Bot terminal: an illustrative high-score candidate is skipped because net edge is insufficient" width="1536" height="1024" loading="lazy" />
-            </a>
-          </article>
+          </div>
         </div>
 
         <details id="trading-bot" class="trading-case">
-          <summary><span class="mono">06 / TRADING BOT</span><span>Inside the decision engine</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
+          <summary><span class="mono">01 / TRADING BOT</span><span>Inside the decision engine</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
           <div class="trading-content">
             <p class="eyebrow mono">EXPERIMENTAL · LOCAL-FIRST · REAL-TIME</p>
             <h3>A quantitative decision system, from discovery to evaluation.</h3>
