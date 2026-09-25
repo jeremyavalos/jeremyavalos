@@ -246,13 +246,8 @@
               <div class="chips" aria-label="BinanceBot technologies"><span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Binance Spot API</span><span class="mono">Ollama</span></div>
               <a class="project-link" href="#binancebot">VIEW PROJECT / CASE STUDY →</a>
             </div>
-            <a class="project-visual system-visual binancebot-visual" href="#binancebot" aria-label="Explore BinanceBot case study">
-              <div class="system-diagram">
-                <span class="system-kicker mono">SPOT / SIGNAL TO EXECUTION</span>
-                <strong>BinanceBot</strong>
-                <div class="system-flow mono"><span>Market signals</span><span>Risk gates</span><span>Spot execution</span></div>
-                <span class="system-caption mono">ARCHITECTURE OVERVIEW</span>
-              </div>
+            <a class="project-visual generated-project-visual" href="#binancebot" aria-label="Explore BinanceBot case study">
+              <img src="assets/binancebot/cover.webp" alt="Concept illustration of BinanceBot: market signals connected to risk controls, Spot execution and a local AI observer" width="1536" height="1024" loading="lazy" decoding="async" />
             </a>
           </article>
 
@@ -265,13 +260,8 @@
               <div class="chips" aria-label="TokenTrader technologies"><span class="mono">Python</span><span class="mono">Web3.py</span><span class="mono">asyncio</span><span class="mono">SQLite</span><span class="mono">PancakeSwap</span></div>
               <a class="project-link" href="#tokentrader">VIEW PROJECT / CASE STUDY →</a>
             </div>
-            <a class="project-visual system-visual tokentrader-visual" href="#tokentrader" aria-label="Explore TokenTrader case study">
-              <div class="system-diagram">
-                <span class="system-kicker mono">ON-CHAIN / DISCOVERY &amp; ANALYSIS</span>
-                <strong>TokenTrader</strong>
-                <div class="system-flow mono"><span>Pool discovery</span><span>Security checks</span><span>Outcome tracking</span></div>
-                <span class="system-caption mono">ARCHITECTURE OVERVIEW</span>
-              </div>
+            <a class="project-visual generated-project-visual" href="#tokentrader" aria-label="Explore TokenTrader case study">
+              <img src="assets/tokentrader/cover.webp" alt="Concept illustration of TokenTrader: token discovery scanner, security screening and connected data archives" width="1536" height="1024" loading="lazy" decoding="async" />
             </a>
           </article>
 
@@ -431,6 +421,10 @@
           <div class="trading-content">
             <h3>Every signal passes through a system of checks.</h3>
             <p>An independent TypeScript / Node.js engine for Binance Spot, with separate market intelligence, strategy, risk, execution and local AI modules. Supports PAPER, TESTNET and LIVE modes.</p>
+            <figure class="trading-figure">
+              <a href="assets/binancebot/cover.webp" target="_blank" rel="noreferrer" aria-label="Open full-size BinanceBot concept illustration"><img src="assets/binancebot/cover.webp" alt="Concept illustration of BinanceBot: market signals connected to risk controls, Spot execution and a local AI observer" width="1536" height="1024" loading="lazy" decoding="async" /></a>
+              <figcaption>BinanceBot · Concept illustration of the system, not a live product screenshot.</figcaption>
+            </figure>
             <ol class="trading-pipeline" aria-label="BINANCEBOT architecture"><li>Market data</li><li>Technical signals</li><li>Entry decision</li><li>Capital &amp; exchange rules</li><li>Execution health</li><li>Order execution</li><li>Position monitoring</li><li>Decision journals</li></ol>
             <div class="trading-blocks">
               <div class="trading-block"><p class="eyebrow mono">01 / MARKET INTELLIGENCE</p><h4>Read the setup across timeframes.</h4><p>Combines 1m, 5m and 15m market regimes with RSI, momentum, relative volume, volatility and spread checks. The signal engine produces a score and explicit reasons that feed a separate entry decision.</p></div>
@@ -446,6 +440,10 @@
           <div class="trading-content">
             <h3>Discover early. Check the risks. Follow the outcome.</h3>
             <p>An asynchronous Python research pipeline that watches PancakeSwap V2/V3 pool creation on BNB Smart Chain and builds a persistent dataset of candidates, security checks, scores and observed outcomes. The current build performs observation only; it does not sign transactions or execute trades.</p>
+            <figure class="trading-figure">
+              <a href="assets/tokentrader/cover.webp" target="_blank" rel="noreferrer" aria-label="Open full-size TokenTrader concept illustration"><img src="assets/tokentrader/cover.webp" alt="Concept illustration of TokenTrader: token discovery scanner, security screening and connected data archives" width="1536" height="1024" loading="lazy" decoding="async" /></a>
+              <figcaption>TokenTrader · Concept illustration of the system, not a live product screenshot.</figcaption>
+            </figure>
             <ol class="trading-pipeline" aria-label="TOKENTRADER architecture"><li>Pool events</li><li>Liquidity readiness</li><li>DexScreener</li><li>Honeypot simulation</li><li>GoPlus checks</li><li>Candidate scoring</li><li>Risk snapshots</li><li>Outcome tracking</li></ol>
             <div class="trading-blocks">
               <div class="trading-block"><p class="eyebrow mono">01 / DISCOVERY &amp; ORCHESTRATION</p><h4>Handle the gap between discovery and usable data.</h4><p>Web3.py reads new pool events while asynchronous analysis follows each candidate. V2 reserve checks wait for on-chain liquidity; provider readiness checks retry while market and security data become available. Candidate states and provider timings are stored in SQLite.</p></div>
