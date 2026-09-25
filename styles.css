@@ -2272,3 +2272,7 @@ footer p {
   .project-track { scroll-behavior: auto; }
   .project-track .project-visual img { transition: none; }
 }
+
+/* Generated project covers retain their full composition at every card size. */
+.project-track .generated-project-visual img { object-fit: contain; object-position: center; transform: none; }
+.generated-project-visual::after { display: none; }

@@ -7,6 +7,9 @@ I am currently studying Software Engineering while building mobile applications,
 I combine software development, business administration, customer service, hardware repair and entrepreneurship to create practical solutions that solve real-world problems.
 
 <p align="left">
+  <a href="https://jeremyavalos.xyz">
+    <img src="https://img.shields.io/badge/Portfolio-jeremyavalos.xyz-D9B76F?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=black" alt="Portfolio — jeremyavalos.xyz" />
+  </a>
   <a href="https://github.com/jeremyavalos">
     <img src="https://img.shields.io/badge/GitHub-jeremyavalos-181717?style=for-the-badge&logo=github" alt="GitHub" />
   </a>
@@ -47,12 +50,29 @@ I combine software development, business administration, customer service, hardw
 
 ## Featured Projects
 
-### Covenant
+### Trading Bot
 
-Habit-building and personal discipline mobile application focused on consistency, accountability and long-term personal growth.
+Local quantitative trading system for prediction markets, combining real-time market data, probability models, liquidity and net-edge checks, controlled execution and continuous strategy evaluation.
 
-**Role:** Founder, Product Designer and Developer  
-**Stack:** React Native, Expo, TypeScript, RevenueCat, Firebase
+**Stack:** TypeScript, Node.js, Polymarket, Binance market data, Ollama / Qwen
+
+**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#trading-bot)
+
+### BinanceBot
+
+Independent Binance Spot trading engine with multi-timeframe technical signals, capital and exchange-rule checks, adaptive exits and execution health controls. Local AI adds context, while separate signal, trade and AI journals preserve decision history. Supports PAPER, TESTNET and LIVE modes.
+
+**Stack:** TypeScript, Node.js, Binance Spot API, Ollama
+
+**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#binancebot)
+
+### TokenTrader
+
+On-chain token research pipeline that discovers PancakeSwap V2/V3 pools on BNB Smart Chain, checks liquidity and contract risks, scores candidates and tracks later price and liquidity outcomes. The current build observes and analyzes; it does not execute trades.
+
+**Stack:** Python, Web3.py, asyncio, SQLite, DexScreener, Honeypot, GoPlus
+
+**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#tokentrader)
 
 ### Metanoia
 
@@ -60,17 +80,27 @@ Social reintegration platform focused on legal guidance, employment resources an
 
 **Focus:** Social impact, legal resources, employment tools and structured personal growth.
 
+### YATCK K CLUB
+
+Luxury yacht reservation platform connecting a mobile-first customer experience with a reservation backend.
+
+**Focus:** Yacht catalog, booking flow, reservation requests and responsive design.
+
+**Stack:** React Native, Node.js, PostgreSQL, Railway
+
+### Covenant
+
+Habit-building and personal discipline mobile application focused on consistency, accountability and long-term personal growth.
+
+**Role:** Founder, Product Designer and Developer
+
+**Stack:** React Native, Expo, TypeScript, RevenueCat, Firebase
+
 ### VisorApp
 
 Digital concierge platform for immigration and documentation processes.
 
 **Focus:** Visa processes, passport support, document guidance and client service workflows.
-
-### YATCK K CLUB
-
-Luxury yacht rental platform developed for a client.
-
-**Focus:** Luxury user experience, booking flow, yacht catalog, reservation requests and responsive design.
 
 ### ReparaTech
 
@@ -111,6 +141,7 @@ Technology services website developed for a client.
 
 ## Contact
 
+- Portfolio: [jeremyavalos.xyz](https://jeremyavalos.xyz)
 - LinkedIn: [linkedin.com/in/jeremy-avalos](https://www.linkedin.com/in/jeremy-avalos/)
 - Instagram: [@jeremyavalos](https://instagram.com/jeremyavalos)
 - GitHub: [github.com/jeremyavalos](https://github.com/jeremyavalos)
