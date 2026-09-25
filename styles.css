@@ -2272,3 +2272,15 @@ footer p {
   .project-track { scroll-behavior: auto; }
   .project-track .project-visual img { transition: none; }
 }
+
+/* Code-native architecture previews for the research and execution projects. */
+.system-visual { text-decoration: none; padding: clamp(1rem, 3vw, 2rem); }
+.system-visual::after { display: none; }
+.system-diagram { width: 100%; display: grid; gap: 1.4rem; }
+.system-kicker, .system-caption { color: var(--gold-soft); font-size: .6rem; letter-spacing: .12em; line-height: 1.6; }
+.system-diagram strong { color: var(--text); font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.04em; }
+.system-flow { display: flex; align-items: stretch; gap: .45rem; }
+.system-flow span { flex: 1; min-width: 0; padding: .85rem .4rem; border: 1px solid var(--line-strong); border-top: 2px solid var(--gold); border-radius: 6px; background: rgba(211, 167, 90, .06); color: var(--gold-soft); text-align: center; font-size: .6rem; line-height: 1.6; }
+.system-caption { color: var(--muted); font-size: .55rem; }
+.tokentrader-visual { background: radial-gradient(ellipse at 85% 10%, rgba(83, 163, 147, .2), transparent 70%), var(--panel); }
+.tokentrader-visual .system-flow span { border-top-color: #79bfae; }
