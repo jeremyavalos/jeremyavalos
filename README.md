@@ -54,21 +54,24 @@ I combine software development, business administration, customer service, hardw
 
 Local quantitative trading system for prediction markets, combining real-time market data, probability models, liquidity and net-edge checks, controlled execution and continuous strategy evaluation.
 
-**Stack:** TypeScript, Node.js, Polymarket, Binance market data, Ollama / Qwen  
+**Stack:** TypeScript, Node.js, Polymarket, Binance market data, Ollama / Qwen
+
 **Explore:** [Architecture and case study](https://jeremyavalos.xyz/#trading-bot)
 
 ### BinanceBot
 
 Independent Binance Spot trading engine with multi-timeframe technical signals, capital and exchange-rule checks, adaptive exits and execution health controls. Local AI adds context, while separate signal, trade and AI journals preserve decision history. Supports PAPER, TESTNET and LIVE modes.
 
-**Stack:** TypeScript, Node.js, Binance Spot API, Ollama  
+**Stack:** TypeScript, Node.js, Binance Spot API, Ollama
+
 **Explore:** [Architecture and case study](https://jeremyavalos.xyz/#binancebot)
 
 ### TokenTrader
 
 On-chain token research pipeline that discovers PancakeSwap V2/V3 pools on BNB Smart Chain, checks liquidity and contract risks, scores candidates and tracks later price and liquidity outcomes. The current build observes and analyzes; it does not execute trades.
 
-**Stack:** Python, Web3.py, asyncio, SQLite, DexScreener, Honeypot, GoPlus  
+**Stack:** Python, Web3.py, asyncio, SQLite, DexScreener, Honeypot, GoPlus
+
 **Explore:** [Architecture and case study](https://jeremyavalos.xyz/#tokentrader)
 
 ### Metanoia
@@ -81,14 +84,16 @@ Social reintegration platform focused on legal guidance, employment resources an
 
 Luxury yacht reservation platform connecting a mobile-first customer experience with a reservation backend.
 
-**Focus:** Yacht catalog, booking flow, reservation requests and responsive design.  
+**Focus:** Yacht catalog, booking flow, reservation requests and responsive design.
+
 **Stack:** React Native, Node.js, PostgreSQL, Railway
 
 ### Covenant
 
 Habit-building and personal discipline mobile application focused on consistency, accountability and long-term personal growth.
 
-**Role:** Founder, Product Designer and Developer  
+**Role:** Founder, Product Designer and Developer
+
 **Stack:** React Native, Expo, TypeScript, RevenueCat, Firebase
 
 ### VisorApp
