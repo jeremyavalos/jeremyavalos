@@ -83,128 +83,6 @@
         </div>
       </section>
 
-      <section id="challenge" class="challenge">
-        <div class="section-header reveal">
-          <p class="eyebrow mono">03 / CHALLENGE</p>
-          <h2>Challenge me to Chess. Best of 3.</h2>
-        </div>
-
-        <div class="challenge-grid">
-          <div class="challenge-panel reveal">
-            <p class="mono">CHALLENGE / 03</p>
-            <h3>Beat me in a best-of-3 and win a free one-page website.</h3>
-            <p class="muted">This is a developer experiment — lightweight, minimal and polished. No accounts required. Create a challenge and I'll respond.</p>
-
-            <div class="challenge-actions">
-              <button id="start-challenge" class="btn">Start Challenge</button>
-              <button id="view-rules" class="btn">Rules</button>
-              <button id="view-leaderboard" class="btn">Leaderboard</button>
-            </div>
-
-            <form id="challenge-form" class="challenge-form" aria-hidden="true">
-              <label class="mono">Gamertag
-                <input id="gamertag" name="gamertag" type="text" placeholder="Your handle" />
-              </label>
-
-              <label class="mono">Email <span style="font-size:0.9rem;color:var(--muted);font-weight:400;">(Optional)</span>
-                <input id="email" name="email" type="email" placeholder="you@example.com" />
-                <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">Optional — get notified when Jeremy responds.</div>
-              </label>
-
-              <div class="mono">Game<br /><strong>Chess</strong></div>
-
-              <label class="mono">Match format
-                <select id="format-select" name="format">
-                  <option value="bo3">Best of 3</option>
-                </select>
-              </label>
-
-              <div class="form-actions">
-                <button type="button" id="create-challenge" class="btn primary">Create Challenge</button>
-                <button type="button" id="cancel-challenge" class="btn">Cancel</button>
-              </div>
-            </form>
-          </div>
-
-          <aside class="challenge-side reveal">
-            <div class="status-panel" id="challenge-activity">
-              <div class="status-heading">
-                <span class="mono">CHALLENGE ACTIVITY</span>
-                <span class="stats-mode mono" id="stats-mode">COMMUNITY PREVIEW</span>
-              </div>
-              <div class="status-row"><span class="mono">COMMUNITY GAMES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="games-completed">—</strong></div>
-              <div class="status-row"><span class="mono">WINS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="wins">—</strong></div>
-              <div class="status-row"><span class="mono">LOSSES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="losses">—</strong></div>
-              <div class="status-row"><span class="mono">DRAWS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="draws">—</strong></div>
-              <p class="stats-note mono" id="stats-note">*Preview / launch display. Live statistics replace these automatically as real activity grows.</p>
-            </div>
-
-            <div class="board-preview">
-              <p class="mono">Chess / Live</p>
-              <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
-                <defs>
-                  <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
-                    <rect width="15" height="15" fill="var(--panel)"></rect>
-                    <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
-                  </pattern>
-                </defs>
-                <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
-              </svg>
-            </div>
-          </aside>
-        </div>
-      </section>
-
-      <section id="capabilities" class="capabilities">
-        <div class="section-header reveal">
-          <p class="eyebrow mono">02 / CAPABILITIES</p>
-          <h2>Products. Systems. Product-minded execution.</h2>
-        </div>
-
-        <div class="capability-grid">
-          <article class="capability-card reveal">
-            <span class="module-tag mono">CAPABILITY / 01</span>
-            <h3>BUILD</h3>
-            <ul>
-              <li>Mobile Apps</li>
-              <li>Websites</li>
-              <li>SaaS Platforms</li>
-            </ul>
-          </article>
-
-          <article class="capability-card reveal" style="--delay: 50ms">
-            <span class="module-tag mono">CAPABILITY / 02</span>
-            <h3>ENGINEERING</h3>
-            <ul>
-              <li>Frontend</li>
-              <li>Backend</li>
-              <li>APIs</li>
-              <li>Databases</li>
-            </ul>
-          </article>
-
-          <article class="capability-card reveal" style="--delay: 100ms">
-            <span class="module-tag mono">CAPABILITY / 03</span>
-            <h3>PRODUCT</h3>
-            <ul>
-              <li>UI/UX</li>
-              <li>Product Design</li>
-              <li>Business Analysis</li>
-            </ul>
-          </article>
-
-          <article class="capability-card reveal" style="--delay: 150ms">
-            <span class="module-tag mono">CAPABILITY / 04</span>
-            <h3>TECHNOLOGY</h3>
-            <ul>
-              <li>Technical Consulting</li>
-              <li>Hardware</li>
-              <li>Digital Solutions</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
       <section id="work" class="work">
         <div class="section-header reveal">
           <p class="eyebrow mono">01 / WORK</p>
@@ -454,6 +332,128 @@
           </div>
         </details>
 
+      </section>
+
+      <section id="capabilities" class="capabilities">
+        <div class="section-header reveal">
+          <p class="eyebrow mono">02 / CAPABILITIES</p>
+          <h2>Products. Systems. Product-minded execution.</h2>
+        </div>
+
+        <div class="capability-grid">
+          <article class="capability-card reveal">
+            <span class="module-tag mono">CAPABILITY / 01</span>
+            <h3>BUILD</h3>
+            <ul>
+              <li>Mobile Apps</li>
+              <li>Websites</li>
+              <li>SaaS Platforms</li>
+            </ul>
+          </article>
+
+          <article class="capability-card reveal" style="--delay: 50ms">
+            <span class="module-tag mono">CAPABILITY / 02</span>
+            <h3>ENGINEERING</h3>
+            <ul>
+              <li>Frontend</li>
+              <li>Backend</li>
+              <li>APIs</li>
+              <li>Databases</li>
+            </ul>
+          </article>
+
+          <article class="capability-card reveal" style="--delay: 100ms">
+            <span class="module-tag mono">CAPABILITY / 03</span>
+            <h3>PRODUCT</h3>
+            <ul>
+              <li>UI/UX</li>
+              <li>Product Design</li>
+              <li>Business Analysis</li>
+            </ul>
+          </article>
+
+          <article class="capability-card reveal" style="--delay: 150ms">
+            <span class="module-tag mono">CAPABILITY / 04</span>
+            <h3>TECHNOLOGY</h3>
+            <ul>
+              <li>Technical Consulting</li>
+              <li>Hardware</li>
+              <li>Digital Solutions</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="challenge" class="challenge">
+        <div class="section-header reveal">
+          <p class="eyebrow mono">03 / CHALLENGE</p>
+          <h2>Challenge me to Chess. Best of 3.</h2>
+        </div>
+
+        <div class="challenge-grid">
+          <div class="challenge-panel reveal">
+            <p class="mono">CHALLENGE / 03</p>
+            <h3>Beat me in a best-of-3 and win a free one-page website.</h3>
+            <p class="muted">This is a developer experiment — lightweight, minimal and polished. No accounts required. Create a challenge and I'll respond.</p>
+
+            <div class="challenge-actions">
+              <button id="start-challenge" class="btn">Start Challenge</button>
+              <button id="view-rules" class="btn">Rules</button>
+              <button id="view-leaderboard" class="btn">Leaderboard</button>
+            </div>
+
+            <form id="challenge-form" class="challenge-form" aria-hidden="true">
+              <label class="mono">Gamertag
+                <input id="gamertag" name="gamertag" type="text" placeholder="Your handle" />
+              </label>
+
+              <label class="mono">Email <span style="font-size:0.9rem;color:var(--muted);font-weight:400;">(Optional)</span>
+                <input id="email" name="email" type="email" placeholder="you@example.com" />
+                <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">Optional — get notified when Jeremy responds.</div>
+              </label>
+
+              <div class="mono">Game<br /><strong>Chess</strong></div>
+
+              <label class="mono">Match format
+                <select id="format-select" name="format">
+                  <option value="bo3">Best of 3</option>
+                </select>
+              </label>
+
+              <div class="form-actions">
+                <button type="button" id="create-challenge" class="btn primary">Create Challenge</button>
+                <button type="button" id="cancel-challenge" class="btn">Cancel</button>
+              </div>
+            </form>
+          </div>
+
+          <aside class="challenge-side reveal">
+            <div class="status-panel" id="challenge-activity">
+              <div class="status-heading">
+                <span class="mono">CHALLENGE ACTIVITY</span>
+                <span class="stats-mode mono" id="stats-mode">COMMUNITY PREVIEW</span>
+              </div>
+              <div class="status-row"><span class="mono">COMMUNITY GAMES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="games-completed">—</strong></div>
+              <div class="status-row"><span class="mono">WINS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="wins">—</strong></div>
+              <div class="status-row"><span class="mono">LOSSES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="losses">—</strong></div>
+              <div class="status-row"><span class="mono">DRAWS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="draws">—</strong></div>
+              <p class="stats-note mono" id="stats-note">*Preview / launch display. Live statistics replace these automatically as real activity grows.</p>
+            </div>
+
+            <div class="board-preview">
+              <p class="mono">Chess / Live</p>
+              <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
+                <defs>
+                  <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
+                    <rect width="15" height="15" fill="var(--panel)"></rect>
+                    <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
+                  </pattern>
+                </defs>
+                <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
+              </svg>
+            </div>
+          </aside>
+        </div>
       </section>
 
       <section id="about" class="about">
