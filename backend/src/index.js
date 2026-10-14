@@ -1,4 +1,10 @@
 require('dotenv').config();
+if (process.env.NODE_ENV === 'production') {
+  for (const [name, developmentValue] of [['SESSION_SECRET', 'dev_session_secret'], ['PLAYER_TOKEN_SECRET', 'dev_secret']]) {
+    const value = process.env[name]?.trim();
+    if (!value || value === developmentValue) console.warn(`WARNING: ${name} is missing or uses its development value in production. Configure a strong secret.`);
+  }
+}
 const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
