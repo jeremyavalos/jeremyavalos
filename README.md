@@ -153,8 +153,8 @@ Technology services website developed for a client.
 
 ## Privacy
 
-This site collects minimal technical information to operate and protect the service. We store analytics and technical data including page path, referrer, browser/device category, a random first-party browser identifier, and the visitor IP address. The random identifier contains no personal information and is not derived from device or network characteristics. IP addresses are collected for security, abuse prevention, and operational diagnostics and are only visible in the private admin analytics dashboard accessible to the site administrator.
+This site collects technical information including page path, referrer, browser/device category, a random first-party browser identifier, a device fingerprint, and the visitor IP address. The random identifier is not derived from device or network characteristics. The fingerprint hashes User-Agent, language, screen dimensions and color depth, pixel ratio, timezone, and CPU core count to associate potentially related browser IDs. Fingerprints can change and can collide across devices; they are not proof of identity. The private admin dashboard provides access to analytics. Returning visitors can also see their current connection details in the site's returning-visitor prompt.
 
-We retain analytics data for a limited period (90 days) after which it is removed. We do not sell or share IP addresses or analytics data publicly. Public APIs and pages do not expose visitor IP addresses.
+Analytics events, including fingerprints, are retained for 90 days. We do not sell analytics data or publish visitor lists. Geolocation requests send IP addresses to IPinfo; voluntary leads and challenge records have separate storage.
 
 If you have privacy questions, contact the site administrator at the email address listed above.

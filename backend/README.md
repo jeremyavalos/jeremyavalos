@@ -62,5 +62,7 @@ Deployment on Railway
 4. Start the app — Railway runs `npm start`, which applies pending idempotent migrations before starting the server.
 
 Notes
+- Device fingerprints use a synchronous 32-bit hash of browser characteristics. They are optional, may collide or change, and never merge Visitor IDs automatically. `GET /api/admin/fingerprint/:fp` requires an admin session and paginates events with `page` and `page_size`.
+- Run `npm test` for regression checks. Integration tests require a disposable migrated PostgreSQL instance via `TEST_DATABASE_URL`; run `npm run test:integration`.
 - Tokens are returned to the client once on challenge creation. The server stores only a hashed token.
 - The frontend must include the Railway API base URL (see `script.js` placeholder `API_BASE` / `window.API_BASE`).

@@ -42,6 +42,11 @@ function normalizeAnalyticsPath(value) {
   return typeof value === 'string' ? value.split('?')[0].trim() || '/' : '/';
 }
 
+function parseFingerprint(value) {
+  if (value == null || value === '') return null;
+  return typeof value === 'string' && /^[0-9a-f]{8}$/i.test(value) ? value.toLowerCase() : false;
+}
+
 app.use((req, res, next) => {
   if (process.env.DEBUG_IP === '1') {
     console.log('DEBUG_IP', {
@@ -590,6 +595,8 @@ app.get('/api/leaderboard', async (req, res) => {
 app.post('/api/analytics/track', async (req, res) => {
   try {
     const { path, referrer } = req.body || {};
+    const fingerprint = parseFingerprint(req.body?.fingerprint);
+    if (fingerprint === false) return res.status(400).json({ error: 'invalid fingerprint' });
     const visitorId = parseVisitorId(req.body?.visitor_id);
     if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
     const tracking = parseTracking(req);
@@ -634,8 +641,8 @@ app.post('/api/analytics/track', async (req, res) => {
       }
     }
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id, created_at',
-      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version, fingerprint) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id, created_at',
+      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version, fingerprint]
     );
     if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
     res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) });
@@ -731,7 +738,7 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
       FROM analytics_events WHERE visitor_id = $1`, [visitorId]);
-    const q = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name,
+    const q = await db.query(`SELECT fingerprint, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name,
       user_agent, device_category, browser_family, device_name, device_type, operating_system,
       operating_system_version, browser, browser_version, ip, country, region, city, timezone, asn_org, created_at
       FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
@@ -763,6 +770,30 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
     res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device:latest ? { device_name:latest.device_name, device_type:latest.device_type, operating_system:latest.operating_system, operating_system_version:latest.operating_system_version, browser:latest.browser, browser_version:latest.browser_version, ip:latest.ip, country:latest.country, region:latest.region, city:latest.city, asn_org:latest.asn_org } : null, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name')||mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser')||mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, challenge_visits:sectionCounts.get('CHALLENGE')||0, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, challenge_activity:challengeStats, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
   } catch (e) {
     console.error('admin visitor detail error', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+app.get('/api/admin/fingerprint/:fp', async (req, res) => {
+  try {
+    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
+    const fingerprint = parseFingerprint(req.params.fp);
+    if (!fingerprint) return res.status(400).json({ error: 'invalid fingerprint' });
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+    const count = await db.query('SELECT COUNT(*) FROM analytics_events WHERE fingerprint = $1', [fingerprint]);
+    const total = Number(count.rows[0].count);
+    const visitors = await db.query(`SELECT visitor_id, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+      FROM analytics_events WHERE fingerprint = $1 AND visitor_id IS NOT NULL
+      GROUP BY visitor_id ORDER BY last_seen DESC`, [fingerprint]);
+    const events = await db.query(`SELECT id, visitor_id, fingerprint, ip, path, event_type, section_name, created_at,
+      device_name, device_type, operating_system, browser
+      FROM analytics_events WHERE fingerprint = $1 ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`,
+    [fingerprint, pageSize, (page - 1) * pageSize]);
+    res.json({ fingerprint, visitors: visitors.rows.map(visitor => ({ ...visitor, visits: Number(visitor.visits) })), events: events.rows,
+      pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
+  } catch (error) {
+    console.error('admin fingerprint error', error);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -1180,3 +1211,4 @@ if (require.main === module) {
 module.exports = app;
 module.exports.getClientIp = getClientIp;
 module.exports.normalizeAnalyticsPath = normalizeAnalyticsPath;
+module.exports.parseFingerprint = parseFingerprint;
