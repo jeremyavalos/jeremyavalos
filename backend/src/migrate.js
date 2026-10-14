@@ -25,6 +25,11 @@ async function run() {
       files.splice(initIndex, 1);
       files.unshift('init.sql');
     }
+    const analyticsIndex = files.indexOf('20260820_create_analytics.sql');
+    if (analyticsIndex > -1) {
+      files.splice(analyticsIndex, 1);
+      files.unshift('20260820_create_analytics.sql');
+    }
 
     const appliedRes = await client.query('SELECT filename FROM migrations_applied');
     const applied = new Set(appliedRes.rows.map(r => r.filename));

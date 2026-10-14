@@ -28,7 +28,7 @@ cd backend
 npm install
 ```
 
-2. Run migrations (requires `psql` and `DATABASE_URL` set):
+2. Run all pending migrations (requires `DATABASE_URL` set). The analytics table is created before `init.sql` creates its indexes; remaining migrations run in filename order:
 
 ```bash
 npm run migrate
