@@ -9,6 +9,8 @@ Main features
 - Minimal admin endpoint protected by `ADMIN_SECRET`
 
 Environment variables
+- `DEBUG_IP=1` - log proxy headers, socket IP, Express IP and selected client IP on every request. Disable after diagnosis.
+- Client IP selection trusts `CF-Connecting-IP`, then `X-Real-IP`, then the leftmost `X-Forwarded-For`, then the socket. The ingress proxy must sanitize these headers; the helper does not authenticate their sender.
 - `DATABASE_URL` - PostgreSQL connection string (Railway provides this)
 - `PORT` - (optional) server port (default 4000)
 - `CORS_ORIGIN` - allowed origin for frontend (e.g. https://jeremyavalos.vercel.app)

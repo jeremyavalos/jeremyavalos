@@ -9,6 +9,7 @@ const PgSession = require('connect-pg-simple')(session);
 const csurf = require('csurf');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { isIP } = require('net');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
@@ -20,8 +21,30 @@ const { parseUserAgent } = require('./userAgent');
 const geolocation = createGeolocationService({ db, token: process.env.IPINFO_TOKEN });
 
 const app = express();
-// Trust the first proxy (Railway) so req.ip and related helpers reflect the client IP
+// Railway is one hop; review this if Cloudflare or another proxy is added. getClientIp prioritizes cf-connecting-ip.
 app.set('trust proxy', 1);
+function getClientIp(req) {
+  const headers = req.headers || {};
+  const value = headers['cf-connecting-ip'] ?? headers['x-real-ip'] ?? headers['x-forwarded-for'] ?? req.socket?.remoteAddress;
+  const first = Array.isArray(value) ? value[0] : value;
+  if (typeof first !== 'string') return null;
+  const ip = first.split(',')[0].trim().replace(/^::ffff:/i, '').trim();
+  return isIP(ip) ? ip : null;
+}
+
+app.use((req, res, next) => {
+  if (process.env.DEBUG_IP === '1') {
+    console.log('DEBUG_IP', {
+      'x-forwarded-for': req.headers['x-forwarded-for'] || null,
+      'socket.remoteAddress': req.socket?.remoteAddress || null,
+      'req.ip': req.ip,
+      'cf-connecting-ip': req.headers['cf-connecting-ip'] || null,
+      'x-real-ip': req.headers['x-real-ip'] || null,
+      clientIp: getClientIp(req)
+    });
+  }
+  next();
+});
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -255,7 +278,7 @@ app.post('/api/challenges', async (req, res) => {
 
     const token = generateToken();
     const tokenHash = hashToken(token);
-    const createdIp = req.ip || null;
+    const createdIp = getClientIp(req);
 
     // create challenge row
     // transactional creation: challenge + first game (if chess)
@@ -565,10 +588,7 @@ app.post('/api/analytics/track', async (req, res) => {
     if (!PUBLIC_EVENT_TYPES.has(eventType)) return res.status(400).json({ error: 'invalid event type' });
     const sectionName = req.body?.section_name == null ? null : String(req.body.section_name).toUpperCase();
     if ((eventType === 'section_view' && !SECTION_NAMES.has(sectionName)) || (eventType !== 'section_view' && sectionName)) return res.status(400).json({ error: 'invalid section' });
-    // Determine client IP using Express's req.ip with trust proxy set. This
-    // respects trusted proxies (Railway). Do NOT trust raw X-Forwarded-For
-    // headers from clients.
-    const ip = req.ip || null;
+    const ip = getClientIp(req);
     const rawUserAgent = req.get('User-Agent') || null;
     const ua = parseUserAgent(rawUserAgent);
     let returningVisitor = false;
@@ -1148,3 +1168,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+module.exports.getClientIp = getClientIp;
