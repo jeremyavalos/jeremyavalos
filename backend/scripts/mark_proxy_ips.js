@@ -1,8 +1,11 @@
 'use strict';
 
-const PROXY_RANGES = ['152.233.0.0/16', '84.17.0.0/16', '169.150.0.0/16'];
+const PROXY_RANGES = ['152.233.0.0/16', '84.17.0.0/16', '169.150.0.0/16', '89.222.0.0/16', '79.127.0.0/16', '104.28.0.0/16'];
 
 async function markProxyIps(db, { dryRun = false } = {}) {
+  const ranges = process.env.PROXY_LEGACY_CIDRS === undefined
+    ? PROXY_RANGES
+    : [...new Set(process.env.PROXY_LEGACY_CIDRS.split(',').map(range => range.trim()).filter(Boolean))];
   const candidates = `SELECT ae.id, ranges.network
     FROM analytics_events ae
     JOIN unnest($1::cidr[]) AS ranges(network) ON ae.ip <<= ranges.network
@@ -16,7 +19,7 @@ async function markProxyIps(db, { dryRun = false } = {}) {
     SELECT ranges.network::text AS range, COUNT(changes.id)::integer AS count
     FROM unnest($1::cidr[]) AS ranges(network)
     LEFT JOIN changes ON changes.network = ranges.network
-    GROUP BY ranges.network ORDER BY ranges.network`, [PROXY_RANGES]);
+    GROUP BY ranges.network ORDER BY ranges.network`, [ranges]);
   return { dry_run: dryRun, total: result.rows.reduce((total, row) => total + Number(row.count), 0), ranges: result.rows };
 }
 
