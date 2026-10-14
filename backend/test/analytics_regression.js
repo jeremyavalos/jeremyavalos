@@ -76,3 +76,13 @@ assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'dev_se
 assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'a-production-secret', PLAYER_TOKEN_SECRET: 'another-production-secret' }).length, 0);
 assert.strictEqual(warningsFor({ NODE_ENV: 'test' }).length, 0);
 console.log('Production secret warning checks passed');
+
+const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
+const configuration = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(script => script.includes('window.API_BASE'));
+for (const apiBase of ['https://api.example.test', 'https://api.example.test/']) {
+  const link = {};
+  const code = configuration.replace("'https://jeremyavalos-production.up.railway.app'", JSON.stringify(apiBase));
+  vm.runInNewContext(code, { window: {}, document: { getElementById: id => { assert.strictEqual(id, 'admin-console-link'); return link; } } });
+  assert.strictEqual(link.href, 'https://api.example.test/admin');
+}
+console.log('Admin link API_BASE regression checks passed');

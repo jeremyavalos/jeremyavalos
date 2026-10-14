@@ -559,12 +559,13 @@
     <footer>
       <p>© <span id="year"></span> Jeremy Avalos.</p>
       <div style="text-align:center;margin-top:6px;font-size:0.85rem;">
-        <a href="/admin" aria-label="admin console" style="color:transparent;background:transparent;border:0;outline:none;display:inline-block;width:18px;height:18px;line-height:18px;vertical-align:middle;text-decoration:none;opacity:0.65">🔒</a>
+        <a id="admin-console-link" href="#" aria-label="admin console" style="color:transparent;background:transparent;border:0;outline:none;display:inline-block;width:18px;height:18px;line-height:18px;vertical-align:middle;text-decoration:none;opacity:0.65">🔒</a>
       </div>
     </footer>
 
     <script>
       window.API_BASE = 'https://jeremyavalos-production.up.railway.app';
+      document.getElementById('admin-console-link').href = `${window.API_BASE.replace(/\/$/, '')}/admin`;
     </script>
 
     <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
