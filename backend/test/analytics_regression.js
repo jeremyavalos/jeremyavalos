@@ -2,7 +2,7 @@
 
 process.env.NODE_ENV = 'test';
 const assert = require('assert');
-const { getClientIp } = require('../src/index');
+const { getClientIp, normalizeAnalyticsPath } = require('../src/index');
 
 const request = headers => ({ headers, socket: { remoteAddress: '::ffff:192.0.2.9' } });
 assert.strictEqual(getClientIp(request({})), '192.0.2.9');
@@ -14,3 +14,9 @@ for (const value of ['', ' ', 'invalid', '999.1.1.1', '198.51.100.1:443']) {
 }
 assert.strictEqual(getClientIp({}), null);
 console.log('Analytics IP regression checks passed');
+
+assert.strictEqual(normalizeAnalyticsPath('/?token=secret&utm_source=test'), '/');
+assert.strictEqual(normalizeAnalyticsPath('/portfolio?token=secret#contact'), '/portfolio');
+assert.strictEqual(normalizeAnalyticsPath('/#contact'), '/#contact');
+for (const value of ['', null, undefined, {}, 42]) assert.strictEqual(normalizeAnalyticsPath(value), '/');
+console.log('Analytics path regression checks passed');

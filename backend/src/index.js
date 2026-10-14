@@ -32,6 +32,10 @@ function getClientIp(req) {
   return isIP(ip) ? ip : null;
 }
 
+function normalizeAnalyticsPath(value) {
+  return typeof value === 'string' ? value.split('?')[0].trim() || '/' : '/';
+}
+
 app.use((req, res, next) => {
   if (process.env.DEBUG_IP === '1') {
     console.log('DEBUG_IP', {
@@ -296,7 +300,7 @@ app.post('/api/challenges', async (req, res) => {
         await client.query(`UPDATE challenges SET current_game_id = $1 WHERE id = $2`, [gameRow.id, challenge.id]);
       }
       if (visitorId) await client.query(`INSERT INTO analytics_events (path, visitor_id, ip, event_type, section_name)
-        VALUES ($1,$2,$3,'challenge_created','CHALLENGE')`, [`/?challenge=${challenge.id}`, visitorId, createdIp]);
+        VALUES ($1,$2,$3,'challenge_created','CHALLENGE')`, ['/', visitorId, createdIp]);
       return { challenge: challenge, game: gameRow };
     });
 
@@ -625,7 +629,7 @@ app.post('/api/analytics/track', async (req, res) => {
     }
     const inserted = await db.query(
       'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id, created_at',
-      [path || req.path, referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
+      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version]
     );
     if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
     res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) });
@@ -1169,3 +1173,4 @@ if (require.main === module) {
 
 module.exports = app;
 module.exports.getClientIp = getClientIp;
+module.exports.normalizeAnalyticsPath = normalizeAnalyticsPath;

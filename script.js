@@ -1041,7 +1041,7 @@ try {
       const tracking = {};
       ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
       const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, ...payload }) });
-      sendEvent({ event_type:'page_view', path:location.pathname+location.search, ...tracking })
+      sendEvent({ event_type:'page_view', path:location.pathname, ...tracking })
         .then(response => response.ok ? response.json() : null)
         .then(result => { if (result?.returning_visitor) window.dispatchEvent(new CustomEvent('returning-visitor-eligible', { detail: { visitor_id, context:result.returning_context } })); })
         .catch(()=>{});
@@ -1091,7 +1091,7 @@ try {
 
   function trackPopup(eventType) {
     const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
-    return fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ visitor_id:eligibleVisitorId, event_type:eventType, path:location.pathname+location.search }) }).catch(()=>{});
+    return fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ visitor_id:eligibleVisitorId, event_type:eventType, path:location.pathname }) }).catch(()=>{});
   }
 
   function onCooldown() {
