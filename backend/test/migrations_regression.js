@@ -26,7 +26,7 @@ const path = require('path');
     assert.strictEqual(Number(applied.rows[0].count), files.length);
     const indexes = await pool.query("SELECT indexname FROM pg_indexes WHERE tablename = 'analytics_events'");
     assert(indexes.rows.some(row => row.indexname === 'analytics_events_visitor_created_idx'));
-    await pool.query('SELECT ip, visitor_id, event_type, device_name FROM analytics_events LIMIT 0');
+    await pool.query('SELECT ip, ip_source, visitor_id, event_type, device_name FROM analytics_events LIMIT 0');
     console.log('Empty database migrations and repeat-run regression checks passed');
   } finally {
     if (pool) await pool.end();

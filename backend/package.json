@@ -4,8 +4,8 @@
   "description": "Backend for Challenge Me — Chess matches API",
   "main": "src/index.js",
   "scripts": {
-    "test": "npm run test:admin && node test/analytics_regression.js && node ../test/regression_login.js",
-    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && npm run test:flow",
+    "test": "npm run test:admin && node test/analytics_regression.js && node test/client_ip_regression.js && node ../test/regression_login.js",
+    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && node test/proxy_marking_integration.js && npm run test:flow",
     "start": "node src/migrate.js && node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "node src/migrate.js",

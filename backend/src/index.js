@@ -15,7 +15,7 @@ const PgSession = require('connect-pg-simple')(session);
 const csurf = require('csurf');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { isIP } = require('net');
+const { isIP, BlockList } = require('net');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { Chess } = require('chess.js');
@@ -29,13 +29,62 @@ const geolocation = createGeolocationService({ db, token: process.env.IPINFO_TOK
 const app = express();
 // Railway is one hop; review this if Cloudflare or another proxy is added. getClientIp prioritizes cf-connecting-ip.
 app.set('trust proxy', 1);
-function getClientIp(req) {
+let proxyConfiguration;
+let trustedProxyNetworks;
+
+function getTrustedProxyNetworks() {
+  const configuration = process.env.TRUSTED_PROXY_CIDRS;
+  if (configuration === undefined) return null;
+  if (configuration === proxyConfiguration) return trustedProxyNetworks;
+  proxyConfiguration = configuration;
+  const networks = new BlockList();
+  try {
+    for (const entry of configuration.split(',')) {
+      const parts = entry.trim().split('/');
+      const version = isIP(parts[0]);
+      const prefix = Number(parts[1]);
+      if (parts.length !== 2 || !version || !/^\d+$/.test(parts[1]) || prefix > (version === 4 ? 32 : 128)) {
+        throw new Error('Expected comma-separated IPv4/IPv6 CIDRs');
+      }
+      networks.addSubnet(parts[0], prefix, version === 4 ? 'ipv4' : 'ipv6');
+    }
+    trustedProxyNetworks = networks;
+  } catch (error) {
+    console.warn('WARNING: invalid TRUSTED_PROXY_CIDRS; forwarding headers will be ignored.', error.message);
+    trustedProxyNetworks = new BlockList();
+  }
+  return trustedProxyNetworks;
+}
+
+function ipCandidates(value) {
+  return (Array.isArray(value) ? value : [value]).flatMap(item => typeof item === 'string' ? item.split(',') : [])
+    .map(item => item.trim().replace(/^::ffff:/i, '').trim()).filter(ip => isIP(ip));
+}
+
+// Order: valid CF-Connecting-IP, XFF, X-Real-IP, socket. Configured CIDRs gate all
+// headers on the socket peer and traverse XFF right-to-left to the first untrusted
+// hop; left-to-right selection permits spoofed prefixes. Without CIDRs, XFF uses
+// the first valid value for compatibility and is spoofable. Trusted ingress must
+// overwrite CF-Connecting-IP/X-Real-IP and sanitize XFF; CIDRs alone cannot verify CF.
+function getClientIpDetails(req) {
   const headers = req.headers || {};
-  const value = headers['cf-connecting-ip'] ?? headers['x-real-ip'] ?? headers['x-forwarded-for'] ?? req.socket?.remoteAddress;
-  const first = Array.isArray(value) ? value[0] : value;
-  if (typeof first !== 'string') return null;
-  const ip = first.split(',')[0].trim().replace(/^::ffff:/i, '').trim();
-  return isIP(ip) ? ip : null;
+  const socketIp = ipCandidates(req.socket?.remoteAddress)[0] || req.socket?.remoteAddress || null;
+  const socketResult = { ip: socketIp, source: 'socket' };
+  const networks = getTrustedProxyNetworks();
+  const trusted = ip => Boolean(isIP(ip || '') && networks?.check(ip, isIP(ip) === 4 ? 'ipv4' : 'ipv6'));
+  if (networks && !trusted(socketIp)) return socketResult;
+  const cloudflareIp = ipCandidates(headers['cf-connecting-ip'])[0];
+  if (cloudflareIp) return { ip: cloudflareIp, source: 'cf-connecting-ip' };
+  const forwarded = ipCandidates(headers['x-forwarded-for']);
+  if (networks) forwarded.reverse();
+  const forwardedIp = forwarded.find(ip => !networks || !trusted(ip));
+  if (forwardedIp) return { ip: forwardedIp, source: 'x-forwarded-for' };
+  const realIp = ipCandidates(headers['x-real-ip'])[0];
+  return realIp ? { ip: realIp, source: 'x-real-ip' } : socketResult;
+}
+
+function getClientIp(req) {
+  return getClientIpDetails(req).ip;
 }
 
 function normalizeAnalyticsPath(value) {
@@ -55,7 +104,8 @@ app.use((req, res, next) => {
       'req.ip': req.ip,
       'cf-connecting-ip': req.headers['cf-connecting-ip'] || null,
       'x-real-ip': req.headers['x-real-ip'] || null,
-      clientIp: getClientIp(req)
+      clientIp: getClientIp(req),
+      ip_source: getClientIpDetails(req).source
     });
   }
   next();
@@ -293,7 +343,7 @@ app.post('/api/challenges', async (req, res) => {
 
     const token = generateToken();
     const tokenHash = hashToken(token);
-    const createdIp = getClientIp(req);
+    const { ip: createdIp, source: ipSource } = getClientIpDetails(req);
 
     // create challenge row
     // transactional creation: challenge + first game (if chess)
@@ -310,8 +360,8 @@ app.post('/api/challenges', async (req, res) => {
         gameRow = g.rows[0];
         await client.query(`UPDATE challenges SET current_game_id = $1 WHERE id = $2`, [gameRow.id, challenge.id]);
       }
-      if (visitorId) await client.query(`INSERT INTO analytics_events (path, visitor_id, ip, event_type, section_name)
-        VALUES ($1,$2,$3,'challenge_created','CHALLENGE')`, ['/', visitorId, createdIp]);
+      if (visitorId) await client.query(`INSERT INTO analytics_events (path, visitor_id, ip, event_type, section_name, ip_source)
+        VALUES ($1,$2,$3,'challenge_created','CHALLENGE',$4)`, ['/', visitorId, createdIp, ipSource]);
       return { challenge: challenge, game: gameRow };
     });
 
@@ -605,7 +655,7 @@ app.post('/api/analytics/track', async (req, res) => {
     if (!PUBLIC_EVENT_TYPES.has(eventType)) return res.status(400).json({ error: 'invalid event type' });
     const sectionName = req.body?.section_name == null ? null : String(req.body.section_name).toUpperCase();
     if ((eventType === 'section_view' && !SECTION_NAMES.has(sectionName)) || (eventType !== 'section_view' && sectionName)) return res.status(400).json({ error: 'invalid section' });
-    const ip = getClientIp(req);
+    const { ip, source: ipSource } = getClientIpDetails(req);
     const rawUserAgent = req.get('User-Agent') || null;
     const ua = parseUserAgent(rawUserAgent);
     let returningVisitor = false;
@@ -641,8 +691,8 @@ app.post('/api/analytics/track', async (req, res) => {
       }
     }
     const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version, fingerprint) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id, created_at',
-      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version, fingerprint]
+      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version, fingerprint, ip_source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id, created_at',
+      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version, fingerprint, ipSource]
     );
     if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
     res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) });
@@ -738,7 +788,7 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       (array_agg(device_category ORDER BY created_at DESC) FILTER (WHERE device_category IS NOT NULL))[1] AS device_category,
       (array_agg(user_agent ORDER BY created_at DESC) FILTER (WHERE user_agent IS NOT NULL))[1] AS user_agent
       FROM analytics_events WHERE visitor_id = $1`, [visitorId]);
-    const q = await db.query(`SELECT fingerprint, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name,
+    const q = await db.query(`SELECT fingerprint, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, ip_source,
       user_agent, device_category, browser_family, device_name, device_type, operating_system,
       operating_system_version, browser, browser_version, ip, country, region, city, timezone, asn_org, created_at
       FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
@@ -786,7 +836,7 @@ app.get('/api/admin/fingerprint/:fp', async (req, res) => {
     const visitors = await db.query(`SELECT visitor_id, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
       FROM analytics_events WHERE fingerprint = $1 AND visitor_id IS NOT NULL
       GROUP BY visitor_id ORDER BY last_seen DESC`, [fingerprint]);
-    const events = await db.query(`SELECT id, visitor_id, fingerprint, ip, path, event_type, section_name, created_at,
+    const events = await db.query(`SELECT id, visitor_id, fingerprint, ip, ip_source, path, event_type, section_name, created_at,
       device_name, device_type, operating_system, browser
       FROM analytics_events WHERE fingerprint = $1 ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`,
     [fingerprint, pageSize, (page - 1) * pageSize]);
@@ -813,6 +863,7 @@ app.get('/api/admin/ips', async (req, res) => {
       (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
       (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
       (array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL))[1] AS asn_org,
+      BOOL_AND(COALESCE(ae.ip_source = 'proxy_legacy', false)) AS proxy_legacy,
       COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
       FROM analytics_events ae WHERE ae.ip IS NOT NULL GROUP BY ae.ip
       ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
@@ -856,7 +907,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
     const events = await db.query(`SELECT ae.path, ae.referrer, ae.ref, ae.utm_source, ae.utm_medium, ae.utm_campaign, ae.utm_content, ae.utm_term,
       ae.user_agent, ae.device_category, ae.browser_family, ae.device_name, ae.device_type,
       ae.operating_system, ae.operating_system_version, ae.browser, ae.browser_version, ae.country, ae.region, ae.city,
-      ae.asn_org, ae.visitor_id, ae.created_at,
+      ae.asn_org, ae.visitor_id, ae.created_at, ae.ip_source,
       COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
         (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
       FROM analytics_events ae WHERE ae.ip = $1 ORDER BY ae.created_at DESC LIMIT $2 OFFSET $3`, [ip, pageSize, offset]);
@@ -1210,5 +1261,6 @@ if (require.main === module) {
 
 module.exports = app;
 module.exports.getClientIp = getClientIp;
+module.exports.getClientIpDetails = getClientIpDetails;
 module.exports.normalizeAnalyticsPath = normalizeAnalyticsPath;
 module.exports.parseFingerprint = parseFingerprint;

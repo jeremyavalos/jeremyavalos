@@ -10,7 +10,8 @@ Main features
 
 Environment variables
 - `DEBUG_IP=1` - log proxy headers, socket IP, Express IP and selected client IP on every request. Disable after diagnosis.
-- Client IP selection trusts `CF-Connecting-IP`, then `X-Real-IP`, then the leftmost `X-Forwarded-For`, then the socket. The ingress proxy must sanitize these headers; the helper does not authenticate their sender.
+- `TRUSTED_PROXY_CIDRS` - optional comma-separated trusted proxy networks, e.g. `100.64.0.0/10`. Supports IPv4 and IPv6. When configured, forwarding headers are ignored unless the socket peer is trusted; XFF is traversed right-to-left through trusted proxies to the first untrusted hop. This deliberately avoids left-to-right selection, which accepts a spoofed prefix. Empty or invalid configuration warns and trusts no proxies.
+- Client IP priority is valid `CF-Connecting-IP`, then XFF, then `X-Real-IP`, then the socket. Without `TRUSTED_PROXY_CIDRS`, the first valid XFF entry is selected for compatibility; this mode is spoofable. Trusted ingress must overwrite CF/real-IP headers and sanitize XFF. Trusting Railway's socket does not prove a CF header came from Cloudflare; only enable trust for controlled ingress and verify its header policy. `ip_source` records the selected input, not proof of identity.
 - `DATABASE_URL` - PostgreSQL connection string (Railway provides this)
 - `PORT` - (optional) server port (default 4000)
 - `CORS_ORIGIN` - allowed origin for frontend (e.g. https://jeremyavalos.vercel.app)
@@ -62,6 +63,7 @@ Deployment on Railway
 4. Start the app — Railway runs `npm start`, which applies pending idempotent migrations before starting the server.
 
 Notes
+- Historical proxy cleanup: run `npm run migrate`, then `node scripts/mark_proxy_ips.js --dry-run` to preview, and `node scripts/mark_proxy_ips.js` to apply. It marks only events with `ip_source IS NULL` in `152.233.0.0/16`, `84.17.0.0/16`, and `169.150.0.0/16` as `proxy_legacy`. Existing source attribution is preserved, and repeat runs do not change already marked rows. This labels suspected historical proxy traffic by range; it cannot recover the original visitor IP or distinguish VPN users within those ranges. The IP list shows `proxy` only when every event for that IP is marked; mixed or unclassified rows prevent the badge.
 - Device fingerprints use a synchronous 32-bit hash of browser characteristics. They are optional, may collide or change, and never merge Visitor IDs automatically. `GET /api/admin/fingerprint/:fp` requires an admin session and paginates events with `page` and `page_size`.
 - Run `npm test` for regression checks. Integration tests require a disposable migrated PostgreSQL instance via `TEST_DATABASE_URL`; run `npm run test:integration`.
 - Tokens are returned to the client once on challenge creation. The server stores only a hashed token.
