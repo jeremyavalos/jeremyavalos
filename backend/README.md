@@ -1,70 +1,72 @@
-# Challenge Me Backend
+# Portfolio Analytics Backend
 
-Node.js + Express backend for the "Challenge Me" chess matches.
+Node.js and Express backend for portfolio analytics, visitor and interaction reporting, and voluntary contact capture.
 
-Main features
-- REST API for creating challenges and playing chess moves
-- Server-authoritative chess validation using `chess.js`
-- PostgreSQL schema and migrations in `migrations/init.sql`
-- Minimal admin endpoint protected by `ADMIN_SECRET`
+## Features
 
-Environment variables
-- `DEBUG_IP=1` - log proxy headers, socket IP, Express IP and selected client IP on every request. Disable after diagnosis.
-- `TRUSTED_PROXY_CIDRS` - optional comma-separated trusted proxy networks, e.g. `100.64.0.0/10`. Supports IPv4 and IPv6. When configured, forwarding headers are ignored unless the socket peer is trusted; XFF is traversed right-to-left through trusted proxies to the first untrusted hop. This deliberately avoids left-to-right selection, which accepts a spoofed prefix. Empty or invalid configuration warns and trusts no proxies.
-- Client IP priority is valid `CF-Connecting-IP`, then XFF, then `X-Real-IP`, then the socket. Without `TRUSTED_PROXY_CIDRS`, the first valid XFF entry is selected for compatibility; this mode is spoofable. Trusted ingress must overwrite CF/real-IP headers and sanitize XFF. Trusting Railway's socket does not prove a CF header came from Cloudflare; only enable trust for controlled ingress and verify its header policy. `ip_source` records the selected input, not proof of identity.
-- `DATABASE_URL` - PostgreSQL connection string (Railway provides this)
-- `PORT` - (optional) server port (default 4000)
-- `CORS_ORIGIN` - allowed origin for frontend (e.g. https://jeremyavalos.vercel.app)
-- `ADMIN_SECRET` - secret for admin endpoints
-- `PLAYER_TOKEN_SECRET` - secret used to HMAC player tokens
-- `PUBLIC_URL` - optional public URL for match link generation (e.g. https://jeremyavalos.vercel.app)
-- `IPINFO_TOKEN` - IPinfo access token used only by the backend for approximate visitor geolocation
+- First-party visitor IDs, optional device fingerprints, page and section events.
+- IP history, IP-source attribution, approximate geolocation, device, operating-system, browser, and network-provider details.
+- Private admin dashboard protected by server-side sessions and CSRF validation.
+- Returning-visitor context and voluntary lead capture.
+- PostgreSQL migrations and integration tests.
 
-Installation
+Game routes and dashboard components are retired. Existing game schemas and historical records remain in the database; no destructive game-table migration is included.
 
-1. Install dependencies:
+## Environment
+
+- `DATABASE_URL` — PostgreSQL connection string.
+- `PORT` — optional server port (default `4000`).
+- `SESSION_SECRET` — strong secret used to sign administrator sessions.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` — admin credentials.
+- `CORS_ORIGIN` — allowed frontend origin.
+- `BACKEND_PUBLIC_URL` — optional public URL used by CORS.
+- `IPINFO_TOKEN` — optional IPinfo token for approximate, cached geolocation.
+- `TRUSTED_PROXY_CIDRS` — optional comma-separated trusted proxy networks. Forwarded headers are only trusted from configured proxy peers; XFF is traversed right-to-left to the first untrusted hop.
+- `DEBUG_IP=1` — temporarily log request IP selection details during diagnosis.
+
+The analytics API records the selected `ip_source`, which identifies the header or socket used, not a person's identity. IP-derived location is approximate.
+
+## Install and run
 
 ```bash
 cd backend
 npm install
-```
-
-2. Run all pending migrations (requires `DATABASE_URL` set). The analytics table is created before `init.sql` creates its indexes; remaining migrations run in filename order:
-
-```bash
 npm run migrate
-```
-
-Development
-
-Start server locally (ensure `DATABASE_URL` is set):
-
-```bash
 npm run dev
 ```
 
-Health
+`npm start` applies pending migrations before starting the server. Existing migration files, game tables, visitor IDs, and historical records are retained.
 
-GET /health
+## Endpoints
 
-API endpoints (summary)
-- POST /api/challenges — create a new challenge (returns match URL + token)
-- GET /api/challenges/:id — get challenge metadata
-- GET /api/challenges/:id/games/current — get current game for a challenge
-- POST /api/games/:id/moves — submit a move (server validates)
-- GET /api/leaderboard — public leaderboard by gamertag
-- GET /admin/challenges — admin list (requires `x-admin-secret` header)
+- `GET /health`
+- `POST /api/analytics/track`
+- `POST /api/leads`
+- `POST /admin/login`
+- `POST /admin/logout`
+- `GET /admin` — session-protected analytics dashboard.
+- `GET /api/admin/overview`
+- `GET /api/admin/visitors` and `/api/admin/visitors/:visitorId`
+- `GET /api/admin/fingerprint/:fp`
+- `GET /api/admin/ips` and `/api/admin/ips/:ip`
+- `GET /api/admin/tracking` and `/api/admin/tracking/:ref`
 
-Deployment on Railway
+Admin analytics endpoints and dashboard assets require an authenticated admin session.
 
-1. Create a new Project and add the PostgreSQL plugin.
-2. Add the repository or upload these files.
-3. Set the application environment variables in Railway, including `IPINFO_TOKEN` to enable cached approximate visitor geolocation.
-4. Start the app — Railway runs `npm start`, which applies pending idempotent migrations before starting the server.
+## Verification
 
-Notes
-- Historical proxy cleanup: run `npm run migrate`, then `node scripts/mark_proxy_ips.js --dry-run` to preview, and `node scripts/mark_proxy_ips.js` to apply. Only events with `ip_source IS NULL` and a non-null IP are eligible. An event matches if its IP is in a configured CIDR OR its `ip_geolocation_cache.asn_org` contains `datacamp` (case-insensitive, including expired cache entries). Default CIDRs: `152.233.0.0/16`, `84.17.0.0/16`, `169.150.0.0/16`, `89.222.0.0/16`, `79.127.0.0/16`, `104.28.0.0/16`, `212.102.0.0/16`, `95.173.0.0/16`. `PROXY_LEGACY_CIDRS` replaces only the CIDR list; an empty list leaves organization matching active. Whitespace and duplicate entries are removed; invalid CIDRs fail atomically. Events are marked `proxy_legacy` without changing existing source attribution. Each event is counted once; overlapping CIDRs are attributed to the most specific range, and organization-only matches are reported separately. Repeat runs do not change already marked rows. This is a historical classification heuristic, not recovery of original visitor IPs or proof that an address was a proxy rather than a VPN user. The IP list shows `proxy` only when every event for that IP is marked.
-- Device fingerprints use a synchronous 32-bit hash of browser characteristics. They are optional, may collide or change, and never merge Visitor IDs automatically. `GET /api/admin/fingerprint/:fp` requires an admin session and paginates events with `page` and `page_size`.
-- Run `npm test` for regression checks. Integration tests require a disposable migrated PostgreSQL instance via `TEST_DATABASE_URL`; run `npm run test:integration`.
-- Tokens are returned to the client once on challenge creation. The server stores only a hashed token.
-- The frontend must include the Railway API base URL (see `script.js` placeholder `API_BASE` / `window.API_BASE`).
+Run local regression checks with:
+
+```bash
+npm test
+```
+
+PostgreSQL integration tests require a disposable, migrated database configured through `TEST_DATABASE_URL`:
+
+```bash
+npm run test:integration
+```
+
+## Historical proxy classification
+
+`node scripts/mark_proxy_ips.js --dry-run` previews classification, and `node scripts/mark_proxy_ips.js` applies it to eligible legacy analytics events. It only marks events with a non-null IP and a null source; existing attribution is not overwritten. Classification is a heuristic, not recovery of original visitor IPs or proof that an address belongs to a VPN or proxy.

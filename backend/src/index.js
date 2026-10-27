@@ -1,6 +1,6 @@
 require('dotenv').config();
 if (process.env.NODE_ENV === 'production') {
-  for (const [name, developmentValue] of [['SESSION_SECRET', 'dev_session_secret'], ['PLAYER_TOKEN_SECRET', 'dev_secret']]) {
+  for (const [name, developmentValue] of [['SESSION_SECRET', 'dev_session_secret']]) {
     const value = process.env[name]?.trim();
     if (!value || value === developmentValue) console.warn(`WARNING: ${name} is missing or uses its development value in production. Configure a strong secret.`);
   }
@@ -14,13 +14,9 @@ const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
 const csurf = require('csurf');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 const { isIP, BlockList } = require('net');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const { Chess } = require('chess.js');
 const db = require('./db');
-const { getTurnState } = require('./turn');
 const { createGeolocationService, isPublicIp, normalizeIp } = require('./geolocation');
 const { parseUserAgent } = require('./userAgent');
 
@@ -185,8 +181,6 @@ app.use('/api', apiCors, apiLimiter);
 // Retention: remove analytics older than 90 days on startup, and run daily.
 async function cleanExpiredAnalytics() {
   await db.query("DELETE FROM analytics_events WHERE created_at < now() - interval '90 days'");
-  await db.query(`UPDATE challenges c SET visitor_id = NULL WHERE c.visitor_id IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM analytics_events ae WHERE ae.visitor_id = c.visitor_id)`);
   await db.query('DELETE FROM ip_geolocation_cache c WHERE NOT EXISTS (SELECT 1 FROM analytics_events ae WHERE ae.ip = c.ip)');
 }
 
@@ -207,15 +201,6 @@ async function cleanExpiredAnalytics() {
 }
 )();
 
-function hashToken(token) {
-  const secret = process.env.PLAYER_TOKEN_SECRET || 'dev_secret';
-  return crypto.createHmac('sha256', secret).update(token).digest('hex');
-}
-
-function generateToken() {
-  return crypto.randomBytes(28).toString('hex');
-}
-
 function parseVisitorId(value) {
   if (value == null || value === '') return null;
   const visitorId = String(value).trim().toLowerCase();
@@ -224,11 +209,11 @@ function parseVisitorId(value) {
 
 const TRACKING_FIELDS = ['ref', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 const PUBLIC_EVENT_TYPES = new Set([
-  'page_view', 'section_view', 'challenge_opened', 'contact_opened',
+  'page_view', 'section_view', 'contact_opened',
   'returning_popup_shown', 'returning_popup_email_opened', 'returning_popup_email_submitted',
   'returning_popup_dismissed', 'returning_popup_start_project', 'returning_popup_details_opened'
 ]);
-const SECTION_NAMES = new Set(['HOME', 'WORK', 'CAPABILITIES', 'CHALLENGE', 'ABOUT', 'CONTACT']);
+const SECTION_NAMES = new Set(['HOME', 'WORK', 'CAPABILITIES', 'ABOUT', 'CONTACT']);
 function parseTracking(req) {
   const tracking = {};
   for (const field of TRACKING_FIELDS) {
@@ -275,22 +260,6 @@ function mostCommon(events, field) {
   return [...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0] || null;
 }
 
-function generateResumeToken(challenge) {
-  const secret = process.env.PLAYER_TOKEN_SECRET || 'dev_secret';
-  return crypto.createHmac('sha256', secret)
-    .update(`resume:${challenge.id}:${challenge.player_token_hash}`)
-    .digest('hex');
-}
-
-function isValidPlayerToken(challenge, token) {
-  if (!challenge || !token) return false;
-  const suppliedHash = hashToken(token);
-  if (suppliedHash === challenge.player_token_hash) return true;
-  const expectedResume = Buffer.from(generateResumeToken(challenge));
-  const suppliedResume = Buffer.from(String(token));
-  return expectedResume.length === suppliedResume.length && crypto.timingSafeEqual(expectedResume, suppliedResume);
-}
-
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
@@ -323,7 +292,7 @@ app.use('/admin/assets', requireAdmin, express.static(path.join(__dirname, '..',
   setHeaders: (res) => res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate')
 }));
 
-// Turn classifications must never be served from a stale browser cache.
+// Admin API responses contain private visitor data and must not be cached.
 app.use('/api/admin', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -331,315 +300,6 @@ app.use('/api/admin', (req, res, next) => {
 
 // Health
 app.get('/health', (req, res) => res.json({ ok: true }));
-
-// Create challenge
-app.post('/api/challenges', async (req, res) => {
-  try {
-    const { gamertag, email } = req.body;
-    const visitorId = parseVisitorId(req.body?.visitor_id);
-    if (!gamertag) return res.status(400).json({ error: 'gamertag required' });
-    if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
-    const gameType = 'chess';
-
-    const token = generateToken();
-    const tokenHash = hashToken(token);
-    const { ip: createdIp, source: ipSource } = getClientIpDetails(req);
-
-    // create challenge row
-    // transactional creation: challenge + first game (if chess)
-    const result = await db.transaction(async (client) => {
-      const r = await client.query(`INSERT INTO challenges (gamertag, player_token_hash, game_type, email, created_ip, visitor_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`, [gamertag, tokenHash, gameType, email || null, createdIp, visitorId]);
-      const challenge = r.rows[0];
-      let gameRow = null;
-      if (gameType === 'chess') {
-        const chess = new Chess();
-        const fen = chess.fen();
-        // determine challenger color for game 1 randomly
-        const challengerColor = Math.random() < 0.5 ? 'white' : 'black';
-        const g = await client.query(`INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1, $2, $3, $4, $5) RETURNING *`, [challenge.id, 1, fen, fen, challengerColor]);
-        gameRow = g.rows[0];
-        await client.query(`UPDATE challenges SET current_game_id = $1 WHERE id = $2`, [gameRow.id, challenge.id]);
-      }
-      if (visitorId) await client.query(`INSERT INTO analytics_events (path, visitor_id, ip, event_type, section_name, ip_source)
-        VALUES ($1,$2,$3,'challenge_created','CHALLENGE',$4)`, ['/', visitorId, createdIp, ipSource]);
-      return { challenge: challenge, game: gameRow };
-    });
-
-    const challenge = result.challenge;
-    res.json({
-      challenge: { id: challenge.id, gamertag: challenge.gamertag, game_type: challenge.game_type },
-      token,
-      match_url: `${process.env.PUBLIC_URL || ''}/?challenge=${challenge.id}&token=${token}`
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// helper to get challenge and verify token
-async function getChallengeAndVerify(id, token) {
-  const ch = await db.query('SELECT * FROM challenges WHERE id = $1', [id]);
-  if (!ch.rows.length) return null;
-  const challenge = ch.rows[0];
-  if (!token) return { challenge, authorized: false };
-  return { challenge, authorized: isValidPlayerToken(challenge, token) };
-}
-
-// Get challenge
-app.get('/api/challenges/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const token = req.query.token || req.headers.authorization?.split(' ')[1];
-    const { challenge, authorized } = await getChallengeAndVerify(id, token) || {};
-    if (!challenge) return res.status(404).json({ error: 'not found' });
-    res.json({ challenge: { id: challenge.id, gamertag: challenge.gamertag, game_type: challenge.game_type, status: challenge.status, player_wins: challenge.player_wins, jeremy_wins: challenge.jeremy_wins, draws: challenge.draws }, authorized });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Get current game for challenge
-app.get('/api/challenges/:id/games/current', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const q = await db.query('SELECT current_game_id FROM challenges WHERE id = $1', [id]);
-    if (!q.rows.length) return res.status(404).json({ error: 'not found' });
-    const currentGameId = q.rows[0].current_game_id;
-    if (!currentGameId) return res.status(404).json({ error: 'no game' });
-    const g = await db.query('SELECT * FROM games WHERE id = $1', [currentGameId]);
-    if (!g.rows.length) return res.status(404).json({ error: 'game not found' });
-    res.json({ game: g.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Play a move: server validates with chess.js
-app.post('/api/games/:id/moves', async (req, res) => {
-  try {
-    const gameId = req.params.id;
-    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
-    const { from, to, promotion } = req.body;
-    if (!from || !to) return res.status(400).json({ error: 'from and to required' });
-
-    // load game and challenge
-    const gq = await db.query('SELECT * FROM games WHERE id = $1', [gameId]);
-    if (!gq.rows.length) return res.status(404).json({ error: 'game not found' });
-    const game = gq.rows[0];
-    const chq = await db.query('SELECT * FROM challenges WHERE id = $1', [game.challenge_id]);
-    const challenge = chq.rows[0];
-
-    if (game.status === 'finished') return res.status(409).json({ error: 'game already completed' });
-
-    // determine actor: challenger (with token) or admin (Jeremy)
-    const isChallenger = isValidPlayerToken(challenge, token);
-    const isAdmin = isAdminAuthenticated(req);
-    if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
-
-    // If this request is coming from an admin session, require CSRF token
-    if (isAdmin) {
-      try {
-        await runMiddleware(req, res, csurf());
-      } catch (e) {
-        console.error('admin csrf validation failed', e);
-        return res.status(403).json({ error: 'forbidden' });
-      }
-    }
-
-    // server-side chess validation
-    const chess = new Chess(game.fen_current);
-    const turn = getTurnState(game.fen_current, game.challenger_color);
-    const actorCanMove = isChallenger ? turn.isChallengerTurn : (isAdmin && turn.isJeremyTurn);
-    if (!actorCanMove) return res.status(403).json({ error: 'not your turn' });
-
-    const moveObj = { from, to };
-    if (promotion) moveObj.promotion = promotion;
-    const result = chess.move(moveObj);
-    if (!result) return res.status(400).json({ error: 'illegal move' });
-
-    const fenAfter = chess.fen();
-
-    // transactional persistence: insert move, update game, possibly update challenge and create next game
-    const response = await db.transaction(async (client) => {
-      const mvCountRes = await client.query('SELECT COUNT(*) FROM moves WHERE game_id = $1', [gameId]);
-      const moveNumber = Number(mvCountRes.rows[0].count) + 1;
-      await client.query(
-        `INSERT INTO moves (game_id, move_number, uci, san, from_sq, to_sq, piece, fen_after, player_side) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [gameId, moveNumber, result.from + result.to, result.san, result.from, result.to, result.piece, fenAfter, result.color === 'w' ? 'white' : 'black']
-      );
-
-      // determine game terminal state
-      let gameStatus = 'ongoing';
-      let gameResult = null;
-      let challengerTurnAfterMove = true;
-      if (chess.isCheckmate()) {
-        gameStatus = 'finished';
-        gameResult = chess.turn() === 'w' ? 'black' : 'white';
-      } else if (chess.isStalemate() || chess.isDraw() || chess.isThreefoldRepetition() || chess.isInsufficientMaterial()) {
-        gameStatus = 'finished';
-        gameResult = 'draw';
-      }
-
-      await client.query('UPDATE games SET fen_current = $1, status = $2, result = $3, ended_at = CASE WHEN $2 = $4 THEN now() ELSE ended_at END WHERE id = $5', [fenAfter, gameStatus, gameResult, 'finished', gameId]);
-
-      // if game finished, update challenge
-      if (gameStatus === 'finished') {
-        if (gameResult === 'draw') {
-          await client.query('UPDATE challenges SET draws = draws + 1, updated_at = now() WHERE id = $1', [challenge.id]);
-        } else {
-          // determine who won: compare gameResult with challenger_side
-          const challengerWon = (gameResult === turn.challengerColor);
-          if (challengerWon) {
-            await client.query('UPDATE challenges SET player_wins = player_wins + 1, updated_at = now() WHERE id = $1', [challenge.id]);
-          } else {
-            await client.query('UPDATE challenges SET jeremy_wins = jeremy_wins + 1, updated_at = now() WHERE id = $1', [challenge.id]);
-          }
-
-        }
-        const c2 = await client.query('SELECT player_wins, jeremy_wins FROM challenges WHERE id = $1 FOR UPDATE', [challenge.id]);
-        const counts = c2.rows[0];
-        if (counts.player_wins >= 2 || counts.jeremy_wins >= 2) {
-          challengerTurnAfterMove = false;
-          const winner = counts.player_wins >= 2 ? 'player' : 'jeremy';
-          await client.query('UPDATE challenges SET status = $1, winner = $2, updated_at = now() WHERE id = $3', ['completed', winner, challenge.id]);
-        } else {
-          const nextNumber = game.game_number + 1;
-          const nextChallengerColor = turn.challengerColor === 'white' ? 'black' : 'white';
-          challengerTurnAfterMove = nextChallengerColor === 'white';
-          const fen = new Chess().fen();
-          const newG = await client.query('INSERT INTO games (challenge_id, game_number, fen_start, fen_current, challenger_color) VALUES ($1,$2,$3,$4,$5) RETURNING *', [challenge.id, nextNumber, fen, fen, nextChallengerColor]);
-          await client.query('UPDATE challenges SET current_game_id = $1, updated_at = now() WHERE id = $2', [newG.rows[0].id, challenge.id]);
-        }
-      }
-
-      return { move: result, fen: fenAfter, gameStatus, gameResult, challengerTurnAfterMove };
-    });
-
-    const { challengerTurnAfterMove, ...moveResponse } = response;
-    res.json(Object.assign({ ok: true }, moveResponse));
-    // Send non-blocking notifications
-    (async () => {
-      try {
-        const fromChallenger = isChallenger;
-        const challengerEmail = challenge.email;
-        const fromEmail = process.env.CHALLENGE_FROM_EMAIL;
-        const resendKey = process.env.RESEND_API_KEY;
-        const jeremyEmail = process.env.JEREMY_NOTIFICATION_EMAIL;
-        console.info(`EMAIL: challenge email present: ${Boolean(challengerEmail)}`);
-        console.info(`EMAIL: RESEND_API_KEY configured: ${Boolean(resendKey)}`);
-        console.info(`EMAIL: CHALLENGE_FROM_EMAIL configured: ${Boolean(fromEmail)}`);
-        console.info(`EMAIL: JEREMY_NOTIFICATION_EMAIL configured: ${Boolean(jeremyEmail)}`);
-
-        // Helper
-        async function sendMail(to, subject, html, requestedLabel) {
-          console.info(`EMAIL: ${requestedLabel} notification requested`);
-          if (!resendKey || !fromEmail || !to) {
-            console.warn('EMAIL: skipped — required recipient or configuration missing');
-            return { accepted: false, skipped: true };
-          }
-          try {
-            const response = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${resendKey}`
-              },
-              body: JSON.stringify({ from: fromEmail, to: [to], subject, html })
-            });
-            let result = null;
-            try { result = await response.json(); } catch (e) { /* response body is optional */ }
-            if (!response.ok) {
-              console.error(`EMAIL: Resend rejected request status=${response.status}`);
-              return { accepted: false, status: response.status };
-            }
-            console.info(`EMAIL: Resend accepted message id=${result?.id || 'not-returned'}`);
-            return { accepted: true, id: result?.id || null };
-          } catch (e) {
-            console.error(`EMAIL: send failed ${e?.code || e?.name || 'request-error'}`);
-            return { accepted: false };
-          }
-        }
-
-        if (fromChallenger) {
-          // Notify Jeremy of a new move
-          if (jeremyEmail) {
-            const subject = `${challenge.gamertag} made a move`;
-            const html = `<p>${escapeHtml(challenge.gamertag)} made a move.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${process.env.PUBLIC_URL || ''}/admin/open/${challenge.id}">Open Match</a></p>`;
-            await sendMail(jeremyEmail, subject, html, 'Jeremy');
-          } else {
-            console.warn('EMAIL: skipped — JEREMY_NOTIFICATION_EMAIL not configured');
-          }
-        } else {
-          // Admin moved (Jeremy) — notify challenger if email provided
-          if (challengerEmail && challengerTurnAfterMove) {
-            const resumeToken = generateResumeToken(challenge);
-            const matchUrl = `${process.env.PUBLIC_URL || ''}/?challenge=${encodeURIComponent(challenge.id)}&token=${encodeURIComponent(resumeToken)}`;
-            const subject = `Jeremy moved against ${challenge.gamertag} — your turn`;
-            const html = `<p>Jeremy responded to ${escapeHtml(challenge.gamertag)}.<br/>Chess · Game ${game.game_number} · Best of 3<br/>It's your turn.</p><p><a href="${matchUrl}">Continue Match</a></p>`;
-            await sendMail(challengerEmail, subject, html, 'challenger');
-          } else if (!challengerEmail) {
-            console.info('EMAIL: skipped — challenger has no email');
-          } else {
-            console.info('EMAIL: skipped — challenger does not move next');
-          }
-        }
-      } catch (e) {
-        console.error('Notification error', e);
-      }
-    })();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Return legal moves for a given square (requires authorization: player token or admin)
-app.get('/api/games/:id/legal', async (req, res) => {
-  try {
-    const gameId = req.params.id;
-    const square = req.query.square;
-    if (!square) return res.status(400).json({ error: 'square required' });
-
-    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
-
-    const gq = await db.query('SELECT * FROM games WHERE id = $1', [gameId]);
-    if (!gq.rows.length) return res.status(404).json({ error: 'game not found' });
-    const game = gq.rows[0];
-    const chq = await db.query('SELECT * FROM challenges WHERE id = $1', [game.challenge_id]);
-    const challenge = chq.rows[0];
-
-    const isChallenger = isValidPlayerToken(challenge, token);
-    const isAdmin = isAdminAuthenticated(req);
-    if (!isChallenger && !isAdmin) return res.status(401).json({ error: 'unauthorized' });
-
-    const turn = getTurnState(game.fen_current, game.challenger_color);
-    const actorCanMove = isChallenger ? turn.isChallengerTurn : turn.isJeremyTurn;
-    if (!actorCanMove) return res.status(403).json({ error: 'not your turn' });
-
-    const chess = new Chess(game.fen_current);
-    const moves = chess.moves({ square, verbose: true }) || [];
-    // return concise moves
-    const out = moves.map(m => ({ to: m.to, from: m.from, san: m.san, flags: m.flags, promotion: m.promotion || null }));
-    res.json({ moves: out });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Leaderboard: public summary
-app.get('/api/leaderboard', async (req, res) => {
-  try {
-    const q = await db.query(`SELECT gamertag, SUM(player_wins) as wins, SUM(jeremy_wins) as losses, SUM(draws) as draws FROM challenges WHERE game_type='chess' GROUP BY gamertag ORDER BY SUM(player_wins) DESC LIMIT 50`);
-    res.json({ leaderboard: q.rows.map(r => ({ gamertag: r.gamertag, wins: Number(r.wins), losses: Number(r.losses), draws: Number(r.draws) })) });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
 
 // Analytics tracking (privacy-friendly)
 app.post('/api/analytics/track', async (req, res) => {
@@ -749,8 +409,6 @@ app.get('/api/admin/visitors', async (req, res) => {
     const count = await db.query('SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE visitor_id IS NOT NULL');
     const q = await db.query(`
       SELECT ae.visitor_id,
-        COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
-          (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) a), ARRAY[]::text[]) AS associated_gamertags,
         COUNT(DISTINCT ae.ip) FILTER (WHERE ae.ip IS NOT NULL) AS ip_count,
         (array_agg(ae.ip ORDER BY ae.created_at DESC) FILTER (WHERE ae.ip IS NOT NULL))[1] AS most_recent_ip,
         (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
@@ -797,8 +455,6 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       FROM analytics_events WHERE visitor_id = $1
       ORDER BY (ref IS NOT NULL OR utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL
         OR utm_content IS NOT NULL OR utm_term IS NOT NULL OR referrer IS NOT NULL) DESC, created_at ASC LIMIT 1`, [visitorId]);
-    const associated = await db.query(`SELECT gamertag, status, created_at, updated_at, winner, player_wins, jeremy_wins, draws
-      FROM challenges WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
     const observed = await db.query(`SELECT ip, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen,
       (array_agg(country ORDER BY created_at DESC) FILTER (WHERE country IS NOT NULL))[1] AS country,
       (array_agg(region ORDER BY created_at DESC) FILTER (WHERE region IS NOT NULL))[1] AS region,
@@ -807,7 +463,6 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       (array_agg(asn_org ORDER BY created_at DESC) FILTER (WHERE asn_org IS NOT NULL))[1] AS asn_org
       FROM analytics_events WHERE visitor_id = $1 AND ip IS NOT NULL GROUP BY ip ORDER BY last_seen DESC`, [visitorId]);
     const s = summary.rows[0];
-    const associatedChallenges = associated.rows.map(c => ({ gamertag: c.gamertag, status: c.status, created_at: c.created_at, result: c.status === 'completed' ? (c.winner === 'jeremy' ? 'Jeremy won' : c.winner === 'player' ? 'Challenger won' : 'Completed') : null, score: { jeremy: Number(c.jeremy_wins), challenger: Number(c.player_wins), draws: Number(c.draws) } }));
     const firstTouch = acquisition.rows[0];
     const events = q.rows.map(event => ({ ...event, page_name:eventSection(event), referrer_label:readableReferrer(event.referrer) }));
     const sessions = buildSessions(events);
@@ -815,9 +470,8 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
     const pages = [...sectionCounts].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name));
     const recentSource = events.find(event=>event.utm_source||event.referrer);
     const activeDays = new Set(events.map(event=>new Date(event.created_at).toISOString().slice(0,10))).size;
-    const challengeStats = { challenges_created:associatedChallenges.length, games_completed:associatedChallenges.reduce((n,c)=>n+c.score.jeremy+c.score.challenger+c.score.draws,0), current_active:associatedChallenges.some(c=>c.status!=='completed'), last_activity:associated.rows.map(c=>c.updated_at||c.created_at).sort((a,b)=>new Date(b)-new Date(a))[0]||null, jeremy_wins:associatedChallenges.reduce((n,c)=>n+c.score.jeremy,0), challenger_wins:associatedChallenges.reduce((n,c)=>n+c.score.challenger,0) };
     const latest = events[0];
-    res.json({ visitor: { visitor_id: visitorId, associated_gamertags: [...new Set(associatedChallenges.map(c => c.gamertag))].sort(), associated_challenges: associatedChallenges, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device:latest ? { device_name:latest.device_name, device_type:latest.device_type, operating_system:latest.operating_system, operating_system_version:latest.operating_system_version, browser:latest.browser, browser_version:latest.browser_version, ip:latest.ip, country:latest.country, region:latest.region, city:latest.city, asn_org:latest.asn_org } : null, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name')||mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser')||mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, challenge_visits:sectionCounts.get('CHALLENGE')||0, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, challenge_activity:challengeStats, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
+    res.json({ visitor: { visitor_id: visitorId, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device:latest ? { device_name:latest.device_name, device_type:latest.device_type, operating_system:latest.operating_system, operating_system_version:latest.operating_system_version, browser:latest.browser, browser_version:latest.browser_version, ip:latest.ip, country:latest.country, region:latest.region, city:latest.city, asn_org:latest.asn_org } : null, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name')||mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser')||mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
@@ -857,8 +511,6 @@ app.get('/api/admin/ips', async (req, res) => {
     const offset = (page - 1) * pageSize;
     const count = await db.query('SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL');
     const q = await db.query(`SELECT ae.ip,
-      COALESCE((SELECT array_agg(a.gamertag ORDER BY a.gamertag) FROM
-        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.created_ip = ae.ip) a), ARRAY[]::text[]) AS ip_associated_gamertags,
       (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
       (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
       (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
@@ -899,17 +551,13 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
     const s = summary.rows[0];
     if (!s || Number(s.total_visits) === 0) return res.status(404).json({ error: 'ip not found' });
     const visitors = await db.query(`SELECT ae.visitor_id, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen,
-      COUNT(*) AS visits,
-      COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
-        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
+      COUNT(*) AS visits
       FROM analytics_events ae WHERE ae.ip = $1 AND ae.visitor_id IS NOT NULL
       GROUP BY ae.visitor_id ORDER BY last_seen DESC`, [ip]);
     const events = await db.query(`SELECT ae.path, ae.referrer, ae.ref, ae.utm_source, ae.utm_medium, ae.utm_campaign, ae.utm_content, ae.utm_term,
       ae.user_agent, ae.device_category, ae.browser_family, ae.device_name, ae.device_type,
       ae.operating_system, ae.operating_system_version, ae.browser, ae.browser_version, ae.country, ae.region, ae.city,
-      ae.asn_org, ae.visitor_id, ae.created_at, ae.ip_source,
-      COALESCE((SELECT array_agg(g.gamertag ORDER BY g.gamertag) FROM
-        (SELECT DISTINCT c.gamertag FROM challenges c WHERE c.visitor_id = ae.visitor_id) g), ARRAY[]::text[]) AS associated_gamertags
+      ae.asn_org, ae.visitor_id, ae.created_at, ae.ip_source
       FROM analytics_events ae WHERE ae.ip = $1 ORDER BY ae.created_at DESC LIMIT $2 OFFSET $3`, [ip, pageSize, offset]);
     const paths = await db.query(`SELECT COALESCE(NULLIF(path, ''), '/') AS path, COUNT(*) AS count
       FROM analytics_events WHERE ip = $1 GROUP BY COALESCE(NULLIF(path, ''), '/') ORDER BY count DESC, path`, [ip]);
@@ -920,12 +568,11 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       const source = readableReferrer(row.referrer);
       referrerCounts.set(source, (referrerCounts.get(source) || 0) + Number(row.count));
     }
-    const associatedGamertags = [...new Set(visitors.rows.flatMap(v => v.associated_gamertags || []))].sort();
     res.json({ ip: {
       address: ip, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits),
       distinct_visitor_ids: Number(s.distinct_visitor_ids), legacy_events: Number(s.legacy_events),
       legacy_first_seen: s.legacy_first_seen, legacy_last_seen: s.legacy_last_seen,
-      associated_gamertags: associatedGamertags, device_categories: s.device_categories, browsers: s.browsers,
+      device_categories: s.device_categories, browsers: s.browsers,
       device_names: s.device_names, operating_systems: s.operating_systems,
       country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org,
       visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })),
@@ -999,105 +646,13 @@ app.get('/api/admin/overview', async (req, res) => {
       (SELECT COUNT(*) FROM analytics_events WHERE created_at >= CURRENT_DATE) AS visits_today,
       (SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE visitor_id IS NOT NULL) AS visitors,
       (SELECT COUNT(DISTINCT ip) FROM analytics_events WHERE ip IS NOT NULL) AS ips_observed,
-      (SELECT COUNT(*) FROM analytics_events WHERE visitor_id IS NULL) AS unidentified_visits,
-      (SELECT COUNT(*) FROM challenges WHERE game_type='chess') AS total_challenges,
-      (SELECT COUNT(*) FROM challenges WHERE game_type='chess' AND status <> 'completed') AS active_matches,
-      (SELECT COUNT(*) FROM games WHERE status='finished') AS games_completed,
-      (SELECT COALESCE(SUM(jeremy_wins),0) FROM challenges) AS jeremy_wins,
-      (SELECT COALESCE(SUM(player_wins),0) FROM challenges) AS player_wins`);
-    // current streak: look at most recent completed games and count consecutive same winner
-    const recent = await db.query("SELECT winner, updated_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
-    let streak = { who: null, count: 0 };
-    for (const r of recent.rows) {
-      if (!streak.who) { streak.who = r.winner; streak.count = 1; }
-      else if (r.winner === streak.who) streak.count += 1; else break;
-    }
-    const activeTurns = await db.query(`SELECT g.fen_current, g.challenger_color FROM challenges c
-      JOIN games g ON g.id = c.current_game_id WHERE c.status <> 'completed'`);
-    const myTurnCount = activeTurns.rows.reduce((count, game) => count + (getTurnState(game.fen_current, game.challenger_color).isJeremyTurn ? 1 : 0), 0);
-    const t = totals.rows[0];
-    res.json({ overview: { total_visits: Number(t.total_visits), visits_today: Number(t.visits_today), visitors: Number(t.visitors), ips_observed: Number(t.ips_observed), unidentified_visits: Number(t.unidentified_visits), total_challenges: Number(t.total_challenges), active_matches: Number(t.active_matches), games_completed: Number(t.games_completed), jeremy_wins: Number(t.jeremy_wins), player_wins: Number(t.player_wins), current_streak: streak, my_turn: myTurnCount } });
+      (SELECT COUNT(*) FROM analytics_events WHERE visitor_id IS NULL) AS unidentified_visits`);
+    const overview = totals.rows[0];
+    res.json({ overview: Object.fromEntries(
+      Object.entries(overview).map(([key, value]) => [key, Number(value)])
+    ) });
   } catch (e) {
     console.error('admin overview error', e);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Public stats endpoint (reads from DB; no sensitive data)
-app.get('/api/stats', async (req, res) => {
-  try {
-    const totalChallenges = await db.query("SELECT COUNT(*) FROM challenges WHERE game_type='chess'");
-    const gamesCompleted = await db.query("SELECT COUNT(*) FROM games WHERE status='finished'");
-    const jeremyWins = await db.query("SELECT COALESCE(SUM(jeremy_wins),0) AS v FROM challenges");
-    const playerWins = await db.query("SELECT COALESCE(SUM(player_wins),0) AS v FROM challenges");
-    const draws = await db.query("SELECT COALESCE(SUM(draws),0) AS v FROM challenges");
-    const recent = await db.query("SELECT winner, updated_at FROM challenges WHERE status='completed' AND winner IS NOT NULL ORDER BY updated_at DESC LIMIT 50");
-    let streak = { who: null, count: 0 };
-    for (const r of recent.rows) {
-      if (!streak.who) { streak.who = r.winner; streak.count = 1; }
-      else if (r.winner === streak.who) streak.count += 1; else break;
-    }
-    res.json({ total_challenges: Number(totalChallenges.rows[0].count), games_completed: Number(gamesCompleted.rows[0].count), jeremy_wins: Number(jeremyWins.rows[0].v), challenger_wins: Number(playerWins.rows[0].v), draws: Number(draws.rows[0].v), current_streak: streak });
-  } catch (e) {
-    console.error('public stats error', e);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Get game details and move history
-app.get('/api/games/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const g = await db.query('SELECT * FROM games WHERE id = $1', [id]);
-    if (!g.rows.length) return res.status(404).json({ error: 'game not found' });
-    const game = g.rows[0];
-    const mv = await db.query('SELECT move_number, uci, san, from_sq, to_sq, piece, fen_after, player_side, created_at FROM moves WHERE game_id = $1 ORDER BY move_number', [id]);
-    res.json({ game, moves: mv.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// Admin challenge list. No private challenger tokens are selected or returned.
-app.get('/api/admin/challenges', async (req, res) => {
-  try {
-    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const q = await db.query(`SELECT c.id, c.gamertag, c.status, c.player_wins, c.jeremy_wins, c.draws, c.winner, c.created_at, c.updated_at, c.game_type,
-      (c.email IS NOT NULL AND btrim(c.email) <> '') AS email_enabled,
-      g.id AS game_id, g.game_number, g.fen_current, g.challenger_color, g.status AS game_status,
-      COALESCE((SELECT MAX(m.created_at) FROM moves m WHERE m.game_id = g.id), g.created_at, c.updated_at) AS last_move_at
-      FROM challenges c LEFT JOIN games g ON g.id = c.current_game_id ORDER BY c.updated_at DESC LIMIT 200`);
-    const out = q.rows.map(c => {
-      const turn = c.game_id ? getTurnState(c.fen_current, c.challenger_color) : null;
-      return { id: c.id, gamertag: c.gamertag, game_type: c.game_type, status: c.status, email_enabled: Boolean(c.email_enabled), player_wins: c.player_wins, jeremy_wins: c.jeremy_wins, draws: c.draws, winner: c.winner, created_at: c.created_at, updated_at: c.updated_at, last_move_at: c.last_move_at, admin_turn: c.status !== 'completed' && Boolean(turn?.isJeremyTurn), challenger_turn: c.status !== 'completed' && Boolean(turn?.isChallengerTurn), current_game: c.game_id ? { id: c.game_id, game_number: c.game_number, challenger_color: turn.challengerColor, jeremy_color: turn.jeremyColor, side_to_move: turn.sideToMove, status: c.game_status } : null };
-    });
-    res.json({ challenges: out });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-app.get('/api/admin/challenges/:id/match', async (req, res) => {
-  try {
-    if (!isAdminAuthenticated(req)) return res.status(403).json({ error: 'forbidden' });
-    const ch = await db.query(`SELECT id, gamertag, status, player_wins, jeremy_wins, draws, winner, current_game_id,
-      (email IS NOT NULL AND btrim(email) <> '') AS email_enabled
-      FROM challenges WHERE id = $1`, [req.params.id]);
-    if (!ch.rows.length) return res.status(404).json({ error: 'challenge not found' });
-    const challenge = ch.rows[0];
-    if (!challenge.current_game_id) return res.status(404).json({ error: 'no active game' });
-    const g = await db.query(`SELECT id, game_number, fen_current, challenger_color, status, result, created_at, ended_at
-      FROM games WHERE id = $1`, [challenge.current_game_id]);
-    if (!g.rows.length) return res.status(404).json({ error: 'game not found' });
-    const game = g.rows[0];
-    const moves = await db.query(`SELECT move_number, uci, san, from_sq, to_sq, player_side, created_at
-      FROM moves WHERE game_id = $1 ORDER BY move_number`, [game.id]);
-    const turn = getTurnState(game.fen_current, game.challenger_color);
-    res.json({ challenge: { id: challenge.id, gamertag: challenge.gamertag, status: challenge.status, email_enabled: Boolean(challenge.email_enabled), player_wins: challenge.player_wins, jeremy_wins: challenge.jeremy_wins, draws: challenge.draws, winner: challenge.winner }, game: { ...game, challenger_color: turn.challengerColor, jeremy_color: turn.jeremyColor, side_to_move: turn.sideToMove, admin_turn: challenge.status !== 'completed' && turn.isJeremyTurn, challenger_turn: challenge.status !== 'completed' && turn.isChallengerTurn }, moves: moves.rows });
-  } catch (err) {
-    console.error('admin match error', err);
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -1207,15 +762,11 @@ app.get('/admin', async (req, res) => {
   return res.send(`
     <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><title>Admin / Jeremy Avalos</title><link rel="stylesheet" href="/admin/assets/admin.css?v=${adminAssetVersion}"><script src="/admin/assets/dashboard.js?v=${adminAssetVersion}" defer></script></head>
     <body><div class="shell"><header><div><div class="eyebrow">JEREMYAVALOS.XYZ / PRIVATE</div><h1>ADMIN DASHBOARD</h1></div><div class="actions"><button id="refresh">REFRESH</button><button id="logout">LOGOUT</button></div></header>
-    <nav><a href="#overview">OVERVIEW</a><a href="#my-turn">MY TURN <span id="turn-count">—</span></a><a href="#waiting">WAITING</a><a href="#challenges">CHALLENGES</a><a href="#visitors">VISITORS</a><a href="#ips">IPS</a><a href="#tracking">TRACKING</a><a href="#completed">COMPLETED</a></nav><main>
+    <nav><a href="#overview">OVERVIEW</a><a href="#visitors">VISITORS</a><a href="#ips">IPS</a><a href="#tracking">TRACKING / INTERACTIONS</a></nav><main>
     <section id="overview"><div class="section-head"><div><span>01</span><h2>OVERVIEW</h2></div><p id="updated">Loading dashboard…</p></div><div id="overview-content" class="metric-grid"><div class="state">Loading overview…</div></div></section>
-    <section id="my-turn"><div class="section-head"><div><span>02</span><h2>MY TURN</h2></div></div><div id="myturn-content"><div class="state">Loading challenges…</div></div></section>
-    <section id="waiting"><div class="section-head"><div><span>03</span><h2>WAITING</h2></div></div><div id="waiting-content"><div class="state">Loading challenges…</div></div></section>
-    <section id="challenges"><div class="section-head"><div><span>04</span><h2>CHALLENGES</h2></div></div><div id="challenges-content"><div class="state">Loading challenges…</div></div></section>
-    <section id="visitors"><div class="section-head"><div><span>05</span><h2>VISITORS</h2></div><p>First-party browser IDs · location is approximate</p></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
-    <section id="ips"><div class="section-head"><div><span>06</span><h2>IPS OBSERVED</h2></div><p>Raw network analytics · location is approximate</p></div><div id="ips-content"><div class="state">Loading IPs…</div></div><div id="ip-detail" hidden></div><div id="ip-pagination" class="pagination"></div></section>
-    <section id="tracking"><div class="section-head"><div><span>07</span><h2>TRACKING / REFERRALS</h2></div><p>First-party link attribution · not human identity</p></div><div id="tracking-content"><div class="state">Loading tracking…</div></div><div id="tracking-detail" hidden></div><div id="tracking-pagination" class="pagination"></div></section>
-    <section id="completed"><div class="section-head"><div><span>08</span><h2>COMPLETED</h2></div></div><div id="completed-content"><div class="state">Loading completed matches…</div></div></section>
+    <section id="visitors"><div class="section-head"><div><span>02</span><h2>VISITORS</h2></div><p>First-party browser IDs · location is approximate</p></div><div id="visitors-content"><div class="state">Loading visitors…</div></div><div id="visitor-detail" hidden></div><div id="visitor-pagination" class="pagination"></div></section>
+    <section id="ips"><div class="section-head"><div><span>03</span><h2>IPS OBSERVED</h2></div><p>Raw network analytics · location is approximate</p></div><div id="ips-content"><div class="state">Loading IPs…</div></div><div id="ip-detail" hidden></div><div id="ip-pagination" class="pagination"></div></section>
+    <section id="tracking"><div class="section-head"><div><span>04</span><h2>TRACKING / INTERACTIONS</h2></div><p>First-party events, referrals and page activity</p></div><div id="tracking-content"><div class="state">Loading tracking…</div></div><div id="tracking-detail" hidden></div><div id="tracking-pagination" class="pagination"></div></section>
     </main></div></body></html>
   `);
 
@@ -1234,24 +785,6 @@ app.post('/admin/logout', async (req, res) => {
   }
   clearAdminSession(req);
   res.json({ ok: true });
-});
-
-// Admin open a challenge (redirect to challenge page on frontend but as admin session)
-app.get('/admin/open/:id', async (req, res) => {
-  if (!isAdminAuthenticated(req)) return res.status(403).send('forbidden');
-  const id = req.params.id;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).send('invalid challenge');
-  // redirect admin to public frontend with challenge id (no token) — admin cookie authenticates moves
-  // Serve a minimal admin match UI that allows Jeremy to view and play the match without exposing secrets.
-  // initialize csurf and expose token to admin UI
-  try {
-    await runMiddleware(req, res, csurf());
-  } catch (e) {}
-  const csrfToken = req.csrfToken ? req.csrfToken() : '';
-  return res.send(`
-    <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="${csrfToken}"><meta name="challenge-id" content="${id}"><title>Admin Match</title><link rel="stylesheet" href="/admin/assets/admin.css?v=${adminAssetVersion}"><script src="/admin/assets/match.js?v=${adminAssetVersion}" defer></script></head>
-    <body><div class="shell match-shell"><header><div><div class="eyebrow">PRIVATE / MATCH CONTROL</div><h1>ADMIN MATCH</h1></div><a class="button" href="/admin">← DASHBOARD</a></header><main><section><div id="match-meta" class="state">Loading match…</div><div id="match-error" class="error" hidden></div><div class="match-layout"><div><div id="board" class="board"></div><p id="move-status" class="state">Select a piece to move.</p></div><div><h2>MOVE HISTORY</h2><ol id="history" class="history"></ol></div></div></section></main></div></body></html>
-  `);
 });
 
 const HOST = process.env.HOST || '0.0.0.0';

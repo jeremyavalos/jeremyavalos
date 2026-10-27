@@ -72,9 +72,9 @@ const warningsFor = env => {
   vm.runInNewContext(startup, { process: { env }, require: () => ({ config() {} }), console: { warn: message => warnings.push(message) } });
   return warnings;
 };
-assert.strictEqual(warningsFor({ NODE_ENV: 'production' }).length, 2);
-assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'dev_session_secret', PLAYER_TOKEN_SECRET: 'dev_secret' }).length, 2);
-assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'a-production-secret', PLAYER_TOKEN_SECRET: 'another-production-secret' }).length, 0);
+assert.strictEqual(warningsFor({ NODE_ENV: 'production' }).length, 1);
+assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'dev_session_secret' }).length, 1);
+assert.strictEqual(warningsFor({ NODE_ENV: 'production', SESSION_SECRET: 'a-production-secret' }).length, 0);
 assert.strictEqual(warningsFor({ NODE_ENV: 'test' }).length, 0);
 console.log('Production secret warning checks passed');
 

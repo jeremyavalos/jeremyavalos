@@ -28,9 +28,8 @@
       <nav id="site-nav" class="nav-links" aria-label="Primary navigation">
         <a href="#work">01 WORK</a>
         <a href="#capabilities">02 CAPABILITIES</a>
-        <a href="#challenge">03 CHALLENGE</a>
-        <a href="#about">04 ABOUT</a>
-        <a href="#contact">05 CONTACT</a>
+        <a href="#about">03 ABOUT</a>
+        <a href="#contact">04 CONTACT</a>
       </nav>
     </header>
 
@@ -53,14 +52,15 @@
             </div>
             <div>
               <span class="meta-label mono">FOCUS</span>
-              <strong>SOFTWARE · PRODUCTS · TECHNOLOGY</strong>
+              <strong>APPLICATIONS · APIS · DIGITAL PRODUCTS</strong>
             </div>
           </div>
 
           <div class="primary-actions" aria-label="Primary contact links">
-            <a class="btn primary" href="#contact">START A PROJECT</a>
+            <a class="btn primary liquid-cta" href="#contact" data-cybernetic-liquid>
+              <span class="liquid-cta-label">START A PROJECT</span>
+            </a>
             <a class="btn" href="#work">VIEW WORK</a>
-            <a class="btn challenge-cta" href="#challenge">CHALLENGE ME</a>
           </div>
 
           <div class="social-links" aria-label="Social media links">
@@ -384,78 +384,6 @@
         </div>
       </section>
 
-      <section id="challenge" class="challenge">
-        <div class="section-header reveal">
-          <p class="eyebrow mono">03 / CHALLENGE</p>
-          <h2>Challenge me to Chess. Best of 3.</h2>
-        </div>
-
-        <div class="challenge-grid">
-          <div class="challenge-panel reveal">
-            <p class="mono">CHALLENGE / 03</p>
-            <h3>Beat me in a best-of-3 and win a free one-page website.</h3>
-            <p class="muted">This is a developer experiment — lightweight, minimal and polished. No accounts required. Create a challenge and I'll respond.</p>
-
-            <div class="challenge-actions">
-              <button id="start-challenge" class="btn">Start Challenge</button>
-              <button id="view-rules" class="btn">Rules</button>
-              <button id="view-leaderboard" class="btn">Leaderboard</button>
-            </div>
-
-            <form id="challenge-form" class="challenge-form" aria-hidden="true">
-              <label class="mono">Gamertag
-                <input id="gamertag" name="gamertag" type="text" placeholder="Your handle" />
-              </label>
-
-              <label class="mono">Email <span style="font-size:0.9rem;color:var(--muted);font-weight:400;">(Optional)</span>
-                <input id="email" name="email" type="email" placeholder="you@example.com" />
-                <div style="font-size:0.85rem;color:var(--muted);margin-top:6px;">Optional — get notified when Jeremy responds.</div>
-              </label>
-
-              <div class="mono">Game<br /><strong>Chess</strong></div>
-
-              <label class="mono">Match format
-                <select id="format-select" name="format">
-                  <option value="bo3">Best of 3</option>
-                </select>
-              </label>
-
-              <div class="form-actions">
-                <button type="button" id="create-challenge" class="btn primary">Create Challenge</button>
-                <button type="button" id="cancel-challenge" class="btn">Cancel</button>
-              </div>
-            </form>
-          </div>
-
-          <aside class="challenge-side reveal">
-            <div class="status-panel" id="challenge-activity">
-              <div class="status-heading">
-                <span class="mono">CHALLENGE ACTIVITY</span>
-                <span class="stats-mode mono" id="stats-mode">COMMUNITY PREVIEW</span>
-              </div>
-              <div class="status-row"><span class="mono">COMMUNITY GAMES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="games-completed">—</strong></div>
-              <div class="status-row"><span class="mono">WINS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="wins">—</strong></div>
-              <div class="status-row"><span class="mono">LOSSES<span class="preview-mark" aria-hidden="true">*</span></span><strong id="losses">—</strong></div>
-              <div class="status-row"><span class="mono">DRAWS<span class="preview-mark" aria-hidden="true">*</span></span><strong id="draws">—</strong></div>
-              <p class="stats-note mono" id="stats-note">*Preview / launch display. Live statistics replace these automatically as real activity grows.</p>
-            </div>
-
-            <div class="board-preview">
-              <p class="mono">Chess / Live</p>
-              <svg viewBox="0 0 120 120" class="board-svg" aria-hidden="true">
-                <defs>
-                  <pattern id="g" width="15" height="15" patternUnits="userSpaceOnUse">
-                    <rect width="15" height="15" fill="var(--panel)"></rect>
-                    <rect width="7.5" height="7.5" fill="rgba(255,255,255,0.02)"></rect>
-                  </pattern>
-                </defs>
-                <rect width="120" height="120" fill="url(#g)" stroke="var(--line)" rx="8"/>
-              </svg>
-            </div>
-          </aside>
-        </div>
-      </section>
-
       <section id="about" class="about">
         <div class="about-media reveal parallax" data-depth="0.04">
           <img
@@ -467,7 +395,7 @@
         </div>
 
         <div class="about-copy reveal" style="--delay: 80ms">
-          <p class="eyebrow mono">04 / ABOUT</p>
+          <p class="eyebrow mono">03 / ABOUT</p>
           <h2>Business discipline with a builder’s eye for technology.</h2>
           <p>
             I’m currently studying Software Engineering while building digital products, mobile applications and web platforms.
@@ -486,7 +414,7 @@
       <section id="contact" class="contact">
         <div class="contact-panel reveal">
           <div class="contact-copy">
-            <p class="eyebrow mono">05 / CONTACT</p>
+            <p class="eyebrow mono">04 / CONTACT</p>
             <h2>AVAILABLE FOR NEW WORK.</h2>
             <p>Freelance projects, product collaborations and technology opportunities.</p>
           </div>
@@ -568,29 +496,10 @@
       document.getElementById('admin-console-link').href = `${window.API_BASE.replace(/\/$/, '')}/admin`;
     </script>
 
-    <!-- Load the main site script unconditionally so the site doesn't depend on Chess loading -->
     <script src="returning-visitor-copy.js"></script>
     <script src="fingerprint.js"></script>
     <script src="script.js"></script>
+    <script src="cybernetic-liquid.js"></script>
     <script src="trading-bot.js"></script>
-
-    <!-- Load the optional local chess module; the server-backed FEN renderer remains available. -->
-    <script type="module">
-      (async () => {
-        try {
-          const mod = await import('/assets/chess.mjs');
-          if (mod && typeof mod.Chess === 'function') {
-            window.Chess = mod.Chess;
-            window.dispatchEvent(new CustomEvent('chess-ready'));
-          } else {
-            console.warn('Local Chess module did not provide Chess');
-            window.dispatchEvent(new CustomEvent('chess-failed'));
-          }
-        } catch (err) {
-          console.warn('Failed to load local Chess module:', err);
-          window.dispatchEvent(new CustomEvent('chess-failed'));
-        }
-      })();
-    </script>
   </body>
 </html>

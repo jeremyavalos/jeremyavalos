@@ -1,34 +1,31 @@
 {
   "name": "jeremy-challenge-backend",
   "version": "0.1.0",
-  "description": "Backend for Challenge Me — Chess matches API",
+  "description": "Backend for portfolio analytics and contact APIs",
   "main": "src/index.js",
   "scripts": {
     "test": "npm run test:admin && node test/analytics_regression.js && node test/client_ip_regression.js && node ../test/regression_login.js",
-    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && node test/proxy_marking_integration.js && npm run test:flow",
+    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && node test/proxy_marking_integration.js",
     "start": "node src/migrate.js && node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "node src/migrate.js",
     "migrate:node": "node src/migrate.js",
-    "test:flow": "node test/test_flow.js",
-    "test:admin": "node test/turn_regression.js && node test/geolocation_regression.js && node test/user_agent_regression.js && node test/returning_popup_regression.js && node test/admin_gameplay_regression.js"
+    "test:admin": "node test/geolocation_regression.js && node test/user_agent_regression.js && node test/returning_popup_regression.js && node test/admin_analytics_regression.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "chess.js": "^1.1.0",
+    "bcrypt": "^5.1.0",
+    "connect-pg-simple": "^8.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "csurf": "^1.11.0",
     "dotenv": "^16.0.0",
     "express": "^4.18.2",
     "express-rate-limit": "^6.7.0",
-    "helmet": "^6.0.1",
-    "pg": "^8.11.0",
-    "uuid": "^9.0.0",
     "express-session": "^1.17.3",
-    "bcrypt": "^5.1.0",
-    "connect-pg-simple": "^8.0.0",
-    "csurf": "^1.11.0"
+    "helmet": "^6.0.1",
+    "pg": "^8.11.0"
   }
 }

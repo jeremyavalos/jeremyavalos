@@ -18,7 +18,6 @@ const db = require('../src/db');
   const base = `http://127.0.0.1:${server.address().port}`;
   const visitors = [randomUUID(), randomUUID()];
   const fingerprint = randomBytes(4).toString('hex');
-  let challengeId;
   const track = (payload, headers = {}) => fetch(`${base}/api/analytics/track`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(payload)
   });
@@ -70,12 +69,6 @@ const db = require('../src/db');
       const latest = await db.query('SELECT ip, ip_source FROM analytics_events WHERE visitor_id = $1 ORDER BY id DESC LIMIT 1', [visitors[1]]);
       assert.deepStrictEqual(latest.rows[0], { ip, ip_source: source });
     }
-    const created = await fetch(`${base}/api/challenges`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '192.0.2.99, 192.0.2.11, 100.64.0.1' },
-      body: JSON.stringify({ gamertag: 'source-test', visitor_id: visitors[0] }) });
-    assert.strictEqual(created.status, 200);
-    challengeId = (await created.json()).challenge.id;
-    const createdEvent = await db.query("SELECT ip, ip_source FROM analytics_events WHERE visitor_id = $1 AND event_type = 'challenge_created'", [visitors[0]]);
-    assert.deepStrictEqual(createdEvent.rows[0], { ip: '192.0.2.11', ip_source: 'x-forwarded-for' });
     await db.query(`INSERT INTO analytics_events (path, visitor_id, ip, ip_source) VALUES
       ('/', $1, '152.233.1.1', 'proxy_legacy'), ('/', $1, '152.233.1.1', 'proxy_legacy'),
       ('/', $1, '152.233.1.2', 'proxy_legacy'), ('/', $1, '152.233.1.2', NULL),
@@ -84,11 +77,10 @@ const db = require('../src/db');
     assert.strictEqual(list.ips.find(row => row.ip === '152.233.1.1').proxy_legacy, true);
     assert.strictEqual(list.ips.find(row => row.ip === '152.233.1.2').proxy_legacy, false);
     assert.strictEqual(list.ips.find(row => row.ip === '152.233.1.3').proxy_legacy, false);
-    console.log('IP source integration passed: all sources, spoofed XFF, challenge events and proxy badges for all-legacy versus mixed histories');
+    console.log('IP source integration passed: all sources, spoofed XFF, and proxy badges for all-legacy versus mixed histories');
     console.log('Analytics PostgreSQL integration passed: IP priority, query removal, legacy clients, fingerprint storage, authorization, profile and pagination');
   } finally {
     delete process.env.TRUSTED_PROXY_CIDRS;
-    if (challengeId) await db.query('DELETE FROM challenges WHERE id = $1', [challengeId]);
     await db.query('DELETE FROM analytics_events WHERE visitor_id = ANY($1::uuid[])', [visitors]);
     await new Promise(resolve => server.close(resolve));
     await db.pool.end();

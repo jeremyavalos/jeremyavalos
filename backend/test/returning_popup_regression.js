@@ -19,7 +19,7 @@ const script = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
 const styles = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert(script.includes('cooldownMs: 7 * 24 * 60 * 60 * 1000'), 'Seven-day dismissal cooldown changed');
-assert(script.includes("params.get('challenge')") && script.includes("document.querySelector('dialog[open]')") && script.includes("document.querySelector('form:focus-within')"), 'Active interaction suppression is incomplete');
+assert(!script.includes("params.get('challenge')") && script.includes("document.querySelector('dialog[open]')") && script.includes("document.querySelector('form:focus-within')"), 'Active interaction suppression is incomplete');
 assert(script.includes('context.previous_visit') && script.includes('context.current_visit'), 'Real visit timestamps are not rendered');
 assert(!script.includes("setDetail('network'") && !html.includes('data-detail="network"') && !html.includes('id="returning-network"'), 'Network/provider information is exposed in the returning-visitor popup');
 assert(script.includes("trackPopup('returning_popup_details_opened')"), 'Details-open analytics are missing');
