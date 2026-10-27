@@ -1,160 +1,83 @@
 # Jeremy Avalos
 
-### Software Developer • Entrepreneur • Tech Specialist
+### Software Engineering · Full-Stack Development · Mobile Products
 
-I am currently studying Software Engineering while building mobile applications, web platforms and technology solutions.
+I’m a Software Engineering student building practical software across web and mobile applications, backend services, and automation systems. I care about clear product decisions, maintainable architecture, and software grounded in real use cases.
 
-I combine software development, business administration, customer service, hardware repair and entrepreneurship to create practical solutions that solve real-world problems.
+**Open to freelance projects, product collaborations, and software opportunities.**
 
-<p align="left">
-  <a href="https://jeremyavalos.xyz">
-    <img src="https://img.shields.io/badge/Portfolio-jeremyavalos.xyz-D9B76F?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=black" alt="Portfolio — jeremyavalos.xyz" />
-  </a>
-  <a href="https://github.com/jeremyavalos">
-    <img src="https://img.shields.io/badge/GitHub-jeremyavalos-181717?style=for-the-badge&logo=github" alt="GitHub" />
-  </a>
-  <a href="https://www.linkedin.com/in/jeremy-avalos/">
-    <img src="https://img.shields.io/badge/LinkedIn-Jeremy%20Avalos-0A66C2?style=for-the-badge&logo=linkedin" alt="LinkedIn" />
-  </a>
-  <a href="https://instagram.com/jeremyavalos">
-    <img src="https://img.shields.io/badge/Instagram-@jeremyavalos-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram" />
-  </a>
-  <a href="mailto:contact@jeremyavalos.xyz">
-    <img src="https://img.shields.io/badge/Email-Contact-6D4AFF?style=for-the-badge&logo=protonmail&logoColor=white" alt="Email" />
-  </a>
-</p>
+[Portfolio](https://jeremyavalos.xyz) · [LinkedIn](https://www.linkedin.com/in/jeremy-avalos/) · [Email](mailto:contact@jeremyavalos.xyz)
 
 ---
 
-## Current Focus
+## What I Build
 
-- Building production-ready mobile applications and web platforms.
-- Developing technology solutions that combine software, business needs and practical user experience.
-- Growing Covenant as a habit-building and personal discipline mobile application.
-- Creating client-focused digital experiences for service businesses and premium brands.
-- Expanding my skills across full-stack development, mobile deployment, hardware and electronics.
+- **Full-stack products** — user-facing experiences connected to APIs and persistent data.
+- **Mobile applications** — product design and development with React Native and Expo.
+- **Backend systems** — API design, data models, integrations, and operational workflows.
+- **Automation & trading research** — market-data pipelines, decision controls, and evaluation tooling.
 
----
-
-## Professional Experience
-
-| Area | Experience |
-| --- | --- |
-| Customer Service | 10+ years solving problems, supporting people and managing real customer needs |
-| Business Administration | 10+ years across operations, organization, service workflows and business execution |
-| Software Development | Mobile applications, web platforms and product-focused development |
-| Hardware Repair | Computer repair, mobile device repair, diagnostics and technical support |
-| Entrepreneurship | Digital products, client work, service design and technology-driven projects |
-
----
-
-## Featured Projects
+## Selected Projects
 
 ### Trading Bot
 
-Local quantitative trading system for prediction markets, combining real-time market data, probability models, liquidity and net-edge checks, controlled execution and continuous strategy evaluation.
+A local quantitative system for prediction markets, combining market data, probability models, decision controls, and strategy evaluation. The portfolio case study describes architecture and illustrative states, not verified investment performance.
 
-**Stack:** TypeScript, Node.js, Polymarket, Binance market data, Ollama / Qwen
+**Focus:** TypeScript · Node.js · Polymarket · market data · local AI
 
-**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#trading-bot)
+**Project notes:** [Trading Bot case study](https://jeremyavalos.xyz/#trading-bot)
 
 ### BinanceBot
 
-Independent Binance Spot trading engine with multi-timeframe technical signals, capital and exchange-rule checks, adaptive exits and execution health controls. Local AI adds context, while separate signal, trade and AI journals preserve decision history. Supports PAPER, TESTNET and LIVE modes.
+A modular Binance Spot engine organized around market signals, risk checks, execution health, position management, and decision journals. Its portfolio case study describes PAPER, TESTNET, and LIVE modes; it does not claim trading results.
 
-**Stack:** TypeScript, Node.js, Binance Spot API, Ollama
+**Focus:** TypeScript · Node.js · Binance Spot API · execution controls
 
-**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#binancebot)
+**Project notes:** [BinanceBot case study](https://jeremyavalos.xyz/#binancebot)
 
 ### TokenTrader
 
-On-chain token research pipeline that discovers PancakeSwap V2/V3 pools on BNB Smart Chain, checks liquidity and contract risks, scores candidates and tracks later price and liquidity outcomes. The current build observes and analyzes; it does not execute trades.
+An observation-only research pipeline for newly created BNB Smart Chain pools. It screens liquidity and contract risks, scores candidates, and tracks later outcomes; the current portfolio description explicitly says it does not sign transactions or execute trades.
 
-**Stack:** Python, Web3.py, asyncio, SQLite, DexScreener, Honeypot, GoPlus
+**Focus:** Python · Web3.py · asyncio · SQLite · on-chain data
 
-**Explore:** [Architecture and case study](https://jeremyavalos.xyz/#tokentrader)
-
-### Metanoia
-
-Social reintegration platform focused on legal guidance, employment resources and personal development.
-
-**Focus:** Social impact, legal resources, employment tools and structured personal growth.
-
-### YATCK K CLUB
-
-Luxury yacht reservation platform connecting a mobile-first customer experience with a reservation backend.
-
-**Focus:** Yacht catalog, booking flow, reservation requests and responsive design.
-
-**Stack:** React Native, Node.js, PostgreSQL, Railway
+**Project notes:** [TokenTrader case study](https://jeremyavalos.xyz/#tokentrader)
 
 ### Covenant
 
-Habit-building and personal discipline mobile application focused on consistency, accountability and long-term personal growth.
+A mobile habit and personal-discipline product focused on routines, accountability, and consistency.
 
-**Role:** Founder, Product Designer and Developer
+**Focus:** React Native · Expo · TypeScript
 
-**Stack:** React Native, Expo, TypeScript, RevenueCat, Firebase
+**Code:** [Public repository](https://github.com/jeremyavalos/covenant-clean)
 
-### VisorApp
+### YATCK K CLUB
 
-Digital concierge platform for immigration and documentation processes.
+A yacht-reservation experience with availability, booking, and customer-facing flows. The linked public repository contains a TypeScript/Next.js web interface; the portfolio separately describes a mobile-first experience and reservation backend.
 
-**Focus:** Visa processes, passport support, document guidance and client service workflows.
+**Focus:** TypeScript · Next.js · booking workflows
 
-### ReparaTech
+**Code:** [Public web repository](https://github.com/jeremyavalos/yatchkclub)
 
-Technology services website developed for a client.
+### Metanoia
 
-**Focus:** Website design, service presentation, customer contact flow and business digital presence.
+A public digital experience centered on social reintegration, guidance, employment resources, and personal development.
 
----
-
-## Technology Stack
-
-<p align="left">
-  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
-  <img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native" />
-  <img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
-  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=111111" alt="Linux" />
-  <img src="https://img.shields.io/badge/ESP32-111111?style=for-the-badge&logo=espressif&logoColor=white" alt="ESP32" />
-</p>
+**Project:** [Metanoia website](https://metanoia-flame.vercel.app/)
 
 ---
 
-## GitHub Stats
+## Technologies Across These Projects
 
-<p align="left">
-  <img height="170" src="https://github-readme-stats.vercel.app/api?username=jeremyavalos&show_icons=true&theme=dark&hide_border=true&bg_color=0D1117&title_color=D9B76F&icon_color=D9B76F&text_color=F4F0E8" alt="Jeremy Avalos GitHub stats" />
-  <img height="170" src="https://github-readme-stats.vercel.app/api/top-langs/?username=jeremyavalos&layout=compact&theme=dark&hide_border=true&bg_color=0D1117&title_color=D9B76F&text_color=F4F0E8" alt="Jeremy Avalos top languages" />
-</p>
+`TypeScript` · `JavaScript` · `Node.js` · `Python` · `React Native` · `Expo` · `Next.js` · `PostgreSQL` · `SQLite` · `Web3.py`
 
-<p align="left">
-  <img src="https://streak-stats.demolab.com?user=jeremyavalos&theme=dark&hide_border=true&background=0D1117&ring=D9B76F&fire=D9B76F&currStreakLabel=D9B76F" alt="Jeremy Avalos contribution streak" />
-</p>
+The technologies above are drawn from the projects and public code linked here; they are not claims that every project uses the entire stack.
 
 ---
 
 ## Contact
 
-- Portfolio: [jeremyavalos.xyz](https://jeremyavalos.xyz)
-- LinkedIn: [linkedin.com/in/jeremy-avalos](https://www.linkedin.com/in/jeremy-avalos/)
-- Instagram: [@jeremyavalos](https://instagram.com/jeremyavalos)
-- GitHub: [github.com/jeremyavalos](https://github.com/jeremyavalos)
-- Email: [contact@jeremyavalos.xyz](mailto:contact@jeremyavalos.xyz)
-
----
-
-> Build with discipline. Solve with empathy. Keep learning, keep shipping.
-
-## Privacy
-
-This site collects technical information including page path, referrer, browser/device category, a random first-party browser identifier, a device fingerprint, and the visitor IP address. The random identifier is not derived from device or network characteristics. The fingerprint hashes User-Agent, language, screen dimensions and color depth, pixel ratio, timezone, and CPU core count to associate potentially related browser IDs. Fingerprints can change and can collide across devices; they are not proof of identity. The private admin dashboard provides access to analytics. Returning visitors can also see their current connection details in the site's returning-visitor prompt.
-
-Analytics events, including fingerprints, are retained for 90 days. We do not sell analytics data or publish visitor lists. Geolocation requests send IP addresses to IPinfo; voluntary leads and challenge records have separate storage.
-
-If you have privacy questions, contact the site administrator at the email address listed above.
+- **Portfolio:** [jeremyavalos.xyz](https://jeremyavalos.xyz)
+- **GitHub:** [@jeremyavalos](https://github.com/jeremyavalos)
+- **LinkedIn:** [jeremy-avalos](https://www.linkedin.com/in/jeremy-avalos/)
+- **Email:** [contact@jeremyavalos.xyz](mailto:contact@jeremyavalos.xyz)
