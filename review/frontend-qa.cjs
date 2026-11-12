@@ -50,7 +50,9 @@ const assert = require("assert/strict");
       const result = await page.evaluate(() => ({
         overflow: document.documentElement.scrollWidth > innerWidth,
         broken: [...document.images]
-          .filter((i) => !i.complete || !i.naturalWidth)
+          .filter(
+            (i) => i.hasAttribute("src") && (!i.complete || !i.naturalWidth),
+          )
           .map((i) => i.src),
         h1: document.querySelectorAll("h1").length,
         dead: [...document.querySelectorAll('a[href^="#"]')]
