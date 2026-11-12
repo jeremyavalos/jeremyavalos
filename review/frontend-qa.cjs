@@ -108,9 +108,13 @@ const assert = require("assert/strict");
     await page.locator(".nav-toggle").getAttribute("aria-expanded"),
     "false",
   );
-  assert.equal(await page.locator("#work .v2-card").count(), 5);
+  assert.equal(await page.locator("#work .v2-card").count(), 6);
   assert.equal(
     await page.locator('#work a[href="project-covenant.html"]').count(),
+    3,
+  );
+  assert.equal(
+    await page.locator('#work a[href="project-ocean-majesty.html"]').count(),
     3,
   );
   assert.equal(await page.locator("#labs .v2-card").count(), 3);
