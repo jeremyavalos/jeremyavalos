@@ -149,7 +149,7 @@ const assert = require("assert/strict");
   await page.screenshot({ path: "review/portfolio-spanish-mobile.png", fullPage: true });
   await page.goto("http://127.0.0.1:4180/project-covenant.html");
   assert.equal(await page.locator("html").getAttribute("lang"), "es");
-  assert.equal(await page.locator(".v2-back").innerText(), "← TODOS LOS PROYECTOS");
+  assert.equal(await page.locator(".v2-back").innerText(), "← VOLVER A PROYECTOS");
   assert((await page.locator(".v2-study-lead").innerText()).includes("hábitos constantes"));
   await page.screenshot({ path: "review/covenant-spanish-mobile.png", fullPage: true });
   await page.locator('[data-language-option="en"]').click();
