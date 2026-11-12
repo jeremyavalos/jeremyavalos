@@ -74,7 +74,7 @@
     "achievements.": "logros.",
     "Course completions.": "Cursos completados.",
     "Foundations I keep building on.": "Conocimientos que sigo fortaleciendo.",
-    "FOUR ACADEMIC MILESTONES": "CUATRO LOGROS ACADÉMICOS",
+    "FIVE ACADEMIC MILESTONES": "CINCO LOGROS ACADÉMICOS",
     "Course completion": "Curso finalizado",
     "Statement of achievement": "Constancia de logro académico",
     "Data Analytics Essentials": "Data Analytics Essentials",

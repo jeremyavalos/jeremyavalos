@@ -33,7 +33,19 @@ const crypto = require("crypto");
       for (const i of images) i.loading = "eager";
       await Promise.all(images.map((i) => i.decode()));
     });
-    assert.equal(await p.locator(".cert-card").count(), 4);
+    assert.equal(await p.locator(".cert-card").count(), 5);
+    assert.deepEqual(
+      await p.locator(".cert-card").evaluateAll((cards) =>
+        cards.map((card) => card.dataset.title),
+      ),
+      [
+        "Ethical Hacker",
+        "Introduction to Cybersecurity",
+        "Data Analytics Essentials",
+        "Python Essentials 1",
+        "Python Essentials 2",
+      ],
+    );
     assert(
       !(await p.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -68,7 +80,7 @@ const crypto = require("crypto");
     assert(await p.locator("#cert-track").evaluate((e) => e.scrollLeft > 0));
     await p.keyboard.press("ArrowLeft");
     await p.waitForTimeout(850);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const card = p.locator(".cert-card").nth(i);
       await card.locator(".cert-preview").click();
       await p.locator("#certificate-image").evaluate((i) => i.decode());
@@ -138,18 +150,19 @@ const crypto = require("crypto");
     }
     results.push({
       width,
-      certificates: 4,
+      certificates: 5,
       overflow: false,
       keyboard: true,
       arrows: true,
       dots: true,
-      lightboxes: 4,
+      lightboxes: 5,
       zoom: true,
       escapeAndFocusReturn: true,
       reducedMotion: true,
     });
   }
   const originals = [
+    ["ethical-hacker", "EthicalHackerUpdate20261112-20-m8q2vx.pdf"],
     ["data-analytics", "DataAnalyticsEssentialsUpdate20261112-20-eemdd0.pdf"],
     ["cybersecurity", "I2CSUpdate20261112-20-gos81g.pdf"],
     ["python-1", "PythonEssentials1Update20261112-20-snjl8v.pdf"],
@@ -208,9 +221,9 @@ const crypto = require("crypto");
   const nojs = await browser.newContext({ javaScriptEnabled: false });
   const np = await nojs.newPage();
   await np.goto("http://127.0.0.1:4180/");
-  assert.equal(await np.locator(".cert-pdf").count(), 4);
+  assert.equal(await np.locator(".cert-pdf").count(), 5);
   await np.locator(".cert-preview").first().click();
-  assert(np.url().endsWith("data-analytics.webp"));
+  assert(np.url().endsWith("ethical-hacker.webp"));
   await nojs.close();
   await mobile.close();
   assert.deepEqual(errors, []);
@@ -219,7 +232,7 @@ const crypto = require("crypto");
     JSON.stringify(
       {
         results,
-        pdfs: "4 HTTP 200 application/pdf, SHA-256 identical to originals",
+        pdfs: "5 HTTP 200 application/pdf, SHA-256 identical to originals",
         touch: "CDP touch swipe and touchscreen lightbox tap passed",
         nojs: "images and PDFs remain native links",
         errors,
@@ -229,7 +242,7 @@ const crypto = require("crypto");
     ),
   );
   console.log(
-    "PASS: four widths, 16 lightboxes, zoom, keyboard, focus, dots, mouse, touch, reduced motion, no-JS and 4 unchanged PDFs. No console errors.",
+    "PASS: four widths, 20 lightboxes, zoom, keyboard, focus, dots, mouse, touch, reduced motion, no-JS and 5 unchanged PDFs. No console errors.",
   );
   await browser.close();
 })().catch((e) => {
