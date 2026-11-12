@@ -109,6 +109,22 @@ const assert = require("assert/strict");
     "false",
   );
   assert.equal(await page.locator("#work .v2-card").count(), 6);
+  assert.deepEqual(
+    await page.locator("#work .v2-card-meta span:first-child").allTextContents(),
+    [
+      "Client Work · Created for a client",
+      "Client Work · Created for a client",
+      "Client Work · Created for a client",
+      "Own Product",
+      "Own Product",
+      "Client Work · Created for a client",
+    ],
+  );
+  assert.equal(await page.locator("#work .v2-project-url").count(), 6);
+  for (const link of await page.locator("#work .v2-project-url").all()) {
+    assert((await link.getAttribute("href")).startsWith("https://"));
+    assert.equal(await link.getAttribute("target"), "_blank");
+  }
   assert.equal(
     await page.locator('#work a[href="project-covenant.html"]').count(),
     3,
