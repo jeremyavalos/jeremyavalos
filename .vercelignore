@@ -1,0 +1,13 @@
+# Internal material is never part of the public frontend artifact.
+review/
+backend/
+test/
+**/*.md
+.agents/
+.codex/
+.aws/
+.env*
+# Superseded artificial illustrations are not published.
+assets/trading-bot/
+assets/binancebot/
+assets/tokentrader/

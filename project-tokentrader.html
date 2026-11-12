@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="An observation-only pipeline for discovering new pools and screening on-chain risks."
+    />
+    <title>TokenTrader — Jeremy Avalos</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="portfolio-v2.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TokenTrader — Jeremy Avalos" />
+    <meta
+      property="og:description"
+      content="An observation-only pipeline for discovering new pools and screening on-chain risks."
+    />
+    <meta
+      property="og:image"
+      content="https://www.jeremyavalos.xyz/assets/jeremy-hero-blazer.jpeg"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="canonical"
+      href="https://www.jeremyavalos.xyz/project-tokentrader.html"
+    />
+  </head>
+  <body class="portfolio-v2 v2-study-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="index.html#home" aria-label="Jeremy Avalos home"
+        >JA<span class="v2-brand-dot">.</span></a
+      >
+
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+      >
+        MENU
+      </button>
+
+      <nav id="site-nav" class="nav-links" aria-label="Primary navigation">
+        <a href="index.html#work">01 WORK</a>
+        <a href="index.html#capabilities">02 CAPABILITIES</a>
+        <a href="index.html#about">03 ABOUT</a>
+        <a href="#contact">04 CONTACT</a>
+      </nav>
+    </header>
+
+    <main id="main-content" class="v2-study" tabindex="-1">
+      <a class="v2-back mono" href="index.html#labs">← ALL LABS</a>
+      <section class="v2-study-intro">
+        <p class="eyebrow mono">
+          Engineering Labs / On-chain research · Data pipelines
+        </p>
+        <h1>TokenTrader<span class="v2-brand-dot">.</span></h1>
+        <p class="v2-study-lead">
+          An observation-only pipeline for discovering new pools and screening
+          on-chain risks.
+        </p>
+        <div class="v2-study-meta">
+          <div class="v2-tags" aria-label="Technologies">
+            <span>Python</span><span>Web3.py</span><span>asyncio</span
+            ><span>SQLite</span>
+          </div>
+          <span class="mono"
+            >Observation-only research · Private implementation</span
+          >
+        </div>
+        <a class="v2-explore" href="index.html#labs"
+          >Explore the other labs ↗</a
+        >
+      </section>
+      <figure class="v2-desktop-capture">
+        <a
+          href="assets/projects/tokentrader-architecture.svg"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open full-size project image"
+          ><img
+            src="assets/projects/tokentrader-architecture.svg"
+            alt="TokenTrader — source-derived architecture diagram"
+            width="1200"
+            height="760"
+            loading="eager"
+            decoding="async"
+        /></a>
+        <figcaption>
+          Source-derived architecture diagram. No token addresses, private
+          records or invented trading results.
+        </figcaption>
+      </figure>
+      <section class="v2-story">
+        <div>
+          <p class="eyebrow mono">01 / THE PROBLEM</p>
+          <h2>A reason to build.</h2>
+          <p>
+            New token pools produce scattered signals. Research needs a
+            repeatable way to collect evidence and revisit what happened later.
+          </p>
+        </div>
+        <div>
+          <p class="eyebrow mono">02 / MY CONTRIBUTION</p>
+          <h2>What I developed.</h2>
+          <p>
+            I developed an asynchronous pipeline that discovers PancakeSwap
+            pools, checks provider and liquidity data, scores candidates and
+            tracks subsequent outcomes.
+          </p>
+        </div>
+      </section>
+      <section class="v2-experience">
+        <div class="v2-feature-column">
+          <p class="eyebrow mono">03 / THE EXPERIENCE</p>
+          <h2>Inside the system.</h2>
+          <div class="v2-feature-list">
+            <div>
+              <span class="mono">01</span>
+              <h3>Discover new pools</h3>
+              <p>
+                The scanner observes PancakeSwap pool creation events on BNB
+                Smart Chain.
+              </p>
+            </div>
+            <div>
+              <span class="mono">02</span>
+              <h3>Screen the evidence</h3>
+              <p>
+                The analysis pipeline combines liquidity, provider availability
+                and contract-risk checks.
+              </p>
+            </div>
+            <div>
+              <span class="mono">03</span>
+              <h3>Track later outcomes</h3>
+              <p>
+                SQLite persistence connects candidates, analysis and later
+                observations.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <details class="v2-technical">
+        <summary>Engineering notes <span aria-hidden="true">+</span></summary>
+        <p>
+          Scanning and outcome tracking run concurrently. Missing provider data
+          is handled explicitly. The inspected build is observation-only: it
+          does not sign transactions or execute trades.
+        </p>
+        <div class="v2-tags" aria-label="Technologies">
+          <span>Python</span><span>Web3.py</span><span>asyncio</span
+          ><span>SQLite</span>
+        </div>
+      </details>
+      <section id="contact" class="v2-study-contact">
+        <p class="eyebrow mono">HAVE SOMETHING IN MIND?</p>
+        <h2>Let’s make it real.</h2>
+        <a
+          href="mailto:contact@jeremyavalos.xyz"
+          class="btn primary liquid-cta"
+          data-cybernetic-liquid
+          ><span class="liquid-cta-label">START A CONVERSATION ↗</span></a
+        >
+      </section>
+      <a class="v2-next" href="project-yachts-life-master.html"
+        ><span class="mono">NEXT PROJECT</span
+        ><strong>Yachts Life Master ↗</strong></a
+      >
+    </main>
+    <dialog class="returning-visitor" id="returning-visitor-dialog" aria-labelledby="returning-visitor-title">
+      <button class="returning-visitor-close" type="button" aria-label="Keep exploring and close">×</button>
+      <p class="returning-visitor-signal mono">FAMILIAR SIGNAL DETECTED</p>
+      <h2 id="returning-visitor-title">WELCOME BACK<span id="returning-visitor-ip"></span> <span aria-hidden="true">👀</span></h2>
+      <p class="returning-visitor-variant" id="returning-visitor-variant">Looks like curiosity won.</p>
+      <div class="returning-visitor-copy">
+        <p>Looks like you've been here before.</p>
+        <h3 id="returning-location-headline">WELCOME BACK.</h3>
+        <p id="returning-visitor-location">Your connection isn't giving me much of a location this time.</p>
+        <p id="returning-network-aside" hidden>Your network tells a more interesting story.</p>
+        <p id="returning-visitor-emphasis">Either way, the important part is:<br /><strong>you came back.</strong></p>
+        <p>Maybe there's something here worth building together.</p>
+      </div>
+      <div class="returning-session-times" aria-label="Visit timing">
+        <div><span class="mono">LAST SEEN</span><strong id="returning-last-seen">—</strong></div>
+        <div><span class="mono">BACK ONLINE</span><strong id="returning-current-visit">—</strong></div>
+      </div>
+      <details class="returning-details" id="returning-details">
+        <summary class="mono">CONNECTION DETAILS</summary>
+        <dl>
+          <div data-detail="device"><dt>DEVICE</dt><dd id="returning-device"></dd></div>
+          <div data-detail="os"><dt>OS</dt><dd id="returning-os"></dd></div>
+          <div data-detail="browser"><dt>BROWSER</dt><dd id="returning-browser"></dd></div>
+          <div data-detail="location"><dt>LOCATION</dt><dd id="returning-location-detail"></dd></div>
+          <div data-detail="ip"><dt>IP</dt><dd id="returning-ip-detail"></dd></div>
+          <div data-detail="first-seen"><dt>FIRST SEEN</dt><dd id="returning-first-seen"></dd></div>
+        </dl>
+      </details>
+      <div class="returning-visitor-actions">
+        <a class="btn primary" href="#contact" data-returning-action="project">START A PROJECT</a>
+        <button class="btn" type="button" data-returning-action="email">LEAVE YOUR EMAIL</button>
+        <button class="btn returning-visitor-explore" type="button" data-returning-action="explore">KEEP EXPLORING</button>
+      </div>
+      <form class="returning-email-form" id="returning-email-form" hidden>
+        <label class="mono" for="returning-email">YOUR EMAIL</label>
+        <div>
+          <input id="returning-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254" required />
+          <button class="btn primary" type="submit">SEND</button>
+        </div>
+        <p class="returning-email-status mono" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+    <footer>
+      <p>© <span id="year"></span> Jeremy Avalos.</p>
+      <div style="text-align:center;margin-top:6px;font-size:0.85rem;">
+        <a id="admin-console-link" href="#" aria-label="admin console" style="color:transparent;background:transparent;border:0;outline:none;display:inline-block;width:18px;height:18px;line-height:18px;vertical-align:middle;text-decoration:none;opacity:0.65">🔒</a>
+      </div>
+    </footer>
+
+    <script>
+      window.API_BASE = 'https://jeremyavalos-production.up.railway.app';
+      document.getElementById('admin-console-link').href = `${window.API_BASE.replace(/\/$/, '')}/admin`;
+    </script>
+
+    <script src="returning-visitor-copy.js"></script>
+    <script src="fingerprint.js"></script>
+    <script src="script.js"></script>
+    <script src="cybernetic-liquid.js"></script>
+    <script src="trading-bot.js"></script>
+  </body>
+</html>

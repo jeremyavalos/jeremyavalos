@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Jeremy Avalos builds software, products and technology solutions across mobile apps, websites, SaaS platforms, UI/UX, business analysis and technical consulting."
+      content="Full-stack developer building commercial websites, mobile products, APIs and automation. Explore real work by Jeremy Avalos."
     />
-    <title>Jeremy Avalos | Software Developer</title>
+    <title>Jeremy Avalos — Full-stack developer & product builder</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,12 +16,36 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="portfolio-v2.css" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Jeremy Avalos — Full-stack developer & product builder"
+    />
+    <meta
+      property="og:description"
+      content="Commercial websites, mobile products and engineering experiments. Real work, from interface to infrastructure."
+    />
+    <meta
+      property="og:image"
+      content="https://www.jeremyavalos.xyz/assets/jeremy-hero-blazer.jpeg"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://www.jeremyavalos.xyz/" />
   </head>
-  <body>
+  <body class="portfolio-v2">
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="#home" aria-label="Jeremy Avalos home">JA</a>
+      <a class="brand" href="#home" aria-label="Jeremy Avalos home"
+        >JA<span class="v2-brand-dot">.</span></a
+      >
 
-      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+      >
         MENU
       </button>
 
@@ -34,17 +58,27 @@
     </header>
 
     <main id="home">
+      <div id="main-content" tabindex="-1"></div>
       <section class="hero">
         <div class="hero-copy reveal">
-          <p class="eyebrow mono">JEREMY / DEV.01</p>
-          <h1>Jeremy Avalos</h1>
-          <p class="hero-subheadline">Building digital products with presence.</p>
-          <p class="hero-role">Software Developer · Entrepreneur · Tech Specialist</p>
+          <p class="eyebrow mono">INDEPENDENT DEVELOPER / MEXICO</p>
+          <p class="v2-name">Jeremy Avalos</p>
+          <h1>From idea<br />to <em>interface.</em><br />And beyond.</h1>
+          <p class="hero-subheadline">
+            Full-stack development. Product thinking.
+          </p>
+          <p class="hero-role">
+            I build commercial websites, mobile products and the systems behind
+            them.
+          </p>
 
           <div class="meta-grid" aria-label="Profile metadata">
             <div>
               <span class="meta-label mono">STATUS</span>
-              <strong>AVAILABLE</strong>
+              <strong
+                ><span class="status-dot" aria-hidden="true"></span> OPEN TO
+                WORK</strong
+              >
             </div>
             <div>
               <span class="meta-label mono">LOCATION</span>
@@ -52,29 +86,54 @@
             </div>
             <div>
               <span class="meta-label mono">FOCUS</span>
-              <strong>APPLICATIONS · APIS · DIGITAL PRODUCTS</strong>
+              <strong>WEB · MOBILE · APIs · AUTOMATION</strong>
             </div>
           </div>
 
           <div class="primary-actions" aria-label="Primary contact links">
-            <a class="btn primary liquid-cta" href="#contact" data-cybernetic-liquid>
-              <span class="liquid-cta-label">START A PROJECT</span>
+            <a
+              class="btn primary liquid-cta"
+              href="#contact"
+              data-cybernetic-liquid
+            >
+              <span class="liquid-cta-label"
+                >LET’S BUILD SOMETHING <span aria-hidden="true">↗</span></span
+              >
             </a>
             <a class="btn" href="#work">VIEW WORK</a>
           </div>
 
           <div class="social-links" aria-label="Social media links">
-            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer">GitHub</a>
-            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer">LinkedIn</a>
-            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer">Instagram</a>
+            <a
+              href="https://github.com/jeremyavalos"
+              target="_blank"
+              rel="noreferrer"
+              >GitHub</a
+            >
+            <a
+              href="https://www.linkedin.com/in/jeremy-avalos/"
+              target="_blank"
+              rel="noreferrer"
+              >LinkedIn</a
+            >
+            <a
+              href="https://instagram.com/jeremyavalos"
+              target="_blank"
+              rel="noreferrer"
+              >Instagram</a
+            >
             <a href="mailto:contact@jeremyavalos.xyz">Email</a>
           </div>
         </div>
 
         <div class="hero-visual reveal" style="--delay: 120ms">
+          <span class="v2-portrait-label mono">THE HUMAN BEHIND THE CODE</span>
           <div class="portrait-card parallax" data-depth="-0.04">
             <img
               src="assets/jeremy-hero-blazer.jpeg"
+              width="844"
+              height="1275"
+              fetchpriority="high"
               alt="Black and white portrait of Jeremy Avalos wearing a blazer"
               onerror="this.parentElement.classList.add('image-missing'); this.remove();"
             />
@@ -83,261 +142,271 @@
         </div>
       </section>
 
-      <section id="work" class="work">
-        <div class="section-header reveal">
-          <p class="eyebrow mono">01 / WORK</p>
-          <h2>Selected product work.</h2>
+      <section id="work" class="work v2-work" aria-labelledby="work-title">
+        <div class="v2-section-heading">
+          <div>
+            <p class="eyebrow mono">01 / SELECTED WORK</p>
+            <h2 id="work-title">Built for the <em>real world.</em></h2>
+          </div>
+          <p>
+            Client work and independent products.<br />From the first impression
+            to the final detail.
+          </p>
         </div>
-
-        <div class="project-carousel" role="region" aria-roledescription="carousel" aria-label="Selected projects">
-          <div class="carousel-toolbar">
-            <p class="carousel-hint mono">EXPLORE THE COLLECTION <span aria-hidden="true">↔</span></p>
-            <div class="carousel-controls" hidden>
-              <span class="carousel-status mono" aria-live="polite" aria-atomic="true">01 / 07</span>
-              <button class="carousel-button" type="button" data-project-prev aria-label="Previous project" aria-controls="project-track" disabled>←</button>
-              <button class="carousel-button" type="button" data-project-next aria-label="Next project" aria-controls="project-track">→</button>
-            </div>
-          </div>
-          <div class="project-grid project-track" id="project-track" tabindex="0" aria-label="Projects. Use left and right arrow keys to browse.">
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="1 of 7: Trading Bot">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 01</p>
-              <h3>Trading Bot</h3>
-              <p>Local quantitative trading system combining real-time market data, probability models, AI-assisted context, execution controls and continuous strategy evaluation.</p>
-              <p class="role mono">BACKEND · QUANT SYSTEMS · LOCAL AI</p>
-              <div class="chips" aria-label="Trading Bot technologies">
-                <span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Polymarket</span><span class="mono">Binance</span><span class="mono">Ollama / Qwen</span><span class="mono">Linux</span>
+        <div class="v2-projects">
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-yachts-life-master.html"
+              aria-label="Explore Yachts Life Master"
+              ><img
+                src="assets/projects/yachts-desktop.webp"
+                alt="Yachts Life Master — published website in a desktop browser"
+                width="1440"
+                height="1000"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Client Work</span><span>01</span>
               </div>
-              <a class="project-link" href="#trading-bot">VIEW PROJECT / CASE STUDY →</a>
-            </div>
-            <a class="project-visual trading-visual" href="#trading-bot" aria-label="Explore Trading Bot case study">
-              <img src="assets/trading-bot/terminal.webp" alt="Jeremy Avalos Trading Bot terminal: an illustrative high-score candidate is skipped because net edge is insufficient" width="1536" height="1024" loading="lazy" />
-            </a>
-          </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="2 of 7: BinanceBot">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 02</p>
-              <h3>BinanceBot</h3>
-              <p>A modular Binance Spot trading engine that turns multi-timeframe signals into controlled entries and adaptive exits, with local AI context and a journal of every decision.</p>
-              <p class="role mono">BACKEND · EXECUTION SYSTEMS · LOCAL AI</p>
-              <div class="chips" aria-label="BinanceBot technologies"><span class="mono">TypeScript</span><span class="mono">Node.js</span><span class="mono">Binance Spot API</span><span class="mono">Ollama</span></div>
-              <a class="project-link" href="#binancebot">VIEW PROJECT / CASE STUDY →</a>
-            </div>
-            <a class="project-visual generated-project-visual" href="#binancebot" aria-label="Explore BinanceBot case study">
-              <img src="assets/binancebot/cover.webp" alt="Concept illustration of BinanceBot: market signals connected to risk controls, Spot execution and a local AI observer" width="1536" height="1024" loading="lazy" decoding="async" />
-            </a>
-          </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="3 of 7: TokenTrader">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 03</p>
-              <h3>TokenTrader</h3>
-              <p>On-chain token intelligence for BNB Smart Chain: discover new PancakeSwap pools, screen contract and liquidity risks, and track what happens after each candidate is scored.</p>
-              <p class="role mono">BLOCKCHAIN · SECURITY ANALYSIS · DATA PIPELINES</p>
-              <div class="chips" aria-label="TokenTrader technologies"><span class="mono">Python</span><span class="mono">Web3.py</span><span class="mono">asyncio</span><span class="mono">SQLite</span><span class="mono">PancakeSwap</span></div>
-              <a class="project-link" href="#tokentrader">VIEW PROJECT / CASE STUDY →</a>
-            </div>
-            <a class="project-visual generated-project-visual" href="#tokentrader" aria-label="Explore TokenTrader case study">
-              <img src="assets/tokentrader/cover.webp" alt="Concept illustration of TokenTrader: token discovery scanner, security screening and connected data archives" width="1536" height="1024" loading="lazy" decoding="async" />
-            </a>
-          </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="4 of 7: Metanoia">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 04</p>
-              <h3>Metanoia</h3>
-              <p>Support resources designed to reduce friction for people navigating legal, psychological, and employment challenges.</p>
-              <p class="role mono">CREATOR · PRODUCT DESIGN · DEVELOPMENT</p>
-              <div class="chips">
-                <span class="mono">React Native</span>
-                <span class="mono">Expo</span>
-                <span class="mono">Node.js</span>
-                <span class="mono">Vercel</span>
+              <h3>
+                <a href="project-yachts-life-master.html">Yachts Life Master</a>
+              </h3>
+              <p>
+                A Caribbean yacht charter experience, from discovering the fleet
+                to requesting a private trip.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>Next.js</span><span>TypeScript</span><span>Express</span
+                ><span>PostgreSQL</span>
               </div>
-              <a class="project-link" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+              <a class="v2-explore" href="project-yachts-life-master.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
             </div>
-            <a class="project-visual small-visual" href="https://metanoia-flame.vercel.app/" target="_blank" rel="noreferrer" aria-label="Open Metanoia website">
-              <img src="assets/metanoia-website.png" alt="Metanoia website preview" />
-            </a>
           </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="5 of 7: YATCK K CLUB">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 05</p>
-              <h3>YATCK K CLUB</h3>
-              <p>Luxury yacht reservation platform connecting a mobile-first customer experience with a real reservation backend.</p>
-              <p class="role mono">FULL STACK DEVELOPMENT</p>
-              <div class="chips" aria-label="YATCK K CLUB technologies">
-                <span class="mono">React Native</span>
-                <span class="mono">Node.js</span>
-                <span class="mono">PostgreSQL</span>
-                <span class="mono">Railway</span>
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-tu-agente-seguro.html"
+              aria-label="Explore Tu Agente Seguro"
+              ><img
+                src="assets/projects/insurance-desktop.webp"
+                alt="Tu Agente Seguro — published website in a desktop browser"
+                width="1440"
+                height="1000"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Client Work</span><span>02</span>
               </div>
-              <a class="project-link" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer">VIEW PROJECT / CASE STUDY →</a>
-            </div>
-            <a class="project-visual" href="assets/yatck-01-hero.png" target="_blank" rel="noreferrer" aria-label="Open YATCK K CLUB project preview">
-              <img src="assets/yatck-01-hero.png" alt="YATCK K CLUB mobile reservation experience" />
-            </a>
-          </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="6 of 7: Covenant">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 06</p>
-              <h3>Covenant</h3>
-              <p>Discipline system designed to keep routines, accountability and personal growth consistent.</p>
-              <p class="role mono">FOUNDER · DESIGNER · DEVELOPER</p>
-              <div class="chips">
-                <span class="mono">React Native</span>
-                <span class="mono">Expo</span>
-                <span class="mono">TypeScript</span>
-                <span class="mono">RevenueCat</span>
+              <h3>
+                <a href="project-tu-agente-seguro.html">Tu Agente Seguro</a>
+              </h3>
+              <p>
+                A clear, personal introduction to insurance advice, with a
+                direct route to a conversation.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>Next.js</span><span>TypeScript</span><span>React</span
+                ><span>Tailwind CSS</span>
               </div>
-              <a class="project-link" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer">VIEW PROJECT →</a>
+              <a class="v2-explore" href="project-tu-agente-seguro.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
             </div>
-            <a class="project-visual small-visual" href="assets/covenant-07-habits.png" target="_blank" rel="noreferrer" aria-label="Open Covenant project preview">
-              <img src="assets/covenant-07-habits.png" alt="Covenant product screen" />
-            </a>
           </article>
-
-          <article class="project-card" role="group" aria-roledescription="slide" aria-label="7 of 7: VisorApp">
-            <div class="project-copy">
-              <p class="project-number mono">PROJECT / 07</p>
-              <h3>VisorApp</h3>
-              <p>Documentation-first service journey creating clarity around immigration support and next steps.</p>
-              <p class="role mono">PRODUCT DESIGN · BUSINESS ANALYSIS</p>
-              <div class="chips">
-                <span class="mono">UX</span>
-                <span class="mono">Workflow</span>
-                <span class="mono">Strategy</span>
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-local-studio.html"
+              aria-label="Explore Local Studio"
+              ><img
+                src="assets/projects/studio-desktop.webp"
+                alt="Local Studio — published website in a desktop browser"
+                width="1440"
+                height="1000"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Own Brand</span><span>03</span>
               </div>
-              <a class="project-link" href="#contact">VIEW PROJECT →</a>
-            </div>
-            <div class="project-visual concept-visual" aria-label="VisorApp concept preview">
-              <span>VisorApp</span>
+              <h3><a href="project-local-studio.html">Local Studio</a></h3>
+              <p>
+                My independent studio for bringing local businesses online, with
+                interactive demos and a guided project enquiry.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>React</span><span>TypeScript</span><span>Vite</span
+                ><span>Express</span>
+              </div>
+              <a class="v2-explore" href="project-local-studio.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
             </div>
           </article>
-          </div>
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-metanoia.html"
+              aria-label="Explore Metanoia"
+              ><img
+                src="assets/projects/metanoia-desktop.webp"
+                alt="Metanoia — published website in a desktop browser"
+                width="1440"
+                height="1000"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Own Product</span><span>04</span>
+              </div>
+              <h3><a href="project-metanoia.html">Metanoia</a></h3>
+              <p>
+                A mobile product and public resource site designed to make legal
+                information and support easier to find.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>React Native</span><span>Expo</span
+                ><span>TypeScript</span>
+              </div>
+              <a class="v2-explore" href="project-metanoia.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </article>
         </div>
-
-        <details id="trading-bot" class="trading-case">
-          <summary><span class="mono">01 / TRADING BOT</span><span>Inside the decision engine</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
-          <div class="trading-content">
-            <p class="eyebrow mono">EXPERIMENTAL · LOCAL-FIRST · REAL-TIME</p>
-            <h3>A quantitative decision system, from discovery to evaluation.</h3>
-            <p>Built by Jeremy Avalos. A modular TypeScript / Node.js architecture that interprets prediction markets, tests executable opportunities and evaluates its own decisions. Experimental models and controls do not guarantee returns or prevent every loss.</p>
-            <figure class="trading-figure">
-              <a href="assets/trading-bot/terminal.webp" target="_blank" rel="noreferrer" aria-label="Open full-size Trading Intelligence Terminal illustration"><img src="assets/trading-bot/terminal.webp" alt="Trading Intelligence Terminal with probability, executable ask, friction and a SKIP gate decision" width="1536" height="1024" loading="lazy" /></a>
-              <figcaption>Trading Intelligence Terminal · Original concept illustration; sample data, not live results. Open any illustration to inspect it at full size.</figcaption>
-            </figure>
-            <div class="trading-blocks">
-              <div class="trading-block">
-                <p class="eyebrow mono">01 / THE CHALLENGE</p><h4>Make every entry earn its place.</h4>
-                <p>A promising market is only a candidate. Discovery, parsing, liquidity, probability and risk are independent checks before an order can proceed. The engineering challenge is turning noisy real-time inputs into traceable, constrained decisions.</p>
-              </div>
-              <div class="trading-block">
-                <p class="eyebrow mono">02 / ARCHITECTURE</p><h4>Independent engines. One controlled flow.</h4>
-                <p>REST APIs connect Polymarket API / CLOB execution and Binance market data to modular analysis engines. Position monitoring feeds exit controls and durable evaluation datasets.</p>
-              </div>
-            </div>
-            <ol class="trading-pipeline" aria-label="Trading Bot decision pipeline">
-              <li>Market Discovery</li><li>Ranking / Score</li><li>Crypto Market Parser</li><li>Real Order Book</li><li>Liquidity Gate</li><li>Quant Probability</li><li>Net Edge</li><li>Risk Management</li><li>Execution</li><li>Position Monitoring</li><li>Profit Momentum</li><li>Exit Strategy</li><li>Evaluation / Calibration</li>
-            </ol>
-            <figure class="trading-figure">
-              <a href="assets/trading-bot/architecture.webp" target="_blank" rel="noreferrer" aria-label="Open full-size decision architecture illustration"><img src="assets/trading-bot/architecture.webp" alt="Decision pipeline connected to Binance, Polymarket, Ollama / Qwen and local data" width="1536" height="1024" loading="lazy" /></a>
-              <figcaption>Architecture / Decision Pipeline · AI adds context; quantitative and risk rules govern execution.</figcaption>
-            </figure>
-            <div class="trading-blocks">
-              <div class="trading-block">
-                <p class="eyebrow mono">03 / MARKET INTELLIGENCE</p><h4>Interpret the question. Verify the market.</h4>
-                <p>Discovery ranks markets approximately every five minutes. A high score alone never authorizes a buy.</p>
-                <p>The BTC / ETH parser extracts asset, target, UP / DOWN direction, deadline, exact-day windows and date ranges. For example, “Will Bitcoin reach $86,000 September 14–20?” becomes a bounded barrier event. For exact-day markets, Binance one-minute candles can verify whether the barrier was already reached within that window.</p>
-                <p>The real order book provides best bid, best ask, spread, depth, tick size and minimum order size. Entries use executable prices.</p>
-              </div>
-              <div class="trading-block">
-                <p class="eyebrow mono">04 / QUANT + NET EDGE</p><h4>Probability has to justify the price.</h4>
-                <p>The quant engine estimates barrier-hit probability from spot price, target distance, time remaining, volatility, historical behavior and estimated drift.</p>
-                <p class="trading-formula mono">Model probability − executable market price − estimated friction = net edge</p>
-                <p>The current experimental entry threshold is approximately <strong>+3 percentage points</strong>. A low price alone is insufficient.</p>
-                <p class="trading-callout mono">HIGH SCORE + LIQUID MARKET + INSUFFICIENT PROBABILITY → SKIP</p>
-              </div>
-              <div class="trading-block">
-                <p class="eyebrow mono">05 / AI INTEGRATION</p><h4>Local intelligence, deliberately an observer.</h4>
-                <p>Qwen runs locally through Ollama, using NVIDIA GPU / CUDA when available. It adds technical and market context for candidates and open positions: HOLD_SUPPORTS, WEAKENING, EXIT_RISK or UNKNOWN. It does not independently buy or sell.</p>
-                <p>A separate Profit Momentum engine combines 1m / 5m / 15m RSI, trend, relative volume, ATR and timeframe agreement into STRONG, STABLE, WEAKENING or REVERSING states, primarily for observation and calibration.</p>
-              </div>
-              <div class="trading-block">
-                <p class="eyebrow mono">06 / RISK &amp; EXECUTION</p><h4>Protect entry quality and bound exposure.</h4>
-                <p>The liquidity gate blocks entries when absolute spread exceeds approximately 1.5 percentage points or relative spread exceeds 20% of ask, limiting exposure to immediately adverse marks in wide books.</p>
-                <p>Available account capital is synchronized before sizing. An approximately $5 position target adapts to capital: $25 → 20%, $50 → 10%, $100 → 5%, subject to a maximum risk percentage.</p>
-                <p>Stop loss, profit lock, hard and trailing take profit, and time-based profit extension manage positions. Pending BUY limits, consecutive-loss pauses and exchange-error pauses constrain execution. An executed stop loss puts that market on an approximately one-hour cooldown, persisted across restarts, while other markets remain eligible.</p>
-              </div>
-            </div>
-            <figure class="trading-figure">
-              <a href="assets/trading-bot/monitoring.webp" target="_blank" rel="noreferrer" aria-label="Open full-size AI and quant monitoring illustration"><img src="assets/trading-bot/monitoring.webp" alt="Independent quant, net edge, momentum, AI observer and shadow exit engines evaluating one BTC market; illustrative values" width="1536" height="1024" loading="lazy" /></a>
-              <figcaption>AI + Quant Monitoring · Illustrative module states, not measured performance. Shadow decisions do not execute sales.</figcaption>
-            </figure>
-            <div class="trading-blocks">
-              <div class="trading-block">
-                <p class="eyebrow mono">07 / CONTINUOUS CALIBRATION</p><h4>Evaluate the decisions, including the skips.</h4>
-                <p>Entry Calibration records bought and rejected candidates, then checks outcomes after 5, 10 and 15 minutes to study whether different net-edge ranges identify better opportunities.</p>
-                <p>Exit Engine v2 runs in <strong>shadow mode</strong>: hypothetical HOLD / WATCH / EXIT decisions never execute a sale. It examines momentum, drawdown from peak, one- and five-minute bid velocity, spread and current P&amp;L. Later observations test whether an alternative exit would have protected capital or closed too early.</p>
-                <p class="trading-callout">The bot evaluates what happened after its decisions, building evidence for calibration rather than assuming its rules are correct.</p>
-              </div>
-              <div class="trading-block">
-                <p class="eyebrow mono">08 / LOCAL INFRASTRUCTURE</p><h4>Separate processes. Shared evidence.</h4>
-                <p>Linux / Kali and tmux keep Trading Engine, AI Evaluator, Entry Evaluator and Exit Shadow Evaluator running as independent processes. The CPU handles strategy, APIs and analysis; NVIDIA GPU inference supports local Qwen.</p>
-                <p>Local persistence and JSONL datasets retain decisions, cooldowns and evaluation outcomes. Storage is deployment-dependent, with PostgreSQL / local storage as applicable. AI context runs locally while market data and execution depend on exchange APIs.</p>
-                <div class="chips" aria-label="Architecture capabilities"><span class="mono">REST APIs</span><span class="mono">JSONL</span><span class="mono">tmux</span><span class="mono">CUDA</span><span class="mono">Quant</span><span class="mono">Local AI</span></div>
-              </div>
-            </div>
-            <p class="trading-note mono">Parameters shown are approximate experimental settings and may change. Illustrations communicate architecture, not investment performance.</p>
-          </div>
-        </details>
-        <details id="binancebot" class="trading-case">
-          <summary><span class="mono">02 / BINANCEBOT</span><span>From market signals to controlled execution</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
-          <div class="trading-content">
-            <h3>Every signal passes through a system of checks.</h3>
-            <p>An independent TypeScript / Node.js engine for Binance Spot, with separate market intelligence, strategy, risk, execution and local AI modules. Supports PAPER, TESTNET and LIVE modes.</p>
-            <figure class="trading-figure">
-              <a href="assets/binancebot/cover.webp" target="_blank" rel="noreferrer" aria-label="Open full-size BinanceBot concept illustration"><img src="assets/binancebot/cover.webp" alt="Concept illustration of BinanceBot: market signals connected to risk controls, Spot execution and a local AI observer" width="1536" height="1024" loading="lazy" decoding="async" /></a>
-              <figcaption>BinanceBot · Concept illustration of the system, not a live product screenshot.</figcaption>
-            </figure>
-            <ol class="trading-pipeline" aria-label="BINANCEBOT architecture"><li>Market data</li><li>Technical signals</li><li>Entry decision</li><li>Capital &amp; exchange rules</li><li>Execution health</li><li>Order execution</li><li>Position monitoring</li><li>Decision journals</li></ol>
-            <div class="trading-blocks">
-              <div class="trading-block"><p class="eyebrow mono">01 / MARKET INTELLIGENCE</p><h4>Read the setup across timeframes.</h4><p>Combines 1m, 5m and 15m market regimes with RSI, momentum, relative volume, volatility and spread checks. The signal engine produces a score and explicit reasons that feed a separate entry decision.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">02 / RISK &amp; EXECUTION</p><h4>Size orders against real constraints.</h4><p>Checks available balances, configured capital caps and Binance exchange filters before execution. Execution health gates new buys, and a failed exit blocks new entries. The system trades Spot without leverage, margin or futures.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">03 / POSITION MANAGEMENT</p><h4>Let exits respond to the position.</h4><p>Stop-loss rules and profit protection work alongside trailing retreat and trend context. Position monitoring evaluates both current return and retreat from peak, allowing exit decisions to respond as market conditions change.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">04 / LOCAL AI &amp; TRACEABILITY</p><h4>Keep context and execution separate.</h4><p>Ollama provides structured assessments of trade setups and open positions. AI observes rather than placing orders or overriding risk rules. Dedicated signal, trade and AI journals retain the evidence behind decisions.</p></div>
-            </div>
-          </div>
-        </details>
-
-        <details id="tokentrader" class="trading-case">
-          <summary><span class="mono">03 / TOKENTRADER</span><span>From new pools to measurable evidence</span><span class="trading-toggle" aria-hidden="true">+</span></summary>
-          <div class="trading-content">
-            <h3>Discover early. Check the risks. Follow the outcome.</h3>
-            <p>An asynchronous Python research pipeline that watches PancakeSwap V2/V3 pool creation on BNB Smart Chain and builds a persistent dataset of candidates, security checks, scores and observed outcomes. The current build performs observation only; it does not sign transactions or execute trades.</p>
-            <figure class="trading-figure">
-              <a href="assets/tokentrader/cover.webp" target="_blank" rel="noreferrer" aria-label="Open full-size TokenTrader concept illustration"><img src="assets/tokentrader/cover.webp" alt="Concept illustration of TokenTrader: token discovery scanner, security screening and connected data archives" width="1536" height="1024" loading="lazy" decoding="async" /></a>
-              <figcaption>TokenTrader · Concept illustration of the system, not a live product screenshot.</figcaption>
-            </figure>
-            <ol class="trading-pipeline" aria-label="TOKENTRADER architecture"><li>Pool events</li><li>Liquidity readiness</li><li>DexScreener</li><li>Honeypot simulation</li><li>GoPlus checks</li><li>Candidate scoring</li><li>Risk snapshots</li><li>Outcome tracking</li></ol>
-            <div class="trading-blocks">
-              <div class="trading-block"><p class="eyebrow mono">01 / DISCOVERY &amp; ORCHESTRATION</p><h4>Handle the gap between discovery and usable data.</h4><p>Web3.py reads new pool events while asynchronous analysis follows each candidate. V2 reserve checks wait for on-chain liquidity; provider readiness checks retry while market and security data become available. Candidate states and provider timings are stored in SQLite.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">02 / SECURITY PIPELINE</p><h4>Require evidence before passing a candidate.</h4><p>DexScreener supplies market and liquidity context, Honeypot checks buy/sell simulation and taxes, and GoPlus supplies contract risk flags. Missing required data leaves a candidate pending. Checks can reject honeypots, excessive taxes, low liquidity and dangerous owner capabilities.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">03 / EXPLAINABLE SCORING</p><h4>Rank candidates with visible inputs.</h4><p>Security-cleared candidates receive a 0–100 research score based on liquidity, early activity, turnover, taxes, holder distribution and contract characteristics. Component scores and rug-risk snapshots preserve the reasoning; a score does not authorize a trade.</p></div>
-              <div class="trading-block"><p class="eyebrow mono">04 / OUTCOME EVALUATION</p><h4>Measure what happens after discovery.</h4><p>A concurrent tracker captures later price and liquidity snapshots over configured time horizons. It records elapsed time and delayed observations, and labels outcomes such as liquidity collapse, severe liquidity drops and price collapse to support future calibration.</p></div>
-            </div>
-          </div>
-        </details>
-
       </section>
-
+      <span id="trading-bot" class="v2-anchor"></span
+      ><span id="binancebot" class="v2-anchor"></span
+      ><span id="tokentrader" class="v2-anchor"></span>
+      <section id="labs" class="v2-labs" aria-labelledby="labs-title">
+        <div class="v2-section-heading">
+          <div>
+            <p class="eyebrow mono">THE OTHER SIDE OF THE WORK</p>
+            <h2 id="labs-title">Engineering <em>Labs.</em></h2>
+          </div>
+          <p>
+            Research, automation and systems.<br />A closer look beneath the
+            interface.
+          </p>
+        </div>
+        <div class="v2-lab-grid">
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-trading-bot.html"
+              aria-label="Explore Trading Bot / Polymarket"
+              ><img
+                src="assets/projects/polymarket-architecture.svg"
+                alt="Trading Bot / Polymarket — source-derived architecture diagram"
+                width="1200"
+                height="760"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Engineering Labs</span><span>01</span>
+              </div>
+              <h3>
+                <a href="project-trading-bot.html">Trading Bot / Polymarket</a>
+              </h3>
+              <p>
+                From market discovery to explainable decisions: a modular
+                prediction-market research system.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>TypeScript</span><span>Node.js</span
+                ><span>PostgreSQL</span><span>Polymarket</span>
+              </div>
+              <a class="v2-explore" href="project-trading-bot.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </article>
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-binancebot.html"
+              aria-label="Explore BinanceBot"
+              ><img
+                src="assets/projects/binancebot-architecture.svg"
+                alt="BinanceBot — source-derived architecture diagram"
+                width="1200"
+                height="760"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Engineering Labs</span><span>02</span>
+              </div>
+              <h3><a href="project-binancebot.html">BinanceBot</a></h3>
+              <p>
+                A Binance Spot engine built around market signals, risk checks
+                and traceable decisions.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>TypeScript</span><span>Node.js</span
+                ><span>Binance Spot</span><span>Ollama</span>
+              </div>
+              <a class="v2-explore" href="project-binancebot.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </article>
+          <article class="v2-card">
+            <a
+              class="v2-card-image"
+              href="project-tokentrader.html"
+              aria-label="Explore TokenTrader"
+              ><img
+                src="assets/projects/tokentrader-architecture.svg"
+                alt="TokenTrader — source-derived architecture diagram"
+                width="1200"
+                height="760"
+                loading="lazy"
+                decoding="async"
+              /><span class="v2-image-arrow" aria-hidden="true">↗</span></a
+            >
+            <div class="v2-card-copy">
+              <div class="v2-card-meta mono">
+                <span>Engineering Labs</span><span>03</span>
+              </div>
+              <h3><a href="project-tokentrader.html">TokenTrader</a></h3>
+              <p>
+                An observation-only pipeline for discovering new pools and
+                screening on-chain risks.
+              </p>
+              <div class="v2-tags" aria-label="Technologies">
+                <span>Python</span><span>Web3.py</span><span>asyncio</span
+                ><span>SQLite</span>
+              </div>
+              <a class="v2-explore" href="project-tokentrader.html"
+                >Explore project <span aria-hidden="true">↗</span></a
+              >
+            </div>
+          </article>
+        </div>
+      </section>
       <section id="capabilities" class="capabilities">
         <div class="section-header reveal">
           <p class="eyebrow mono">02 / CAPABILITIES</p>
-          <h2>Products. Systems. Product-minded execution.</h2>
+          <h2>Across the stack.</h2>
         </div>
 
         <div class="capability-grid">
@@ -396,9 +465,10 @@
 
         <div class="about-copy reveal" style="--delay: 80ms">
           <p class="eyebrow mono">03 / ABOUT</p>
-          <h2>Business discipline with a builder’s eye for technology.</h2>
+          <h2>A builder with a business perspective.</h2>
           <p>
-            I’m currently studying Software Engineering while building digital products, mobile applications and web platforms.
+            I’m currently studying Software Engineering while building digital
+            products, mobile applications and web platforms.
           </p>
 
           <div class="proof-row" aria-label="Professional highlights">
@@ -415,8 +485,11 @@
         <div class="contact-panel reveal">
           <div class="contact-copy">
             <p class="eyebrow mono">04 / CONTACT</p>
-            <h2>AVAILABLE FOR NEW WORK.</h2>
-            <p>Freelance projects, product collaborations and technology opportunities.</p>
+            <h2>Let’s build what’s next.</h2>
+            <p>
+              Freelance projects, product collaborations and technology
+              opportunities.
+            </p>
           </div>
 
           <div class="contact-actions" aria-label="Contact links">
@@ -424,15 +497,27 @@
               <span class="mono">EMAIL</span>
               <strong>contact@jeremyavalos.xyz</strong>
             </a>
-            <a href="https://www.linkedin.com/in/jeremy-avalos/" target="_blank" rel="noreferrer">
+            <a
+              href="https://www.linkedin.com/in/jeremy-avalos/"
+              target="_blank"
+              rel="noreferrer"
+            >
               <span class="mono">LINKEDIN</span>
               <strong>Jeremy Avalos</strong>
             </a>
-            <a href="https://github.com/jeremyavalos" target="_blank" rel="noreferrer">
+            <a
+              href="https://github.com/jeremyavalos"
+              target="_blank"
+              rel="noreferrer"
+            >
               <span class="mono">GITHUB</span>
               <strong>@jeremyavalos</strong>
             </a>
-            <a href="https://instagram.com/jeremyavalos" target="_blank" rel="noreferrer">
+            <a
+              href="https://instagram.com/jeremyavalos"
+              target="_blank"
+              rel="noreferrer"
+            >
               <span class="mono">INSTAGRAM</span>
               <strong>@jeremyavalos</strong>
             </a>

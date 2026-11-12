@@ -1,0 +1,5 @@
+# Local visual evidence is retained in the workspace, outside source commits.
+/review/*.png
+/review/*results.json
+/review/*metrics.json
+/review/project-inventory.json
