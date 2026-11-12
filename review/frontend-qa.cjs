@@ -131,6 +131,31 @@ const assert = require("assert/strict");
     await page.locator("#contact .contact-actions .mono").allTextContents(),
     ["EMAIL", "GITHUB", "INSTAGRAM", "LINKEDIN", "THREADS", "CREDLY"],
   );
+  assert.equal(await page.locator("html").getAttribute("lang"), "en");
+  await page.locator('[data-language-option="es"]').click();
+  assert.equal(await page.locator("html").getAttribute("lang"), "es");
+  assert.equal(
+    (await page.locator("#work-title").innerText()).replace(/\s+/g, " "),
+    "Creado para el mundo real.",
+  );
+  assert.equal(
+    await page.locator("#contact .contact-actions .mono").first().innerText(),
+    "CORREO",
+  );
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+    false,
+  );
+  await page.screenshot({ path: "review/portfolio-spanish-mobile.png", fullPage: true });
+  await page.goto("http://127.0.0.1:4180/project-covenant.html");
+  assert.equal(await page.locator("html").getAttribute("lang"), "es");
+  assert.equal(await page.locator(".v2-back").innerText(), "← TODOS LOS PROYECTOS");
+  assert((await page.locator(".v2-study-lead").innerText()).includes("hábitos constantes"));
+  await page.screenshot({ path: "review/covenant-spanish-mobile.png", fullPage: true });
+  await page.locator('[data-language-option="en"]').click();
+  assert.equal(await page.locator("html").getAttribute("lang"), "en");
+  assert.equal(await page.locator(".v2-back").innerText(), "← ALL WORK");
+  await page.goto("http://127.0.0.1:4180/");
   assert.deepEqual(
     await page.locator("#labs .v2-card-image img").evaluateAll((images) =>
       images.map((image) => image.getAttribute("src")),

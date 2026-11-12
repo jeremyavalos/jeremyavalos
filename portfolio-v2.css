@@ -35,6 +35,29 @@
 .portfolio-v2 .nav-links {
   gap: 30px;
 }
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.language-switcher button {
+  padding: 6px 3px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.language-switcher button.is-active {
+  color: var(--accent);
+}
+.language-switcher button:hover {
+  color: var(--text);
+}
 .portfolio-v2 .nav-links a {
   font-size: 10px;
   letter-spacing: 0.08em;
