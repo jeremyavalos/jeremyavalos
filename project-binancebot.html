@@ -81,21 +81,21 @@
       </section>
       <figure class="v2-desktop-capture">
         <a
-          href="assets/projects/binancebot-architecture.svg"
+          href="assets/projects/binancebot-flow.webp"
           target="_blank"
           rel="noreferrer"
           aria-label="Open full-size project image"
           ><img
-            src="assets/projects/binancebot-architecture.svg"
-            alt="BinanceBot — source-derived architecture diagram"
-            width="1200"
-            height="760"
+            src="assets/projects/binancebot-flow.webp"
+            alt="Conceptual flow of BinanceBot from market signals through risk controls to execution and journaling"
+            width="1536"
+            height="1024"
             loading="eager"
             decoding="async"
         /></a>
         <figcaption>
-          Source-derived architecture diagram. No live orders, balances or
-          operational logs are displayed.
+          Editorial interpretation based on the inspected system architecture.
+          No live orders, balances or operational logs are displayed.
         </figcaption>
       </figure>
       <section class="v2-story">
@@ -171,43 +171,108 @@
         ><span class="mono">NEXT PROJECT</span><strong>TokenTrader ↗</strong></a
       >
     </main>
-    <dialog class="returning-visitor" id="returning-visitor-dialog" aria-labelledby="returning-visitor-title">
-      <button class="returning-visitor-close" type="button" aria-label="Keep exploring and close">×</button>
+    <dialog
+      class="returning-visitor"
+      id="returning-visitor-dialog"
+      aria-labelledby="returning-visitor-title"
+    >
+      <button
+        class="returning-visitor-close"
+        type="button"
+        aria-label="Keep exploring and close"
+      >
+        ×
+      </button>
       <p class="returning-visitor-signal mono">FAMILIAR SIGNAL DETECTED</p>
-      <h2 id="returning-visitor-title">WELCOME BACK<span id="returning-visitor-ip"></span> <span aria-hidden="true">👀</span></h2>
-      <p class="returning-visitor-variant" id="returning-visitor-variant">Looks like curiosity won.</p>
+      <h2 id="returning-visitor-title">
+        WELCOME BACK<span id="returning-visitor-ip"></span>
+        <span aria-hidden="true">👀</span>
+      </h2>
+      <p class="returning-visitor-variant" id="returning-visitor-variant">
+        Looks like curiosity won.
+      </p>
       <div class="returning-visitor-copy">
         <p>Looks like you've been here before.</p>
         <h3 id="returning-location-headline">WELCOME BACK.</h3>
-        <p id="returning-visitor-location">Your connection isn't giving me much of a location this time.</p>
-        <p id="returning-network-aside" hidden>Your network tells a more interesting story.</p>
-        <p id="returning-visitor-emphasis">Either way, the important part is:<br /><strong>you came back.</strong></p>
+        <p id="returning-visitor-location">
+          Your connection isn't giving me much of a location this time.
+        </p>
+        <p id="returning-network-aside" hidden>
+          Your network tells a more interesting story.
+        </p>
+        <p id="returning-visitor-emphasis">
+          Either way, the important part is:<br /><strong
+            >you came back.</strong
+          >
+        </p>
         <p>Maybe there's something here worth building together.</p>
       </div>
       <div class="returning-session-times" aria-label="Visit timing">
-        <div><span class="mono">LAST SEEN</span><strong id="returning-last-seen">—</strong></div>
-        <div><span class="mono">BACK ONLINE</span><strong id="returning-current-visit">—</strong></div>
+        <div>
+          <span class="mono">LAST SEEN</span
+          ><strong id="returning-last-seen">—</strong>
+        </div>
+        <div>
+          <span class="mono">BACK ONLINE</span
+          ><strong id="returning-current-visit">—</strong>
+        </div>
       </div>
       <details class="returning-details" id="returning-details">
         <summary class="mono">CONNECTION DETAILS</summary>
         <dl>
-          <div data-detail="device"><dt>DEVICE</dt><dd id="returning-device"></dd></div>
-          <div data-detail="os"><dt>OS</dt><dd id="returning-os"></dd></div>
-          <div data-detail="browser"><dt>BROWSER</dt><dd id="returning-browser"></dd></div>
-          <div data-detail="location"><dt>LOCATION</dt><dd id="returning-location-detail"></dd></div>
-          <div data-detail="ip"><dt>IP</dt><dd id="returning-ip-detail"></dd></div>
-          <div data-detail="first-seen"><dt>FIRST SEEN</dt><dd id="returning-first-seen"></dd></div>
+          <div data-detail="device">
+            <dt>DEVICE</dt>
+            <dd id="returning-device"></dd>
+          </div>
+          <div data-detail="os">
+            <dt>OS</dt>
+            <dd id="returning-os"></dd>
+          </div>
+          <div data-detail="browser">
+            <dt>BROWSER</dt>
+            <dd id="returning-browser"></dd>
+          </div>
+          <div data-detail="location">
+            <dt>LOCATION</dt>
+            <dd id="returning-location-detail"></dd>
+          </div>
+          <div data-detail="ip">
+            <dt>IP</dt>
+            <dd id="returning-ip-detail"></dd>
+          </div>
+          <div data-detail="first-seen">
+            <dt>FIRST SEEN</dt>
+            <dd id="returning-first-seen"></dd>
+          </div>
         </dl>
       </details>
       <div class="returning-visitor-actions">
-        <a class="btn primary" href="#contact" data-returning-action="project">START A PROJECT</a>
-        <button class="btn" type="button" data-returning-action="email">LEAVE YOUR EMAIL</button>
-        <button class="btn returning-visitor-explore" type="button" data-returning-action="explore">KEEP EXPLORING</button>
+        <a class="btn primary" href="#contact" data-returning-action="project"
+          >START A PROJECT</a
+        >
+        <button class="btn" type="button" data-returning-action="email">
+          LEAVE YOUR EMAIL
+        </button>
+        <button
+          class="btn returning-visitor-explore"
+          type="button"
+          data-returning-action="explore"
+        >
+          KEEP EXPLORING
+        </button>
       </div>
       <form class="returning-email-form" id="returning-email-form" hidden>
         <label class="mono" for="returning-email">YOUR EMAIL</label>
         <div>
-          <input id="returning-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254" required />
+          <input
+            id="returning-email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            maxlength="254"
+            required
+          />
           <button class="btn primary" type="submit">SEND</button>
         </div>
         <p class="returning-email-status mono" aria-live="polite"></p>
@@ -217,7 +282,13 @@
     <footer>
       <p>© <span id="year"></span> Jeremy Avalos.</p>
       <div style="text-align:center;margin-top:6px;font-size:0.85rem;">
-        <a id="admin-console-link" href="#" aria-label="admin console" style="color:transparent;background:transparent;border:0;outline:none;display:inline-block;width:18px;height:18px;line-height:18px;vertical-align:middle;text-decoration:none;opacity:0.65">🔒</a>
+        <a
+          id="admin-console-link"
+          href="#"
+          aria-label="admin console"
+          style="color:transparent;background:transparent;border:0;outline:none;display:inline-block;width:18px;height:18px;line-height:18px;vertical-align:middle;text-decoration:none;opacity:0.65"
+          >🔒</a
+        >
       </div>
     </footer>
 

@@ -69,11 +69,18 @@ const assert = require("assert/strict");
       );
       report.push({ file, width, ...result });
       if (width === 1440 || width === 390) {
+        await page.evaluate(() => document.activeElement?.blur());
+        await page.addStyleTag({
+          content: ".skip-link { display: none !important; }",
+        });
         await page.screenshot({
           path: `review/${file === "index.html" ? "portfolio" : file.replace(".html", "")}-${width === 1440 ? "desktop" : "mobile"}.png`,
           fullPage: true,
         });
         if (file === "index.html") {
+          await page
+            .locator("#labs")
+            .screenshot({ path: `review/engineering-labs-${width}.png` });
           await page
             .locator("#work")
             .screenshot({ path: `review/selected-work-${width}.png` });
@@ -103,6 +110,29 @@ const assert = require("assert/strict");
   );
   assert.equal(await page.locator("#work .v2-card").count(), 4);
   assert.equal(await page.locator("#labs .v2-card").count(), 3);
+  assert.equal(await page.locator("#about").count(), 0);
+  assert.deepEqual(
+    await page.locator("main > section").evaluateAll((sections) =>
+      sections
+        .map((section) => section.id)
+        .filter(Boolean),
+    ),
+    ["labs", "work", "capabilities", "certifications", "contact"],
+  );
+  assert.deepEqual(
+    await page.locator("#contact .contact-actions .mono").allTextContents(),
+    ["EMAIL", "GITHUB", "INSTAGRAM", "LINKEDIN", "THREADS", "CREDLY"],
+  );
+  assert.deepEqual(
+    await page.locator("#labs .v2-card-image img").evaluateAll((images) =>
+      images.map((image) => image.getAttribute("src")),
+    ),
+    [
+      "assets/projects/polymarket-flow.webp",
+      "assets/projects/binancebot-flow.webp",
+      "assets/projects/tokentrader-flow.webp",
+    ],
+  );
   for (const card of await page.locator(".v2-card").all())
     assert((await card.locator(".v2-tags span").count()) <= 4);
   await page.locator("#work .v2-explore").first().click();
