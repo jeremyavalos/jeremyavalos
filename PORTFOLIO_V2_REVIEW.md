@@ -7,11 +7,11 @@ No se hizo push ni despliegue. La publicación queda pendiente de aprobación vi
 
 ## Cambios
 - Nueva jerarquía editorial en inglés: propuesta profesional directa, retrato real, colección de proyectos y contacto.
-- Orden solicitado: Yachts Life Master, Tu Agente Seguro, Local Studio (marca propia), Metanoia (producto propio).
+- Orden solicitado: Yachts Life Master, Tu Agente Seguro, Metanoia (producto propio).
 - Tarjetas con capturas auténticas, categoría, texto breve, máximo cuatro tecnologías y enlace a su caso individual.
 - Siete páginas de casos: problema, contribución, funciones, tecnologías, estado y notas técnicas secundarias. Los cuatro proyectos web incluyen escritorio y navegador móvil.
 - Engineering Labs separado: Polymarket, BinanceBot y TokenTrader con diagramas vectoriales derivados de módulos reales. No se activaron bots ni se inventaron terminales, operaciones o rentabilidades.
-- Metanoia distingue landing y app nativa. Local Studio identifica sus negocios de ejemplo como demos. Integraciones no verificadas en producción no se presentan como operativas.
+- Metanoia distingue landing y app nativa. Integraciones no verificadas en producción no se presentan como operativas.
 - Cybernetic Liquid conservado. Navegación nativa, foco visible, enlace para saltar al contenido, movimiento reducido, imágenes WebP y lazy loading.
 - Metadatos descriptivos, canonical y Open Graph por caso.
 

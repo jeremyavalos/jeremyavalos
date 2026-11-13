@@ -3,3 +3,6 @@
 /review/*results.json
 /review/*metrics.json
 /review/project-inventory.json
+# Private exposure audit; do not republish the associations it documents.
+/review/public-links-audit.md
+/review/public-audit-data.json

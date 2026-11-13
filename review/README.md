@@ -24,7 +24,7 @@ This preview serves the real static pages, but replaces the Railway API origin *
 - `frontend-results.json`: responsive and interaction check results.
 - `project-inventory.json`: copy and source-derived content inventory used for the proposal.
 
-Captures were made on the local review date, November 12, 2026 (America/Cancun). They are evidence of the public frontend at capture time, not verification of live booking, contact or payment processing. The studio's sample businesses are demos. Metanoia captures are its web landing, not native app screens.
+Captures were made on the local review date, November 12, 2026 (America/Cancun). They are evidence of the public frontend at capture time, not verification of live booking, contact or payment processing. Metanoia captures are its web landing, not native app screens.
 
 ## Checks
 

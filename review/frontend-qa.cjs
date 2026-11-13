@@ -108,11 +108,10 @@ const assert = require("assert/strict");
     await page.locator(".nav-toggle").getAttribute("aria-expanded"),
     "false",
   );
-  assert.equal(await page.locator("#work .v2-card").count(), 6);
+  assert.equal(await page.locator("#work .v2-card").count(), 5);
   assert.deepEqual(
     await page.locator("#work .v2-card-meta span:first-child").allTextContents(),
     [
-      "Client Work · Created for a client",
       "Client Work · Created for a client",
       "Client Work · Created for a client",
       "Own Product",
@@ -120,7 +119,7 @@ const assert = require("assert/strict");
       "Client Work · Created for a client",
     ],
   );
-  assert.equal(await page.locator("#work .v2-project-url").count(), 6);
+  assert.equal(await page.locator("#work .v2-project-url").count(), 5);
   for (const link of await page.locator("#work .v2-project-url").all()) {
     assert((await link.getAttribute("href")).startsWith("https://"));
     assert.equal(await link.getAttribute("target"), "_blank");

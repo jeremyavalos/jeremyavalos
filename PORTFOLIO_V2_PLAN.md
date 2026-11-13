@@ -3,7 +3,7 @@
 Review branch: `review/portfolio-v2`. No publishing, push, production database access or original-project modifications authorized. Existing untracked audits predate this task and remain untouched.
 
 ## Diagnosis
-The current static HTML/CSS/JS portfolio has a strong dark cyberdeck identity and authentic personal photographs. Its seven-item horizontal carousel starts with experimental bots, uses generated illustrations, omits two commercial websites and Local Studio, and places extensive technical studies inside the homepage. Some stack labels conflate a mobile product with a separate web landing. This hides the strongest evidence and makes the visitor work to understand the offer. Preserve Cybernetic Liquid, contact links, returning visitor dialog and all analytics scripts.
+The current static HTML/CSS/JS portfolio has a strong dark cyberdeck identity and authentic personal photographs. Its seven-item horizontal carousel starts with experimental bots, uses generated illustrations, omits two commercial websites, and places extensive technical studies inside the homepage. Some stack labels conflate a mobile product with a separate web landing. This hides the strongest evidence and makes the visitor work to understand the offer. Preserve Cybernetic Liquid, contact links, returning visitor dialog and all analytics scripts.
 
 ## References reviewed
 - https://brittanychiang.com/ — explicit role, short project summaries, accessible navigation and supporting evidence. Adopt clear hierarchy and a skip link; do not reproduce her layout.
@@ -19,7 +19,6 @@ All paths are under `/home/jeremex/Desktop/PROJETCS/`.
 | --- | --- | --- | --- |
 | Yatchslifemaster | Client Work (user attribution) | Next.js, React, TypeScript, Express, PostgreSQL; `app/page.tsx`, `app/yates`, `server/`; responsive fleet and reservation-request journey | Capture published domain on desktop/mobile. Distinct from YATCHKCLUB; no mobile app claim. Local revision may differ from published site. |
 | tuagenteseguro.mx | Client Work (user attribution) | Next.js, React, TypeScript, Tailwind; service pages, contextual WhatsApp and advisor presentation; server-side lead integration in source | Capture provided Vercel URL. Do not claim production lead delivery; README says integration requires configuration. |
-| localstudio | Own Brand, within Own Products | React, TypeScript, Vite, Express; bilingual studio, six explicitly sample-data demos and quote flow | Capture published domain. Do not present demo businesses as real clients. |
 | metanoia | Own Product | Expo, React Native, TypeScript app; separate static `web/` landing, legal resources and support | Capture published landing. Do not label website screenshot as native app; no connected auth/payments/documents claims. |
 | minigbot | Engineering Labs | TypeScript, Node.js, Polymarket clients, PostgreSQL; discovery, market classifier, strategy routing, probability and edge modules, execution and evaluation | Source-derived diagram; no logs/accounts, private dashboard or runtime activation. README has older PAPER scope; do not infer current operating mode or results. |
 | binancebot | Engineering Labs | TypeScript, Node.js, Binance Spot, Ollama; `src/index.ts` orchestrates market, strategy, risk, execution, journals | Source-derived diagram; do not run bot or show financial data. |
@@ -27,7 +26,7 @@ All paths are under `/home/jeremex/Desktop/PROJETCS/`.
 
 ## Structure and presentation
 1. Hero: full-stack developer, web/mobile/API/automation offer; immediate work and contact actions, portrait and restrained terminal detail.
-2. Selected work: four image-first editorial cards, in order Yachts Life Master, Tu Agente Seguro, Local Studio, Metanoia. One short description, category and max four technologies each. Native links to individual static case-study pages.
+2. Selected work: image-first editorial cards, in order Yachts Life Master, Tu Agente Seguro, Metanoia, Covenant, Ocean Majesty Cancún. One short description, category and max four technologies each. Native links to individual static case-study pages.
 3. Engineering Labs: three compact visual cards using original SVG architecture diagrams derived from source. Separate detailed pages, technical notes behind native details.
 4. Capabilities, personal background and contact retain existing anchors and verified content.
 5. Each case study: problem, contribution, real desktop/mobile captures for web work, plain-language features, verified stack, state and published website link. Advanced decisions secondary. Lab pages link only to public portfolio/profile, not assumed-public private repositories.

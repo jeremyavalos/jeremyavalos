@@ -1103,3 +1103,12 @@
 .cert-lightbox-image img {
   height: auto;
 }
+
+/* Keep the final selected project balanced when the collection has an odd count. */
+@media (min-width: 769px) {
+  .v2-projects > .v2-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    width: calc((100% - 30px) / 2);
+    justify-self: center;
+  }
+}
