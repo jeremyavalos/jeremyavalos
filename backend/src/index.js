@@ -19,6 +19,14 @@ const path = require('path');
 const db = require('./db');
 const { createGeolocationService, isPublicIp, normalizeIp } = require('./geolocation');
 const { parseUserAgent } = require('./userAgent');
+const { identifyStoredEvent, lastRecognized, recognized } = require('./eventIdentification');
+const { createTrafficClassifier } = require('./traffic');
+
+const classifyTraffic = createTrafficClassifier();
+
+function describeEvent(event) {
+  return { ...event, identification: identifyStoredEvent(event), traffic: classifyTraffic(event) };
+}
 
 const geolocation = createGeolocationService({ db, token: process.env.IPINFO_TOKEN });
 
@@ -157,26 +165,17 @@ const allowedOrigins = [
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
 const leadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
 
-const apiCors = cors({
-  origin: (origin, cb) => {
-    // Allow requests with no Origin (server-to-server or curl)
-    if (!origin) return cb(null, true);
-    // Reject literal 'null' Origins for API requests
-    if (origin === 'null') {
-      try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
-      return cb(new Error('Not allowed by CORS'));
-    }
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    try { console.warn('CORS: rejected origin ->', origin); } catch (e) {}
-    return cb(new Error('Not allowed by CORS'));
-  },
-  credentials: true
-});
+function requireAllowedOrigin(req, res, next) {
+  const origin = req.get('Origin');
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.warn('CORS: rejected origin ->', origin);
+    return res.status(403).json({ error: 'Not allowed by CORS' });
+  }
+  next();
+}
 
-// Mount CORS and rate limiting only for /api routes
-app.use('/api', apiCors, apiLimiter);
-
-// (apiLimiter and /api mount moved above with apiCors)
+// Validate the origin before reflecting it in the CORS headers.
+app.use('/api', requireAllowedOrigin, cors({ origin: true, credentials: true }), apiLimiter);
 
 // Retention: remove analytics older than 90 days on startup, and run daily.
 async function cleanExpiredAnalytics() {
@@ -245,18 +244,32 @@ function eventSection(event) {
   return path.replace(/^\//, '').split('/')[0].toUpperCase() || 'HOME';
 }
 
-function buildSessions(events) {
+function buildSessions(events, visibleEvents) {
   const sessions = [];
-  for (const event of [...events].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))) {
-    const last = sessions.at(-1);
-    if (!last || new Date(event.created_at) - new Date(last.last_seen) > 30 * 60 * 1000) sessions.push({ first_seen:event.created_at, last_seen:event.created_at, events:[event] });
-    else { last.events.push(event); last.last_seen=event.created_at; }
+  let current;
+  for (let index = events.length - 1; index >= 0; index--) {
+    const event = events[index];
+    if (!current || event.created_at - current.last_seen > 30 * 60 * 1000) {
+      current = {
+        number: sessions.length + 1, first_seen: event.created_at, last_seen: event.created_at,
+        event_count: 0, ips: new Set(), events: []
+      };
+      sessions.push(current);
+    }
+    current.last_seen = event.created_at;
+    current.event_count++;
+    if (event.ip) current.ips.add(event.ip);
+    if (visibleEvents.has(event)) current.events.push(event);
   }
-  return sessions.map((session, index) => ({ number:index + 1, first_seen:session.first_seen, last_seen:session.last_seen, duration_minutes:Math.max(0, Math.round((new Date(session.last_seen)-new Date(session.first_seen))/60000)), event_count:session.events.length, ip_count:new Set(session.events.map(e=>e.ip).filter(Boolean)).size, events:session.events }));
+  return sessions;
 }
 
 function mostCommon(events, field) {
-  const counts = new Map(); events.forEach(event=>{if(event[field])counts.set(event[field],(counts.get(event[field])||0)+1);});
+  const counts = new Map();
+  for (const event of events) {
+    const value = event.identification[field];
+    if (recognized(value)) counts.set(value, (counts.get(value) || 0) + 1);
+  }
   return [...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]?.[0] || null;
 }
 
@@ -317,7 +330,7 @@ app.post('/api/analytics/track', async (req, res) => {
     if ((eventType === 'section_view' && !SECTION_NAMES.has(sectionName)) || (eventType !== 'section_view' && sectionName)) return res.status(400).json({ error: 'invalid section' });
     const { ip, source: ipSource } = getClientIpDetails(req);
     const rawUserAgent = req.get('User-Agent') || null;
-    const ua = parseUserAgent(rawUserAgent);
+    const ua = parseUserAgent(rawUserAgent, req.headers);
     let returningVisitor = false;
     let returningContext = null;
     let previousVisit = null;
@@ -408,22 +421,36 @@ app.get('/api/admin/visitors', async (req, res) => {
     const offset = (page - 1) * pageSize;
     const count = await db.query('SELECT COUNT(DISTINCT visitor_id) FROM analytics_events WHERE visitor_id IS NOT NULL');
     const q = await db.query(`
-      SELECT ae.visitor_id,
-        COUNT(DISTINCT ae.ip) FILTER (WHERE ae.ip IS NOT NULL) AS ip_count,
-        (array_agg(ae.ip ORDER BY ae.created_at DESC) FILTER (WHERE ae.ip IS NOT NULL))[1] AS most_recent_ip,
-        (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
-        (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
-        (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
-        (array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL))[1] AS asn_org,
-        (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
-        (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
-        (array_agg(ae.device_name ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_name IS NOT NULL))[1] AS device_name,
-        (array_agg(ae.operating_system ORDER BY ae.created_at DESC) FILTER (WHERE ae.operating_system IS NOT NULL))[1] AS operating_system,
-        (array_agg(ae.browser ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser IS NOT NULL))[1] AS browser,
-        COUNT(*) AS visits, MIN(ae.created_at) AS first_seen, MAX(ae.created_at) AS last_seen
-      FROM analytics_events ae WHERE ae.visitor_id IS NOT NULL
-      GROUP BY ae.visitor_id ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
-    const out = q.rows.map(r => ({ ...r, ip_count: Number(r.ip_count), visits: Number(r.visits) }));
+      WITH visitor_page AS (
+        SELECT visitor_id, COUNT(*) AS visits, MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+        FROM analytics_events WHERE visitor_id IS NOT NULL
+        GROUP BY visitor_id ORDER BY last_seen DESC, visitor_id LIMIT $1 OFFSET $2
+      )
+      SELECT visitor_page.*, network.*, row_to_json(latest) AS latest_event FROM visitor_page
+      CROSS JOIN LATERAL (
+        SELECT COUNT(DISTINCT ae.ip) AS ip_count,
+          (array_agg(ae.ip ORDER BY ae.created_at DESC) FILTER (WHERE ae.ip IS NOT NULL))[1] AS most_recent_ip,
+          (array_agg(ae.country ORDER BY ae.created_at DESC) FILTER (WHERE ae.country IS NOT NULL))[1] AS country,
+          (array_agg(ae.region ORDER BY ae.created_at DESC) FILTER (WHERE ae.region IS NOT NULL))[1] AS region,
+          (array_agg(ae.city ORDER BY ae.created_at DESC) FILTER (WHERE ae.city IS NOT NULL))[1] AS city,
+          (array_agg(ae.asn_org ORDER BY ae.created_at DESC) FILTER (WHERE ae.asn_org IS NOT NULL))[1] AS asn_org,
+          (array_agg(ae.device_category ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_category IS NOT NULL))[1] AS device_category,
+          (array_agg(ae.browser_family ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser_family IS NOT NULL))[1] AS browser_family,
+          (array_agg(ae.device_name ORDER BY ae.created_at DESC) FILTER (WHERE ae.device_name IS NOT NULL))[1] AS device_name,
+          (array_agg(ae.operating_system ORDER BY ae.created_at DESC) FILTER (WHERE ae.operating_system IS NOT NULL))[1] AS operating_system,
+          (array_agg(ae.browser ORDER BY ae.created_at DESC) FILTER (WHERE ae.browser IS NOT NULL))[1] AS browser
+        FROM analytics_events ae WHERE ae.visitor_id = visitor_page.visitor_id
+      ) network
+      CROSS JOIN LATERAL (
+        SELECT user_agent, device_name, device_type, device_category, operating_system, operating_system_version,
+          browser, browser_family, browser_version, ip, ip_source, event_type, created_at
+        FROM analytics_events WHERE visitor_id = visitor_page.visitor_id
+        ORDER BY created_at DESC, id DESC LIMIT 1
+      ) latest ORDER BY visitor_page.last_seen DESC, visitor_page.visitor_id`, [pageSize, offset]);
+    const out = q.rows.map(({ latest_event, ...visitor }) => ({
+      ...visitor, identification: identifyStoredEvent(latest_event), traffic: classifyTraffic(latest_event),
+      ip_count: Number(visitor.ip_count), visits: Number(visitor.visits)
+    }));
     res.json({ visitors: out, pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
     console.error('admin visitors error', e);
@@ -449,7 +476,7 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
     const q = await db.query(`SELECT fingerprint, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, ip_source,
       user_agent, device_category, browser_family, device_name, device_type, operating_system,
       operating_system_version, browser, browser_version, ip, country, region, city, timezone, asn_org, created_at
-      FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC`, [visitorId]);
+      FROM analytics_events WHERE visitor_id = $1 ORDER BY created_at DESC, id DESC`, [visitorId]);
     if (!q.rows.length) return res.status(404).json({ error: 'visitor not found' });
     const acquisition = await db.query(`SELECT path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, created_at
       FROM analytics_events WHERE visitor_id = $1
@@ -464,14 +491,44 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       FROM analytics_events WHERE visitor_id = $1 AND ip IS NOT NULL GROUP BY ip ORDER BY last_seen DESC`, [visitorId]);
     const s = summary.rows[0];
     const firstTouch = acquisition.rows[0];
-    const events = q.rows.map(event => ({ ...event, page_name:eventSection(event), referrer_label:readableReferrer(event.referrer) }));
-    const sessions = buildSessions(events);
+    const parsedAgents = new Map();
+    const parseRecordedAgent = ua => {
+      if (parsedAgents.has(ua)) return parsedAgents.get(ua);
+      const parsed = parseUserAgent(ua);
+      if (parsedAgents.size < 256) parsedAgents.set(ua, parsed);
+      return parsed;
+    };
+    const events = q.rows.map(event => ({
+      ...event, identification: identifyStoredEvent(event, parseRecordedAgent), page_name: eventSection(event)
+    }));
+    const pageSize = 100;
+    const pageCount = Math.ceil(events.length / pageSize);
+    const page = Math.min(pageCount, Math.max(1, Number.parseInt(req.query.history_page, 10) || 1));
+    const offset = (page - 1) * pageSize;
+    const pageEvents = new Set(events.slice(offset, offset + pageSize));
+    const sessions = buildSessions(events, pageEvents);
+    const forDisplay = event => ({
+      ...event, traffic: classifyTraffic(event), referrer_label: readableReferrer(event.referrer)
+    });
+    const displayEvents = new Map([...pageEvents].map(event => [event, forDisplay(event)]));
+    const displayedSessions = sessions.filter(session => session.events.length).map(({ ips, ...session }) => ({
+      ...session,
+      duration_minutes: Math.max(0, Math.round((session.last_seen - session.first_seen) / 60000)),
+      ip_count: ips.size,
+      events: session.events.map(event => displayEvents.get(event))
+    }));
     const sectionCounts = new Map(); events.forEach(event=>sectionCounts.set(event.page_name,(sectionCounts.get(event.page_name)||0)+1));
     const pages = [...sectionCounts].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name));
     const recentSource = events.find(event=>event.utm_source||event.referrer);
     const activeDays = new Set(events.map(event=>new Date(event.created_at).toISOString().slice(0,10))).size;
     const latest = events[0];
-    res.json({ visitor: { visitor_id: visitorId, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device:latest ? { device_name:latest.device_name, device_type:latest.device_type, operating_system:latest.operating_system, operating_system_version:latest.operating_system_version, browser:latest.browser, browser_version:latest.browser_version, ip:latest.ip, country:latest.country, region:latest.region, city:latest.city, asn_org:latest.asn_org } : null, first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name')||mostCommon(events,'device_category'), primary_browser:mostCommon(events,'browser')||mostCommon(events,'browser_family'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions, observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })), recent_visits:events } });
+    res.json({ visitor: { visitor_id: visitorId, country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org, browser_family: s.browser_family, device_category: s.device_category, user_agent: s.user_agent, latest_device: displayEvents.get(latest) || forDisplay(latest),
+      last_device_recognized: lastRecognized(events, 'device_name'),
+      last_browser_recognized: lastRecognized(events, 'browser'), first_seen: s.first_seen, last_seen: s.last_seen, total_visits: Number(s.total_visits), active_days:activeDays, session_count:sessions.length, primary_device:mostCommon(events,'device_name'), primary_browser:mostCommon(events,'browser'), recent_source:recentSource ? { source:recentSource.utm_source, referrer_label:readableReferrer(recentSource.referrer) } : null, acquisition: firstTouch ? { ...firstTouch, source: firstTouch.utm_source, medium: firstTouch.utm_medium, campaign: firstTouch.utm_campaign, referrer_label: readableReferrer(firstTouch.referrer) } : null, page_summary:{ pages, first_section:events.at(-1)?.page_name||null, last_section:events[0]?.page_name||null, most_viewed:pages[0]?.name||null, contact_visits:sectionCounts.get('CONTACT')||0 }, sessions: displayedSessions,
+      observed_ips: observed.rows.map(ip => ({ ...ip, visits: Number(ip.visits) })),
+      fingerprints: [...new Set(events.map(event => event.fingerprint).filter(Boolean))],
+      recent_visits: [...displayEvents.values()],
+      history_pagination: { page, page_size: pageSize, pages: pageCount, total: events.length } } });
   } catch (e) {
     console.error('admin visitor detail error', e);
     res.status(500).json({ error: 'server error' });
@@ -557,7 +614,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
     const events = await db.query(`SELECT ae.path, ae.referrer, ae.ref, ae.utm_source, ae.utm_medium, ae.utm_campaign, ae.utm_content, ae.utm_term,
       ae.user_agent, ae.device_category, ae.browser_family, ae.device_name, ae.device_type,
       ae.operating_system, ae.operating_system_version, ae.browser, ae.browser_version, ae.country, ae.region, ae.city,
-      ae.asn_org, ae.visitor_id, ae.created_at, ae.ip_source
+      ae.asn_org, ae.visitor_id, ae.created_at, ae.ip, ae.ip_source, ae.event_type
       FROM analytics_events ae WHERE ae.ip = $1 ORDER BY ae.created_at DESC LIMIT $2 OFFSET $3`, [ip, pageSize, offset]);
     const paths = await db.query(`SELECT COALESCE(NULLIF(path, ''), '/') AS path, COUNT(*) AS count
       FROM analytics_events WHERE ip = $1 GROUP BY COALESCE(NULLIF(path, ''), '/') ORDER BY count DESC, path`, [ip]);
@@ -576,7 +633,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       device_names: s.device_names, operating_systems: s.operating_systems,
       country: s.country, region: s.region, city: s.city, timezone: s.timezone, asn_org: s.asn_org,
       visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })),
-      events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })),
+      events: events.rows.map(event => ({ ...describeEvent(event), referrer_label: readableReferrer(event.referrer) })),
       paths: paths.rows.map(row => ({ path: row.path, count: Number(row.count) })),
       referrers: [...referrerCounts].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source))
     }, pagination: { page, page_size: pageSize, total: Number(s.total_visits), pages: Math.ceil(Number(s.total_visits) / pageSize) } });
@@ -628,9 +685,9 @@ app.get('/api/admin/tracking/:ref', async (req, res) => {
       FROM analytics_events WHERE ref = $1 AND visitor_id IS NOT NULL GROUP BY visitor_id ORDER BY last_seen DESC`, [ref]);
     const events = await db.query(`SELECT created_at, visitor_id, ip, path, referrer, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
       user_agent, device_name, device_type, operating_system, operating_system_version, browser, browser_version,
-      device_category, browser_family, country, region, city, asn_org
+      device_category, browser_family, country, region, city, asn_org, ip_source, event_type
       FROM analytics_events WHERE ref = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [ref, pageSize, offset]);
-    res.json({ referral: { ref, visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })), events: events.rows.map(event => ({ ...event, referrer_label: readableReferrer(event.referrer) })) }, pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
+    res.json({ referral: { ref, visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })), events: events.rows.map(event => ({ ...describeEvent(event), referrer_label: readableReferrer(event.referrer) })) }, pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
   } catch (e) {
     console.error('admin tracking detail error', e);
     res.status(500).json({ error: 'server error' });

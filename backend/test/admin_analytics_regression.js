@@ -6,6 +6,7 @@ process.env.NODE_ENV = 'test';
 process.env.ADMIN_USERNAME = 'admin-test';
 process.env.ADMIN_PASSWORD_HASH = 'test-password';
 process.env.SESSION_SECRET = 'session-test-secret';
+process.env.CORS_ORIGIN = 'https://www.jeremyavalos.xyz';
 process.env.DATABASE_URL = 'postgres://test:test@127.0.0.1:5432/test';
 
 const db = require('../src/db');
@@ -27,6 +28,24 @@ const app = require('../src/index');
 
   try {
     assert.strictEqual((await request('/api/admin/overview')).status, 403);
+
+    const trackingPreflight = origin => request('/api/analytics/track', {
+      method: 'OPTIONS',
+      headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' }
+    });
+    for (const origin of ['https://www.jeremyavalos.xyz', 'https://jeremyavalos.xyz']) {
+      const response = await trackingPreflight(origin);
+      assert.strictEqual(response.status, 204);
+      assert.strictEqual(response.headers.get('access-control-allow-origin'), origin);
+      assert.strictEqual(response.headers.get('access-control-allow-credentials'), 'true');
+    }
+    for (const origin of ['https://jeremyavalos.vercel.app', 'https://jeremyavalos-52ohmhl9e-jeremy-avalos-projects.vercel.app', 'null']) {
+      const response = await trackingPreflight(origin);
+      assert.strictEqual(response.status, 403);
+      assert.strictEqual(response.headers.get('access-control-allow-origin'), null);
+      assert.deepStrictEqual(await response.json(), { error: 'Not allowed by CORS' });
+    }
+
 
     const login = await request('/admin/login', {
       method: 'POST',

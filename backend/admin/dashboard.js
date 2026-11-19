@@ -28,12 +28,84 @@
   const hasTracking = event => ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].some(key=>event?.[key]);
   const sourceText = event => { const label=event?.referrer_label && event.referrer_label !== 'Direct' ? event.referrer_label : null; return [...new Set([label,event?.utm_source||event?.source].filter(Boolean))].join(' / ') || 'Direct'; };
   const clipped = value => { const node=el('span','truncate',value || '—');node.title=value || '';return node; };
-  const withVersion = (name, version) => `${name || 'Unknown'}${version && version !== 'Unknown' ? ` ${version}` : ''}`;
-  const deviceText = event => event?.device_name || event?.device_category || 'Unknown';
-  const osText = event => withVersion(event?.operating_system, event?.operating_system_version);
-  const browserText = event => withVersion(event?.browser || event?.browser_family, event?.browser_version);
+  const known = value => value && value.toLowerCase() !== 'unknown';
+  const withVersion = (name, version) => `${name || 'Unknown'}${known(name) && known(version) ? ` ${version}` : ''}`;
+  const identification = event => event?.identification || event || {};
+  const deviceText = event => identification(event).device_name || identification(event).device_category || 'Unknown';
+  const deviceTypeText = event => identification(event).device_type || identification(event).device_category || 'Unknown';
+  const osText = event => withVersion(identification(event).operating_system, identification(event).operating_system_version);
+  const browserText = event => withVersion(identification(event).browser || identification(event).browser_family, identification(event).browser_version);
+  const trafficFields = event => {
+    const { traffic = 'Unknown', confidence = 'Insufficient', why = 'No classification available.' } = event?.traffic || {};
+    return [['Traffic', traffic], ['Confidence', confidence], ['Why', why]];
+  };
+  const noteLabels = {
+    device: 'Device', device_type: 'Device type', browser: 'Browser',
+    browser_version: 'Browser version', operating_system_version: 'OS version'
+  };
+  const identificationNotes = event => {
+    const reasons = identification(event).reasons || {};
+    return Object.entries(reasons)
+      .filter(([field, reason]) => field !== 'device_type' || reason !== reasons.device)
+      .map(([field, reason]) => [`${noteLabels[field] || field} note`, reason]);
+  };
+  function identificationChanged(previous, current) {
+    return ['device_name', 'browser'].some(field => (
+      known(previous?.[field]) && known(current[field]) && previous[field] !== current[field]
+    ));
+  }
+  const localTime = timestamp => timestamp ? new Date(timestamp).toLocaleString() : '—';
+  function recognitionSummary(profile, latest) {
+    const device = profile.last_device_recognized;
+    const browser = profile.last_browser_recognized;
+    const panel = el('div', 'recognition-summary');
+    panel.append(el('h3', 'detail-heading', 'LATEST EVENT / TRAFFIC'));
+    const fields = el('dl', 'event-detail-grid');
+    const entries = [
+      ['Last Event', localTime(latest.created_at || profile.last_seen)],
+      ...trafficFields(latest),
+      ['Last Device Recognized', device?.value || 'Unknown'],
+      ['Device Event Date', localTime(device?.created_at)],
+      ['Last Browser Recognized', withVersion(browser?.value, browser?.version)],
+      ['Browser Event Date', localTime(browser?.created_at)]
+    ];
+    for (const [label, value] of entries) {
+      fields.append(el('dt', '', label), el('dd', '', value));
+    }
+    panel.append(fields);
+    return panel;
+  }
   const trackingBlock = event => { const block=el('dl','tracking-block');[['SOURCE',sourceText(event)],['MEDIUM',event?.utm_medium||'—'],['CAMPAIGN',event?.utm_campaign||'—'],['CONTENT',event?.utm_content||'—'],['TERM',event?.utm_term||'—'],['REF',event?.ref||'—']].forEach(([label,value])=>{block.append(el('dt','',label));const dd=el('dd');dd.append(clipped(value));block.append(dd);});return block; };
-  const eventDetails = event => { const details=el('details','event-details');details.append(el('summary','','DETAILS'));const net=networkParts(event.asn_org);const networkType=explicitNetworkType(event.network_type||event.asn_type);const values=[['DEVICE',deviceText(event)],['DEVICE TYPE',event.device_type||event.device_category||'Unknown'],['OS',osText(event)],['BROWSER',browserText(event)],['IP',event.ip||'—'],['LOCATION (APPROX. / IP-DERIVED)',[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown'],['ASN',net.asn||'—'],['NETWORK PROVIDER',net.provider||'—'],...(networkType?[['NETWORK TYPE',networkType]]:[]),['RAW NETWORK / ASN',net.raw||'—'],['RAW USER-AGENT',event.user_agent||'—'],['FULL URL / PATH',event.path||'/'],['RAW REFERRER',event.referrer||'—'],['UTM SOURCE',event.utm_source||'—'],['UTM MEDIUM',event.utm_medium||'—'],['UTM CAMPAIGN',event.utm_campaign||'—'],['UTM CONTENT',event.utm_content||'—'],['UTM TERM',event.utm_term||'—'],['REF',event.ref||'—']];const list=el('dl','event-detail-grid');values.forEach(([label,value])=>{list.append(el('dt','',label));const dd=el('dd');dd.append(clipped(value));list.append(dd);});details.append(list);return details; };
+  function eventDetails(event) {
+    const details = el('details', 'event-details');
+    const summary = el('summary', '', 'DETAILS');
+    const dialog = el('dialog', 'event-dialog');
+    dialog.setAttribute('aria-label', 'Event details');
+    const close = el('button', '', 'Close');
+    close.addEventListener('click', () => dialog.close());
+    summary.addEventListener('click', event => {
+      event.preventDefault();
+      details.open = true;
+      dialog.showModal();
+    });
+    dialog.addEventListener('close', () => {
+      details.open = false;
+      summary.focus();
+    });
+    const net = networkParts(event.asn_org);
+    const networkType = explicitNetworkType(event.network_type || event.asn_type);
+    const values = [...trafficFields(event),...identificationNotes(event),['DEVICE',deviceText(event)],['DEVICE TYPE',deviceTypeText(event)],['OS',osText(event)],['BROWSER',browserText(event)],['IP',event.ip||'—'],['LOCATION (APPROX. / IP-DERIVED)',[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown'],['ASN',net.asn||'—'],['NETWORK PROVIDER',net.provider||'—'],...(networkType?[['NETWORK TYPE',networkType]]:[]),['RAW NETWORK / ASN',net.raw||'—'],['RAW USER-AGENT',event.user_agent||'—'],['FULL URL / PATH',event.path||'/'],['RAW REFERRER',event.referrer||'—'],['UTM SOURCE',event.utm_source||'—'],['UTM MEDIUM',event.utm_medium||'—'],['UTM CAMPAIGN',event.utm_campaign||'—'],['UTM CONTENT',event.utm_content||'—'],['UTM TERM',event.utm_term||'—'],['REF',event.ref||'—']];
+    const fields = el('dl', 'event-detail-grid');
+    for (const [label, value] of values) {
+      const entry = el('dd');
+      entry.append(clipped(value));
+      fields.append(el('dt', '', label), entry);
+    }
+    dialog.append(close, fields);
+    details.append(summary, dialog);
+    return details;
+  }
+
   const normalizedPaths = rows => { const counts=new Map();rows.forEach(row=>{const path=pathname(row.path);counts.set(path,(counts.get(path)||0)+Number(row.count));});return [...counts].map(([path,count])=>({path,count})).sort((a,b)=>b.count-a.count||a.path.localeCompare(b.path)); };
   const state = (id, message, error = false) => { const target = document.getElementById(id); target.replaceChildren(el('div', error ? 'error' : 'empty', message)); };
 
@@ -46,12 +118,15 @@
     } catch (error) { state('overview-content', `Unable to load overview — ${error.message}`, true); }
   }
 
-  async function showVisitor(visitorId) {
+  async function showVisitor(visitorId, historyPage = 1) {
     const target = document.getElementById('visitor-detail'); target.hidden = false; target.replaceChildren(el('div', 'state', 'Loading visitor details…'));
     try {
-      const { visitor:v }=await api(`/api/admin/visitors/${encodeURIComponent(visitorId)}`);const box=el('div','detail visitor-profile');box.append(el('h3','detail-title',`VISITOR / ${shortVisitorId(v.visitor_id)}`),el('p','state','Anonymous first-party browser profile. This does not identify a real person.'));
-      const latest=v.latest_device||{};const latestNet=networkParts(latest.asn_org);const latestType=explicitNetworkType(latest.network_type||latest.asn_type);const connection=el('div','connection-summary');[['DEVICE',deviceText(latest)],['DEVICE TYPE',latest.device_type||'Unknown'],['OS',osText(latest)],['BROWSER',browserText(latest)],['IP',latest.ip||'—'],['ASN',latestNet.asn||'—'],['NETWORK PROVIDER',latestNet.provider||'—'],...(latestType?[['NETWORK TYPE',latestType]]:[]),['LOCATION (APPROX. / IP-DERIVED)',[latest.city,latest.region,latest.country].filter(Boolean).join(', ')||'Unknown']].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),clipped(value));connection.append(item);});box.append(el('h3','detail-heading','LATEST DEVICE / CONNECTION'),connection);
-      const fingerprints = [...new Set(v.recent_visits.map(event => event.fingerprint).filter(Boolean))];
+      const { visitor:v }=await api(`/api/admin/visitors/${encodeURIComponent(visitorId)}?history_page=${historyPage}`);const box=el('div','detail visitor-profile');box.append(el('h3','detail-title',`VISITOR / ${shortVisitorId(v.visitor_id)}`),el('p','state','Anonymous first-party browser profile. This does not identify a real person.'));
+      const latest=v.latest_device||{};const latestNet=networkParts(latest.asn_org);const latestType=explicitNetworkType(latest.network_type||latest.asn_type);const connection=el('div','connection-summary');[['DEVICE',deviceText(latest)],['DEVICE TYPE',deviceTypeText(latest)],['OS',osText(latest)],['BROWSER',browserText(latest)],['IP',latest.ip||'—'],['ASN',latestNet.asn||'—'],['NETWORK PROVIDER',latestNet.provider||'—'],...(latestType?[['NETWORK TYPE',latestType]]:[]),['LOCATION (APPROX. / IP-DERIVED)',[latest.city,latest.region,latest.country].filter(Boolean).join(', ')||'Unknown']].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),clipped(value));connection.append(item);});box.append(recognitionSummary(v, latest), el('h3','detail-heading','DEVICE / CONNECTION AT LAST EVENT'), connection);
+      for (const [label, reason] of identificationNotes(latest)) {
+        box.append(el('p', 'state', `${label} · ${reason}`));
+      }
+      const fingerprints = v.fingerprints || [];
       const fingerprintDetails = el('div', 'state');
       fingerprintDetails.append(el('span', '', 'Device fingerprints: '));
       if (!fingerprints.length) fingerprintDetails.append(el('span', '', 'Unknown'));
@@ -62,11 +137,24 @@
       });
       box.append(fingerprintDetails, el('p', 'state', 'Fingerprints can change or be shared by different devices; they do not identify a person.'));
       const nav=el('nav','profile-nav');['OVERVIEW','TIMELINE','SESSIONS','PAGES','NETWORK','ACQUISITION'].forEach(name=>{const link=el('a','',name);link.href=`#visitor-${name.toLowerCase()}`;nav.append(link);});box.append(nav);
+      const history = v.history_pagination;
+      const historyPager = el('div', 'pagination');
+      if (history?.pages > 1) {
+        const go = direction => {
+          const button = el('button', '', direction < 0 ? 'Newer events' : 'Older events');
+          button.addEventListener('click', () => showVisitor(v.visitor_id, history.page + direction));
+          return button;
+        };
+        if (history.page > 1) historyPager.append(go(-1));
+        historyPager.append(el('span', 'state', `Timeline, sessions and activity · Page ${history.page} of ${history.pages}`));
+        if (history.page < history.pages) historyPager.append(go(1));
+        box.append(historyPager);
+      }
       const heading=(id,title)=>{const h=el('h3','detail-heading',title);h.id=id;return h;};const grid=el('div','detail-grid');[['First seen',new Date(v.first_seen).toLocaleString()],['Last seen',new Date(v.last_seen).toLocaleString()],['Total visits / events',v.total_visits],['Active days',v.active_days],['Sessions',v.session_count],['IPs observed',(v.observed_ips||[]).length],['First acquisition source',sourceText(v.acquisition)],['Most recent source',sourceText(v.recent_source)],['Primary device',v.primary_device||'Unknown'],['Primary browser',v.primary_browser||'Unknown']].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),clipped(String(value)));grid.append(item);});box.append(heading('visitor-overview','OVERVIEW'),grid);
-      const timeline=el('ul','timeline');let lastDay=null,lastIp=null,lastPlace=null;[...v.recent_visits].reverse().forEach((event,index)=>{const date=new Date(event.created_at);const day=date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});if(day!==lastDay){timeline.append(el('li','timeline-day',day.toUpperCase()));lastDay=day;}const place=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';if(lastIp&&event.ip&&lastIp!==event.ip){const changed=el('li','ip-change');changed.append(el('time','',date.toLocaleTimeString()),el('b','','IP changed'),el('span','state',`${lastPlace} → ${place} (approx.)`));timeline.append(changed);}const li=el('li');const action=event.event_type==='section_view'?`Viewed ${event.page_name}`:index===0?'First visit':event.event_type==='contact_opened'?'Opened Contact':`Viewed ${event.page_name}`;li.append(el('time','',date.toLocaleTimeString()),el('b','',action),el('span','state',`${sourceText(event)} · ${pathname(event.path)}`));timeline.append(li);if(event.ip){lastIp=event.ip;lastPlace=place;}});box.append(heading('visitor-timeline','TIMELINE'),timeline);
-      const sessions=el('div','session-list');[...(v.sessions||[])].reverse().forEach(session=>{const card=el('article','session-card');card.append(el('h4','',`SESSION ${String(session.number).padStart(2,'0')}`),el('p','state',`${new Date(session.first_seen).toLocaleString()}–${new Date(session.last_seen).toLocaleTimeString()} · ${session.duration_minutes} min · ${session.event_count} pages/sections · ${session.ip_count} IPs`));const flow=el('ol','session-flow');let priorIp=null,priorDevice=null;session.events.forEach(event=>{const currentDevice=`${deviceText(event)} / ${browserText(event)}`;if(priorIp&&event.ip&&priorIp!==event.ip)flow.append(el('li','ip-change',`IP CHANGED  ${priorIp} → ${event.ip}`));if(priorDevice&&priorDevice!==currentDevice)flow.append(el('li','device-change',`DEVICE / BROWSER CHANGED  ${priorDevice} → ${currentDevice}`));flow.append(el('li','',`${new Date(event.created_at).toLocaleTimeString()}  ${event.page_name} · ${currentDevice}${event.ip?' · '+event.ip:''}`));if(event.ip)priorIp=event.ip;priorDevice=currentDevice;});card.append(flow);sessions.append(card);});box.append(heading('visitor-sessions','SESSIONS'),sessions);
+      const timeline=el('ul','timeline');let lastDay=null,lastIp=null,lastPlace=null;[...v.recent_visits].reverse().forEach(event=>{const date=new Date(event.created_at);const day=date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});if(day!==lastDay){timeline.append(el('li','timeline-day',day.toUpperCase()));lastDay=day;}const place=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';if(lastIp&&event.ip&&lastIp!==event.ip){const changed=el('li','ip-change');changed.append(el('time','',date.toLocaleTimeString()),el('b','','IP changed'),el('span','state',`${lastPlace} → ${place} (approx.)`));timeline.append(changed);}const li=el('li');const action=event.event_type==='section_view'?`Viewed ${event.page_name}`:event.created_at===v.first_seen?'First visit':event.event_type==='contact_opened'?'Opened Contact':`Viewed ${event.page_name}`;li.append(el('time','',date.toLocaleTimeString()),el('b','',action),el('span','state',`${sourceText(event)} · ${pathname(event.path)}`));timeline.append(li);if(event.ip){lastIp=event.ip;lastPlace=place;}});box.append(heading('visitor-timeline','TIMELINE'),timeline);
+      const sessions=el('div','session-list');[...(v.sessions||[])].reverse().forEach(session=>{const card=el('article','session-card');card.append(el('h4','',`SESSION ${String(session.number).padStart(2,'0')}`),el('p','state',`${new Date(session.first_seen).toLocaleString()}–${new Date(session.last_seen).toLocaleTimeString()} · ${session.duration_minutes} min · ${session.event_count} pages/sections · ${session.ip_count} IPs`));const flow=el('ol','session-flow');let priorIp=null,priorDevice=null;session.events.forEach(event=>{const currentDevice=`${deviceText(event)} / ${browserText(event)}`;if(priorIp&&event.ip&&priorIp!==event.ip)flow.append(el('li','ip-change',`IP CHANGED  ${priorIp} → ${event.ip}`));if(identificationChanged(identification(priorDevice),identification(event)))flow.append(el('li','device-change',`DEVICE / BROWSER CHANGED  ${deviceText(priorDevice)} / ${browserText(priorDevice)} → ${currentDevice}`));flow.append(el('li','',`${new Date(event.created_at).toLocaleTimeString()}  ${event.page_name} · ${currentDevice}${event.ip?' · '+event.ip:''}`));if(event.ip)priorIp=event.ip;priorDevice=event;});card.append(flow);sessions.append(card);});box.append(heading('visitor-sessions','SESSIONS'),sessions);
       const pages=el('div','profile-columns');const most=el('ul','aggregate-list');(v.page_summary?.pages||[]).forEach(item=>{const li=el('li');li.append(el('span','',item.name),el('b','',item.count));most.append(li);});const pageStats=el('div','detail-grid');[['First section',v.page_summary?.first_section||'—'],['Last section',v.page_summary?.last_section||'—'],['Most viewed',v.page_summary?.most_viewed||'—'],['Contact visits',v.page_summary?.contact_visits||0]].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),el('span','',value));pageStats.append(item);});pages.append(most,pageStats);box.append(heading('visitor-pages','PAGES / SECTIONS'),pages);
-      const activity=el('table','history-table compact-history');const ah=el('tr');['TIMESTAMP','PAGE / SECTION','PATH','SOURCE','ATTRIBUTION','IP','LOCATION (APPROX.)','ASN','NETWORK PROVIDER','DEVICE','TYPE','OS','BROWSER',''].forEach(x=>ah.append(el('th','',x)));const ab=el('tbody');v.recent_visits.forEach(event=>{const row=el('tr');const location=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';const net=networkParts(event.asn_org);[new Date(event.created_at).toLocaleString(),event.page_name,pathname(event.path),sourceText(event),[event.utm_content,event.ref].filter(Boolean).join(' · ')||'—',event.ip||'—',location,net.asn||'—',net.provider||'—',deviceText(event),event.device_type||event.device_category||'Unknown',osText(event),browserText(event)].forEach(value=>{const cell=el('td');cell.append(clipped(value));row.append(cell);});const dc=el('td');dc.append(eventDetails(event));row.append(dc);ab.append(row);});activity.append(el('thead','').appendChild(ah).parentNode,ab);box.append(heading('visitor-page-activity','PAGE ACTIVITY'),activity);
+      const activity=el('table','history-table compact-history');const ah=el('tr');['TIMESTAMP','PAGE / SECTION','PATH','SOURCE','ATTRIBUTION','IP','LOCATION (APPROX.)','ASN','NETWORK PROVIDER','DEVICE','TYPE','OS','BROWSER',''].forEach(x=>ah.append(el('th','',x)));const ab=el('tbody');v.recent_visits.forEach(event=>{const row=el('tr');const location=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';const net=networkParts(event.asn_org);[new Date(event.created_at).toLocaleString(),event.page_name,pathname(event.path),sourceText(event),[event.utm_content,event.ref].filter(Boolean).join(' · ')||'—',event.ip||'—',location,net.asn||'—',net.provider||'—',deviceText(event),deviceTypeText(event),osText(event),browserText(event)].forEach(value=>{const cell=el('td');cell.append(clipped(value));row.append(cell);});const dc=el('td');dc.append(eventDetails(event));row.append(dc);ab.append(row);});activity.append(el('thead','').appendChild(ah).parentNode,ab);box.append(heading('visitor-page-activity','PAGE ACTIVITY'),activity);
       const ips=el('div','network-cards');(v.observed_ips||[]).forEach(item=>{const card=el('article','session-card');const link=el('button','text-link',item.proxy_legacy ? `${item.ip} · proxy` : item.ip);const net=networkParts(item.asn_org);link.addEventListener('click',()=>{document.getElementById('ips').scrollIntoView();showIp(item.ip);});card.append(link,el('p','',`${[item.city,item.region,item.country].filter(Boolean).join(', ')||'Unknown'} (approx.)`),el('p','state',`ASN ${net.asn||'—'} · PROVIDER ${net.provider||'—'}`),el('p','state',`${new Date(item.first_seen).toLocaleString()}–${new Date(item.last_seen).toLocaleString()}`));ips.append(card);});box.append(heading('visitor-network','NETWORK HISTORY'),ips);
       const a=v.acquisition;box.append(heading('visitor-acquisition','FIRST ACQUISITION'),...(hasTracking(a)?[trackingBlock(a)]:[]));const acquisition=el('div','detail-grid');[['Raw referrer',a?.referrer||'—'],['Landing page',a?pathname(a.path):'—'],['First seen',a?.created_at?new Date(a.created_at).toLocaleString():'—']].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),clipped(value));acquisition.append(item);});box.append(acquisition);
 target.replaceChildren(box);target.scrollIntoView({block:'start'});
@@ -76,8 +164,35 @@ target.replaceChildren(box);target.scrollIntoView({block:'start'});
     visitorPage = page;
     try {
       const { visitors, pagination } = await api(`/api/admin/visitors?page=${page}&page_size=25`); if (!visitors.length) { state('visitors-content','No visitor data yet.'); return; }
-      const table = el('table'); const head = el('thead'); const hr = el('tr'); ['VISITOR','IP COUNT','RECENT IP','COUNTRY','REGION','CITY','ASN','NETWORK PROVIDER','DEVICE','VISITS','LAST SEEN'].forEach(x => hr.append(el('th','',x))); head.append(hr); const body = el('tbody');
-      visitors.forEach(v => { const row = el('tr'); const net=networkParts(v.asn_org); [[shortVisitorId(v.visitor_id),''],[v.ip_count,''],[v.most_recent_ip || '—',''],[v.country || 'Unknown','hide-mobile'],[v.region || 'Unknown','hide-mobile'],[v.city || 'Unknown','hide-mobile'],[net.asn||'—','hide-mobile'],[net.provider||'—','hide-mobile'],[v.device_name || v.device_category || 'Unknown','hide-mobile'],[v.visits,''],[relative(v.last_seen),'']].forEach(([value,className]) => row.append(el('td',className,value))); row.addEventListener('click',()=>showVisitor(v.visitor_id)); body.append(row); }); table.append(head,body); document.getElementById('visitors-content').replaceChildren(table);
+      const columns = [
+        ['VISITOR', v => shortVisitorId(v.visitor_id)],
+        ['IP COUNT', v => v.ip_count],
+        ['RECENT IP', v => v.most_recent_ip || '—'],
+        ['COUNTRY', v => v.country || 'Unknown', 'hide-mobile'],
+        ['REGION', v => v.region || 'Unknown', 'hide-mobile'],
+        ['CITY', v => v.city || 'Unknown', 'hide-mobile'],
+        ['ASN', (_, net) => net.asn || '—', 'hide-mobile'],
+        ['NETWORK PROVIDER', (_, net) => net.provider || '—', 'hide-mobile'],
+        ['DEVICE', deviceText, 'hide-mobile'],
+        ['TRAFFIC AT LAST EVENT', v => v.traffic?.traffic || 'Unknown'],
+        ['VISITS', v => v.visits],
+        ['LAST SEEN', v => relative(v.last_seen)]
+      ];
+      const table = el('table');
+      const head = el('thead');
+      const headers = el('tr');
+      columns.forEach(([label, , className]) => headers.append(el('th', className, label)));
+      head.append(headers);
+      const body = el('tbody');
+      visitors.forEach(visitor => {
+        const row = el('tr');
+        const net = networkParts(visitor.asn_org);
+        columns.forEach(([, value, className]) => row.append(el('td', className, value(visitor, net))));
+        row.addEventListener('click', () => showVisitor(visitor.visitor_id));
+        body.append(row);
+      });
+      table.append(head, body);
+      document.getElementById('visitors-content').replaceChildren(table);
       const pager = document.getElementById('visitor-pagination'); pager.replaceChildren(); if (pagination.page > 1) { const prev = el('button','','← PREV'); prev.addEventListener('click',()=>loadVisitors(page-1)); pager.append(prev); } pager.append(el('span','state',`PAGE ${pagination.page} / ${Math.max(1,pagination.pages)}`)); if (pagination.page < pagination.pages) { const next = el('button','','NEXT →'); next.addEventListener('click',()=>loadVisitors(page+1)); pager.append(next); }
     } catch (error) { state('visitors-content',`Unable to load visitors — ${error.message}`,true); }
   }
@@ -93,7 +208,7 @@ target.replaceChildren(box);target.scrollIntoView({block:'start'});
       const detailNet=networkParts(detail.asn_org);const detailType=explicitNetworkType(detail.network_type||detail.asn_type);const location=el('div','detail-grid'); [['IP',detail.address],['ASN',detailNet.asn||'—'],['Network Provider',detailNet.provider||'—'],...(detailType?[['Network Type',detailType]]:[]),['Country (approx.)',detail.country||'Unknown'],['Region (approx.)',detail.region||'Unknown'],['City (approx.)',detail.city||'Unknown'],['Timezone',detail.timezone||'Unknown']].forEach(([label,value])=>{const item=el('div');item.append(el('label','',label),el('span','',value));location.append(item);});
       const visitorTable=el('table'); const vh=el('tr'); ['VISITOR ID','FIRST SEEN FROM IP','LAST SEEN FROM IP','EVENTS'].forEach(x=>vh.append(el('th','',x))); const vb=el('tbody'); (detail.visitors||[]).forEach(v=>{const row=el('tr'); const link=el('button','text-link',shortVisitorId(v.visitor_id)); link.title=v.visitor_id; link.addEventListener('click',()=>{document.getElementById('visitors').scrollIntoView();showVisitor(v.visitor_id);}); const first=el('td');first.append(link);row.append(first,el('td','',new Date(v.first_seen).toLocaleString()),el('td','',new Date(v.last_seen).toLocaleString()),el('td','',v.visits));vb.append(row);}); if(detail.legacy_events){const row=el('tr');row.append(el('td','','Legacy / unidentified'),el('td','',new Date(detail.legacy_first_seen).toLocaleString()),el('td','',new Date(detail.legacy_last_seen).toLocaleString()),el('td','',detail.legacy_events),el('td','','—'));vb.append(row);} visitorTable.append(el('thead','').appendChild(vh).parentNode,vb);
       const aggregateTable=(heading,rows,labelKey)=>{const wrap=el('div');wrap.append(section(heading));const list=el('ul','aggregate-list');rows.forEach(row=>{const li=el('li');li.append(el('span','',row[labelKey]),el('b','',row.count));list.append(li);});wrap.append(list);return wrap;};
-      const history=el('table','history-table compact-history'); const hh=el('tr'); ['TIMESTAMP','VISITOR ID','PATH','SOURCE','MEDIUM','REF','DEVICE','TYPE','OS','BROWSER','LOCATION (APPROX.)','ASN','NETWORK PROVIDER',''].forEach(x=>hh.append(el('th','',x))); const hb=el('tbody'); detail.events.forEach(event=>{const row=el('tr');const visitorCell=el('td');if(event.visitor_id){const link=el('button','text-link',shortVisitorId(event.visitor_id));link.title=event.visitor_id;link.addEventListener('click',()=>{document.getElementById('visitors').scrollIntoView();showVisitor(event.visitor_id);});visitorCell.append(link);}else visitorCell.textContent='Legacy / unidentified';const location=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';const net=networkParts(event.asn_org);const cells=[new Date(event.created_at).toLocaleString(),visitorCell,pathname(event.path),sourceText(event),event.utm_medium||'—',event.ref||'—',deviceText(event),event.device_type||event.device_category||'Unknown',osText(event),browserText(event),location,net.asn||'—',net.provider||'—'];cells.forEach((value,index)=>{if(index===1)row.append(value);else{const cell=el('td');cell.append(clipped(value));row.append(cell);}});const detailCell=el('td');detailCell.append(eventDetails(event));row.append(detailCell);hb.append(row);});history.append(el('thead','').appendChild(hh).parentNode,hb);
+      const history=el('table','history-table compact-history'); const hh=el('tr'); ['TIMESTAMP','VISITOR ID','PATH','SOURCE','MEDIUM','REF','DEVICE','TYPE','OS','BROWSER','LOCATION (APPROX.)','ASN','NETWORK PROVIDER',''].forEach(x=>hh.append(el('th','',x))); const hb=el('tbody'); detail.events.forEach(event=>{const row=el('tr');const visitorCell=el('td');if(event.visitor_id){const link=el('button','text-link',shortVisitorId(event.visitor_id));link.title=event.visitor_id;link.addEventListener('click',()=>{document.getElementById('visitors').scrollIntoView();showVisitor(event.visitor_id);});visitorCell.append(link);}else visitorCell.textContent='Legacy / unidentified';const location=[event.city,event.region,event.country].filter(Boolean).join(', ')||'Unknown';const net=networkParts(event.asn_org);const cells=[new Date(event.created_at).toLocaleString(),visitorCell,pathname(event.path),sourceText(event),event.utm_medium||'—',event.ref||'—',deviceText(event),deviceTypeText(event),osText(event),browserText(event),location,net.asn||'—',net.provider||'—'];cells.forEach((value,index)=>{if(index===1)row.append(value);else{const cell=el('td');cell.append(clipped(value));row.append(cell);}});const detailCell=el('td');detailCell.append(eventDetails(event));row.append(detailCell);hb.append(row);});history.append(el('thead','').appendChild(hh).parentNode,hb);
       const historyPager=el('div','pagination');if(pagination.page>1){const prev=el('button','','← NEWER');prev.addEventListener('click',()=>showIp(ip,historyPage-1));historyPager.append(prev);}historyPager.append(el('span','state',`PAGE ${pagination.page} / ${Math.max(1,pagination.pages)}`));if(pagination.page<pagination.pages){const next=el('button','','OLDER →');next.addEventListener('click',()=>showIp(ip,historyPage+1));historyPager.append(next);}
       const trackedEvent=detail.events.find(hasTracking);box.append(section('SUMMARY'),grid,section('NETWORK / APPROXIMATE LOCATION'),location,section('VISITOR IDs USING THIS IP'),visitorTable,aggregateTable('REFERRERS',detail.referrers,'source'),...(trackedEvent?[section('TRACKING SUMMARY'),trackingBlock(trackedEvent)]:[]),aggregateTable('PATHS',normalizedPaths(detail.paths),'path'),section('VISIT HISTORY'),history,historyPager); target.replaceChildren(box); target.scrollIntoView({block:'start'});
     }

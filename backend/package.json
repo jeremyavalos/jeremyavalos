@@ -5,12 +5,12 @@
   "main": "src/index.js",
   "scripts": {
     "test": "npm run test:admin && node test/analytics_regression.js && node test/client_ip_regression.js && node ../test/regression_login.js",
-    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && node test/proxy_marking_integration.js",
+    "test:integration": "node test/migrations_regression.js && node test/analytics_integration.js && node test/geolocation_tracking_integration.js && node test/proxy_marking_integration.js",
     "start": "node src/migrate.js && node src/index.js",
     "dev": "nodemon src/index.js",
     "migrate": "node src/migrate.js",
     "migrate:node": "node src/migrate.js",
-    "test:admin": "node test/geolocation_regression.js && node test/user_agent_regression.js && node test/returning_popup_regression.js && node test/admin_analytics_regression.js"
+    "test:admin": "node test/geolocation_regression.js && node test/user_agent_regression.js && node test/traffic_regression.js && node test/returning_popup_regression.js && node test/admin_analytics_regression.js"
   },
   "engines": {
     "node": ">=18"
@@ -27,5 +27,8 @@
     "express-session": "^1.17.3",
     "helmet": "^6.0.1",
     "pg": "^8.11.0"
+  },
+  "allowScripts": {
+    "bcrypt@5.1.1": true
   }
 }
