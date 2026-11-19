@@ -110,17 +110,37 @@ window.addEventListener("scroll", requestParallax, { passive: true });
 window.addEventListener("resize", requestParallax);
 updateParallax();
 
+async function postAnalytics(event) {
+  const body = JSON.stringify({ ...event, event_id: window.crypto.randomUUID() });
+  // A recovered request reuses its event ID. The gateway uses a fresh nonce per attempt.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6500);
+    try {
+      const response = await fetch('/api/analytics', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+        credentials: 'same-origin', keepalive: true, signal: controller.signal
+      });
+      if (response.status < 500 || attempt === 2) return response;
+    } catch (error) {
+      if (attempt === 2) throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+}
+
 // Privacy-friendly analytics ping (non-blocking)
 try {
   (function sendAnalytics(){
     try {
-      const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
       const visitor_id = getOrCreateVisitorId();
       const params = new URLSearchParams(location.search);
       const tracking = {};
       ['ref','utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(key => { if (params.has(key)) tracking[key] = params.get(key); });
       const fingerprint = window.getFingerprint?.() || null;
-      const sendEvent = payload => fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ referrer:document.referrer||null, visitor_id, fingerprint, ...payload }) });
+      const sendEvent = payload => postAnalytics({ referrer:document.referrer||null, visitor_id, fingerprint, ...payload });
       sendEvent({ event_type:'page_view', path:location.pathname, ...tracking })
         .then(response => response.ok ? response.json() : null)
         .then(result => { if (result?.returning_visitor) window.dispatchEvent(new CustomEvent('returning-visitor-eligible', { detail: { visitor_id, context:result.returning_context } })); })
@@ -169,8 +189,7 @@ try {
   let detailsOpened = false;
 
   function trackPopup(eventType) {
-    const API = window.API_BASE || 'REPLACE_WITH_RAILWAY_URL';
-    return fetch(`${API}/api/analytics/track`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ visitor_id:eligibleVisitorId, fingerprint:window.getFingerprint?.() || null, event_type:eventType, path:location.pathname }) }).catch(()=>{});
+    return postAnalytics({ visitor_id:eligibleVisitorId, fingerprint:window.getFingerprint?.() || null, event_type:eventType, path:location.pathname }).catch(()=>{});
   }
 
   function onCooldown() {

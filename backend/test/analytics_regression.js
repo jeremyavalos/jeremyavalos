@@ -49,17 +49,22 @@ assert.strictEqual(parseFingerprint(null), null);
 for (const value of ['invalid', 'a'.repeat(100), {}, 123]) assert.strictEqual(parseFingerprint(value), false);
 
 const source = fs.readFileSync(path.join(__dirname, '../../script.js'), 'utf8');
-const tracking = source.slice(source.indexOf('// Privacy-friendly analytics ping'), source.indexOf('// Returning visitor prompt.'));
+const tracking = source.slice(source.indexOf('async function postAnalytics'), source.indexOf('// Returning visitor prompt.'));
 let captured;
 vm.runInNewContext(tracking, {
-  window: { API_BASE: 'https://api.example.test', getFingerprint: () => fingerprint },
+  window: { crypto: { randomUUID: () => '22222222-2222-4222-8222-222222222222' }, getFingerprint: () => fingerprint },
   getOrCreateVisitorId: () => '11111111-1111-4111-8111-111111111111',
   location: { pathname: '/', search: '?token=secret&utm_source=example' },
   document: { referrer: '', getElementById: () => null, querySelector: () => null },
-  URLSearchParams,
-  fetch: async (url, options) => { captured = JSON.parse(options.body); return { ok: false }; }
+  URLSearchParams, AbortController, setTimeout, clearTimeout,
+  fetch: async (url, options) => {
+    assert.strictEqual(url, '/api/analytics');
+    captured = JSON.parse(options.body);
+    return { ok: false, status: 400 };
+  }
 });
 assert.strictEqual(captured.path, '/');
+assert.strictEqual(captured.event_id, '22222222-2222-4222-8222-222222222222');
 assert.strictEqual(captured.utm_source, 'example');
 assert.strictEqual(captured.fingerprint, fingerprint);
 assert(!JSON.stringify(captured).includes('secret'));
