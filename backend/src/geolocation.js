@@ -67,7 +67,7 @@ function createGeolocationService({ db, token, fetchImpl = global.fetch, logger 
       [ip, location.country, location.region, location.city, location.timezone, location.asn_org]);
       return location;
     } catch (error) {
-      logger.warn('IP geolocation lookup failed', error.message);
+      logger.warn('IP geolocation lookup failed');
       await db.query(`INSERT INTO ip_geolocation_cache (ip, status, looked_up_at, expires_at)
         VALUES ($1,'failed',now(),now() + interval '1 hour')
         ON CONFLICT (ip) DO UPDATE SET status='failed', looked_up_at=now(), expires_at=EXCLUDED.expires_at`, [ip]);

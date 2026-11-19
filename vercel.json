@@ -1,5 +1,10 @@
 {
   "outputDirectory": ".",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "functions": {
+    "api/analytics.mjs": {
+      "maxDuration": 10
+    }
+  }
 }

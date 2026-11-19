@@ -21,6 +21,10 @@ const { createGeolocationService, isPublicIp, normalizeIp } = require('./geoloca
 const { parseUserAgent } = require('./userAgent');
 const { identifyStoredEvent, lastRecognized, recognized } = require('./eventIdentification');
 const { createTrafficClassifier } = require('./traffic');
+const gateway = require('./analyticsGateway');
+const configuredKey = process.env.ANALYTICS_HMAC_SECRET;
+const gatewayKey = /^[0-9a-f]{64}$/i.test(configuredKey || '') ? Buffer.from(configuredKey, 'hex') : null;
+
 
 const classifyTraffic = createTrafficClassifier();
 
@@ -54,7 +58,7 @@ function getTrustedProxyNetworks() {
     }
     trustedProxyNetworks = networks;
   } catch (error) {
-    console.warn('WARNING: invalid TRUSTED_PROXY_CIDRS; forwarding headers will be ignored.', error.message);
+    console.warn('WARNING: invalid TRUSTED_PROXY_CIDRS; forwarding headers will be ignored.');
     trustedProxyNetworks = new BlockList();
   }
   return trustedProxyNetworks;
@@ -100,21 +104,25 @@ function parseFingerprint(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}$/i.test(value) ? value.toLowerCase() : false;
 }
 
-app.use((req, res, next) => {
-  if (process.env.DEBUG_IP === '1') {
-    console.log('DEBUG_IP', {
-      'x-forwarded-for': req.headers['x-forwarded-for'] || null,
-      'socket.remoteAddress': req.socket?.remoteAddress || null,
-      'req.ip': req.ip,
-      'cf-connecting-ip': req.headers['cf-connecting-ip'] || null,
-      'x-real-ip': req.headers['x-real-ip'] || null,
-      clientIp: getClientIp(req),
-      ip_source: getClientIpDetails(req).source
-    });
-  }
-  next();
-});
 app.use(helmet());
+// Server-to-server only. Limit raw bytes before parsing, with no sessions,
+// browser CORS or shared gateway-IP rate limit on this endpoint.
+app.post(gateway.ingestPath,
+  (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (!gatewayKey) return res.status(503).json({ error: 'analytics unavailable' });
+    if (!/^application\/json$/i.test(req.get('content-type') || '') || req.get('content-encoding')) {
+      return res.status(415).json({ error: 'unsupported content type' });
+    }
+    next();
+  },
+  express.raw({ type: 'application/json', limit: gateway.bodyLimit, inflate: false }),
+  ingestSigned,
+  (error, req, res, next) => {
+    res.status(error.status === 413 ? 413 : 400).json({ error: 'invalid event body' });
+  }
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -123,7 +131,7 @@ app.use(cookieParser());
 // testing to avoid requiring a real Postgres session table during tests.
 const sessionStore = process.env.NODE_ENV === 'test'
   ? new session.MemoryStore()
-  : new PgSession({ pool: db.pool, tableName: 'session' });
+  : new PgSession({ pool: db.pool, tableName: 'session', errorLog: () => console.error('Admin session store error') });
 
 app.use(session({
   store: sessionStore,
@@ -168,7 +176,7 @@ const leadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
 function requireAllowedOrigin(req, res, next) {
   const origin = req.get('Origin');
   if (origin && !allowedOrigins.includes(origin)) {
-    console.warn('CORS: rejected origin ->', origin);
+    console.warn('CORS: rejected origin');
     return res.status(403).json({ error: 'Not allowed by CORS' });
   }
   next();
@@ -188,13 +196,13 @@ async function cleanExpiredAnalytics() {
   try {
     await cleanExpiredAnalytics();
   } catch (e) {
-    console.error('analytics retention cleanup failed', e);
+    console.error('analytics retention cleanup failed');
   }
   setInterval(async () => {
     try {
       await cleanExpiredAnalytics();
     } catch (e) {
-      console.error('analytics retention cleanup failed', e);
+      console.error('analytics retention cleanup failed');
     }
   }, 24 * 60 * 60 * 1000);
 }
@@ -312,66 +320,141 @@ app.use('/api/admin', (req, res, next) => {
 });
 
 // Health
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => {
+  if (process.env.ANALYTICS_REQUIRE_GATEWAY === '1' && !gatewayKey) return res.status(503).json({ ok: false });
+  res.json({ ok: true });
+});
 
-// Analytics tracking (privacy-friendly)
-app.post('/api/analytics/track', async (req, res) => {
-  try {
-    const { path, referrer } = req.body || {};
-    const fingerprint = parseFingerprint(req.body?.fingerprint);
-    if (fingerprint === false) return res.status(400).json({ error: 'invalid fingerprint' });
-    const visitorId = parseVisitorId(req.body?.visitor_id);
-    if (visitorId === false) return res.status(400).json({ error: 'invalid visitor id' });
-    const tracking = parseTracking(req);
-    if (tracking === false) return res.status(400).json({ error: 'invalid tracking parameters' });
-    const eventType = req.body?.event_type == null ? 'page_view' : String(req.body.event_type);
-    if (!PUBLIC_EVENT_TYPES.has(eventType)) return res.status(400).json({ error: 'invalid event type' });
-    const sectionName = req.body?.section_name == null ? null : String(req.body.section_name).toUpperCase();
-    if ((eventType === 'section_view' && !SECTION_NAMES.has(sectionName)) || (eventType !== 'section_view' && sectionName)) return res.status(400).json({ error: 'invalid section' });
-    const { ip, source: ipSource } = getClientIpDetails(req);
-    const rawUserAgent = req.get('User-Agent') || null;
-    const ua = parseUserAgent(rawUserAgent, req.headers);
-    let returningVisitor = false;
-    let returningContext = null;
-    let previousVisit = null;
-    let firstSeen = null;
-    if (visitorId && eventType === 'page_view') {
-      const previous = await db.query(`SELECT created_at AS previous_visit, MIN(created_at) OVER () AS first_seen
-        FROM analytics_events WHERE visitor_id = $1 AND event_type = 'page_view'
-        ORDER BY created_at DESC LIMIT 1`, [visitorId]);
-      previousVisit = previous.rows[0]?.previous_visit || null;
-      firstSeen = previous.rows[0]?.first_seen || previousVisit;
-      returningVisitor = Boolean(previousVisit);
-      const currentIp = normalizeIp(ip);
-      if (returningVisitor) {
-        let location = {};
-        if (isPublicIp(currentIp)) {
-          const cachedLocation = await db.query("SELECT city, region, country, asn_org FROM ip_geolocation_cache WHERE ip = $1 AND status = 'resolved' AND expires_at > now()", [currentIp]);
-          location = cachedLocation.rows[0] || {};
-        }
-        returningContext = {
-          ip: isPublicIp(currentIp) ? currentIp : null,
-          city: location.city || null,
-          region: location.region || null,
-          country: location.country || null,
-          network: location.asn_org || null,
-          device: ua.device_name || null,
-          os: [ua.operating_system, ua.operating_system_version].filter(Boolean).join(' ') || null,
-          browser: [ua.browser, ua.browser_version].filter(Boolean).join(' ') || null,
-          previous_visit: previousVisit,
-          first_seen: firstSeen
-        };
+function parseAnalyticsEvent(req, signed = false) {
+  const body = req.body || {};
+  const { path, referrer } = body;
+  if (signed) {
+    const allowed = new Set(['event_id', 'path', 'referrer', 'visitor_id', 'fingerprint', 'event_type', 'section_name', ...TRACKING_FIELDS]);
+    if (Object.keys(body).some(field => !allowed.has(field) ||
+        (body[field] != null && typeof body[field] !== 'string')) ||
+        typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.length > 1024 ||
+        /[\x00-\x1f\x7f]/.test(path) ||
+        (referrer != null && (referrer.length > 2048 || /[\x00-\x1f\x7f]/.test(referrer))) ||
+        typeof body.event_type !== 'string') return { error: 'invalid event' };
+  }
+  const fingerprint = parseFingerprint(body.fingerprint);
+  if (fingerprint === false) return { error: 'invalid fingerprint' };
+  const visitorId = parseVisitorId(body.visitor_id);
+  if (visitorId === false) return { error: 'invalid visitor id' };
+  const tracking = parseTracking(req);
+  if (tracking === false) return { error: 'invalid tracking parameters' };
+  const eventType = body.event_type == null ? 'page_view' : String(body.event_type);
+  if (!PUBLIC_EVENT_TYPES.has(eventType)) return { error: 'invalid event type' };
+  const sectionName = body.section_name == null ? null : String(body.section_name).toUpperCase();
+  if ((eventType === 'section_view' && !SECTION_NAMES.has(sectionName)) || (eventType !== 'section_view' && sectionName)) {
+    return { error: 'invalid section' };
+  }
+  return { fingerprint, visitorId, tracking, eventType, sectionName, path, referrer: referrer || req.get('Referer') || null };
+}
+
+async function storeAnalyticsEvent(client, event, { ip, source: ipSource }, headers) {
+  const { path, referrer, fingerprint, visitorId, tracking, eventType, sectionName } = event;
+  const rawUserAgent = headers['user-agent'] || null;
+  const ua = parseUserAgent(rawUserAgent, headers);
+  let returningVisitor = false;
+  let returningContext = null;
+  let previousVisit = null;
+  let firstSeen = null;
+  if (visitorId && eventType === 'page_view') {
+    const previous = await client.query(`SELECT created_at AS previous_visit, MIN(created_at) OVER () AS first_seen
+      FROM analytics_events WHERE visitor_id = $1 AND event_type = 'page_view'
+      ORDER BY created_at DESC LIMIT 1`, [visitorId]);
+    previousVisit = previous.rows[0]?.previous_visit || null;
+    firstSeen = previous.rows[0]?.first_seen || previousVisit;
+    returningVisitor = Boolean(previousVisit);
+    const currentIp = normalizeIp(ip);
+    if (returningVisitor) {
+      let location = {};
+      if (isPublicIp(currentIp)) {
+        const cachedLocation = await client.query("SELECT city, region, country, asn_org FROM ip_geolocation_cache WHERE ip = $1 AND status = 'resolved' AND expires_at > now()", [currentIp]);
+        location = cachedLocation.rows[0] || {};
       }
+      returningContext = {
+        ip: isPublicIp(currentIp) ? currentIp : null,
+        city: location.city || null,
+        region: location.region || null,
+        country: location.country || null,
+        network: location.asn_org || null,
+        device: ua.device_name || null,
+        os: [ua.operating_system, ua.operating_system_version].filter(Boolean).join(' ') || null,
+        browser: [ua.browser, ua.browser_version].filter(Boolean).join(' ') || null,
+        previous_visit: previousVisit,
+        first_seen: firstSeen
+      };
     }
-    const inserted = await db.query(
-      'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version, fingerprint, ip_source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id, created_at',
-      [normalizeAnalyticsPath(path), referrer || req.get('Referer') || null, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version, fingerprint, ipSource]
-    );
-    if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
-    res.json({ ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) });
-    geolocation.enrichEvent(inserted.rows[0]?.id, ip).catch(error => console.warn('IP geolocation enrichment failed', error.message));
-  } catch (e) {
-    console.error('analytics track error', e);
+  }
+  const inserted = await client.query(
+    'INSERT INTO analytics_events (path, referrer, user_agent, device_category, browser_family, country, ip, visitor_id, ref, utm_source, utm_medium, utm_campaign, utm_content, utm_term, event_type, section_name, device_name, device_type, operating_system, operating_system_version, browser, browser_version, fingerprint, ip_source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id, created_at',
+    [normalizeAnalyticsPath(path), referrer, rawUserAgent, ua.device_type, ua.browser, null, ip, visitorId, tracking.ref, tracking.utm_source, tracking.utm_medium, tracking.utm_campaign, tracking.utm_content, tracking.utm_term, eventType, sectionName, ua.device_name, ua.device_type, ua.operating_system, ua.operating_system_version, ua.browser, ua.browser_version, fingerprint, ipSource]
+  );
+  if (returningContext) returningContext.current_visit = inserted.rows[0]?.created_at || null;
+  return {
+    eventId: inserted.rows[0]?.id,
+    ip,
+    response: { ok: true, ...(eventType === 'page_view' ? { returning_visitor: returningVisitor, returning_context: returningContext } : {}) }
+  };
+}
+
+function sendTrackedEvent(res, result) {
+  res.json(result.response);
+  if (result.eventId) geolocation.enrichEvent(result.eventId, result.ip).catch(() => console.warn('IP geolocation enrichment failed'));
+}
+
+async function ingestSigned(req, res) {
+  const auth = gateway.authenticate(req, gatewayKey);
+  if (!auth) return res.status(401).json({ error: 'invalid gateway authentication' });
+  const envelope = gateway.decode(req.body);
+  if (!envelope) return res.status(400).json({ error: 'invalid event' });
+  const event = parseAnalyticsEvent({ body: envelope.event, get: () => undefined }, true);
+  if (event.error) return res.status(400).json({ error: event.error });
+  const eventKey = envelope.event.event_id;
+  const hash = gateway.eventHash(envelope.event);
+  try {
+    const result = await db.transaction(async client => {
+      if (!await gateway.claimNonce(client, auth.nonce)) return { status: 409, response: { error: 'replayed request' } };
+      if (!await gateway.allowNetwork(client, auth.ip, gatewayKey)) return { status: 429, response: { error: 'analytics rate limit' } };
+      const reserved = await client.query(
+        'INSERT INTO analytics_gateway_events (event_key, payload_hash) VALUES ($1,$2) ON CONFLICT DO NOTHING', [eventKey, hash]
+      );
+      if (!reserved.rowCount) {
+        const existing = await client.query(`SELECT g.payload_hash, g.response, g.event_id, ae.ip
+          FROM analytics_gateway_events g LEFT JOIN analytics_events ae ON ae.id = g.event_id
+          WHERE g.event_key = $1`, [eventKey]);
+        const row = existing.rows[0];
+        if (row?.payload_hash !== hash) return { status: 409, response: { error: 'event identifier conflict' } };
+        return { response: row.response, eventId: row.event_id, ip: row.ip };
+      }
+      if (event.visitorId) {
+        await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [event.visitorId]);
+      }
+      const result = await storeAnalyticsEvent(client, event, { ip: auth.ip, source: 'vercel-gateway' }, envelope.client);
+      await client.query(
+        'UPDATE analytics_gateway_events SET event_id=$2, response=$3 WHERE event_key=$1', [eventKey, result.eventId, result.response]
+      );
+      return result;
+    });
+    if (result.status) return res.status(result.status).json(result.response);
+    sendTrackedEvent(res, result);
+  } catch {
+    console.error('Analytics gateway transaction failed');
+    res.status(503).json({ error: 'analytics unavailable' });
+  }
+}
+
+// Legacy browser route remains available only during the coordinated cutover.
+app.post('/api/analytics/track', async (req, res) => {
+  if (process.env.ANALYTICS_REQUIRE_GATEWAY === '1') return res.status(401).json({ error: 'gateway required' });
+  try {
+    const event = parseAnalyticsEvent(req);
+    if (event.error) return res.status(400).json({ error: event.error });
+    sendTrackedEvent(res, await storeAnalyticsEvent(db, event, getClientIpDetails(req), req.headers));
+  } catch {
+    console.error('Analytics tracking failed');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -407,7 +490,7 @@ app.post('/api/leads', leadLimiter, async (req, res) => {
       console.warn('EMAIL: lead notification skipped — Resend configuration missing');
     }
   } catch (error) {
-    console.error('lead capture error', error);
+    console.error('lead capture error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -453,7 +536,7 @@ app.get('/api/admin/visitors', async (req, res) => {
     }));
     res.json({ visitors: out, pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
-    console.error('admin visitors error', e);
+    console.error('admin visitors error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -530,7 +613,7 @@ app.get('/api/admin/visitors/:visitorId', async (req, res) => {
       recent_visits: [...displayEvents.values()],
       history_pagination: { page, page_size: pageSize, pages: pageCount, total: events.length } } });
   } catch (e) {
-    console.error('admin visitor detail error', e);
+    console.error('admin visitor detail error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -554,7 +637,7 @@ app.get('/api/admin/fingerprint/:fp', async (req, res) => {
     res.json({ fingerprint, visitors: visitors.rows.map(visitor => ({ ...visitor, visits: Number(visitor.visits) })), events: events.rows,
       pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
   } catch (error) {
-    console.error('admin fingerprint error', error);
+    console.error('admin fingerprint error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -578,7 +661,7 @@ app.get('/api/admin/ips', async (req, res) => {
       ORDER BY last_seen DESC LIMIT $1 OFFSET $2`, [pageSize, offset]);
     res.json({ ips: q.rows.map(r => ({ ...r, visits: Number(r.visits) })), pagination: { page, page_size: pageSize, total: Number(count.rows[0].count), pages: Math.ceil(Number(count.rows[0].count) / pageSize) } });
   } catch (e) {
-    console.error('admin ips error', e);
+    console.error('admin ips error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -638,7 +721,7 @@ app.get('/api/admin/ips/:ip', async (req, res) => {
       referrers: [...referrerCounts].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source))
     }, pagination: { page, page_size: pageSize, total: Number(s.total_visits), pages: Math.ceil(Number(s.total_visits) / pageSize) } });
   } catch (e) {
-    console.error('admin ip detail error', e);
+    console.error('admin ip detail error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -665,7 +748,7 @@ app.get('/api/admin/tracking', async (req, res) => {
     const total = Number(count.rows[0].count);
     res.json({ tracking: q.rows.map(row => ({ ...row, visits: Number(row.visits), distinct_visitor_ids: Number(row.distinct_visitor_ids) })), pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
   } catch (e) {
-    console.error('admin tracking error', e);
+    console.error('admin tracking error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -689,7 +772,7 @@ app.get('/api/admin/tracking/:ref', async (req, res) => {
       FROM analytics_events WHERE ref = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [ref, pageSize, offset]);
     res.json({ referral: { ref, visitors: visitors.rows.map(v => ({ ...v, visits: Number(v.visits) })), events: events.rows.map(event => ({ ...describeEvent(event), referrer_label: readableReferrer(event.referrer) })) }, pagination: { page, page_size: pageSize, total, pages: Math.ceil(total / pageSize) } });
   } catch (e) {
-    console.error('admin tracking detail error', e);
+    console.error('admin tracking detail error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -709,7 +792,7 @@ app.get('/api/admin/overview', async (req, res) => {
       Object.entries(overview).map(([key, value]) => [key, Number(value)])
     ) });
   } catch (e) {
-    console.error('admin overview error', e);
+    console.error('admin overview error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -743,7 +826,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
     // regenerate session to prevent fixation, then mark as admin
     req.session.regenerate((err) => {
       if (err) {
-        console.error('session regen failed', err);
+        console.error('session regen failed');
         return res.status(500).json({ error: 'server error' });
       }
       setAdminSession(req);
@@ -763,7 +846,7 @@ app.post('/admin/login', loginLimiter, express.urlencoded({ extended: true }), a
       }
     });
   } catch (e) {
-    console.error('admin login error', e);
+    console.error('admin login error');
     res.status(500).json({ error: 'server error' });
   }
 });
@@ -837,7 +920,7 @@ app.post('/admin/logout', async (req, res) => {
       await runMiddleware(req, res, csurf());
     }
   } catch (e) {
-    console.error('csrf logout failed', e);
+    console.error('csrf logout failed');
     return res.status(403).json({ error: 'forbidden' });
   }
   clearAdminSession(req);
@@ -846,6 +929,10 @@ app.post('/admin/logout', async (req, res) => {
 
 const HOST = process.env.HOST || '0.0.0.0';
 if (require.main === module) {
+  if (gatewayKey) {
+    gateway.cleanGatewayRecords(db).catch(() => console.warn('Analytics gateway cleanup failed'));
+    setInterval(() => gateway.cleanGatewayRecords(db).catch(() => console.warn('Analytics gateway cleanup failed')), 5 * 60 * 1000).unref();
+  }
   app.listen(PORT, HOST, () => console.log(`Server listening on ${HOST}:${PORT}`));
 }
 
